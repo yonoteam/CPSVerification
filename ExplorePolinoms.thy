@@ -48,7 +48,22 @@ value "[((1::int),1),(2,2),(3,2)] \<in> Collect monom_inv"
 term "Abs_monom [((1::int),1),(2,2),(3,2)]"
 term "Rep_monom (x:: int monom)"
 value "Rep_monom (Abs_monom [((1::int),1),(2,2),(3,2)])"
+term "Rep_monom (Abs_monom [((1::int),1),(2,2),(3,2)])"
 
+thm monom_inv_def
+thm distinct_def
+
+lemma "Rep_monom (Abs_monom [((1::int),1),(2,2),(3,2)]) = [((1::int),1),(2,2),(3,2)]"
+apply(rule  Polynomials.monom.Abs_monom_inverse)
+apply(auto simp: monom_inv_def)
+done
+(* try *)
+
+value "List.extract (\<lambda> list. fst list = [(2, 2), (3, 1)]) 
+[([],2),([((1::int),1),(2,1),(3,1)],3::real),([(1,2::nat)],3),([(2,2),(3,1)],1),([(3,3)],5),([(4,1)],1)]"
+
+declare [[show_types]]
+declare [[show_sorts]]
 
 (* P O L Y N O M I A L *)
 
