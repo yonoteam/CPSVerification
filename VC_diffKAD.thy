@@ -53,13 +53,12 @@ qed
 theorem dWeakening: "p2r G \<subseteq> p2r P \<Longrightarrow> PRE C (D[x] = f while G) POST P"
 proof(clarify)
 fix a b::"real store"
-fix G P::"real store pred"
-assume guardImpliesPost: "p2r G \<subseteq> p2r P" and abDef: "(a,b) \<in> rdom (p2r C)"
+assume guardImpliesPost: "p2r G \<subseteq> p2r P" and abHyp: "(a,b) \<in> rdom (p2r C)"
 have progrContainedInGuard: "snd ` (D[x] = f while G) \<subseteq> {s. G s}" 
 by (simp add: dEvolutionImpliesGuard)
 from this and guardImpliesPost have "snd ` (D[x] = f while G) \<subseteq> {s. P s}" using order_trans by auto
 then have "(D[x] = f while G) ; (rel_ad (p2r P)) = {}" by (meson nullCompNotIfSubset)
-thus "(a,b) \<in> wp (D [ x ] = f while G ) (p2r P)" by (metis abDef d_p2r p2r_subid 
+thus "(a,b) \<in> wp (D [ x ] = f while G ) (p2r P)" by (metis abHyp d_p2r p2r_subid 
 rel_antidomain_kleene_algebra.addual.bbox_def rel_antidomain_kleene_algebra.am1 
 rel_antidomain_kleene_algebra.fbox_one_1 relcomp_empty2 subsetCE) 
 qed
@@ -87,9 +86,6 @@ rel_antidomain_kleene_algebra.addual.ars_r_def rpr)
 lemma complement_rule4: "(x,x) \<in> R \<Longrightarrow> (x,x) \<notin> rel_ad R"
 by (metis empty_iff rel_antidomain_kleene_algebra.addual.ars1 relcomp.relcompI)
 
-thm wp_trafo
-thm rel_ad_def
-
 lemma guarDiffEqtn_def2: "(s1,s2) \<in> D [ x ] = f while G \<Longrightarrow> 
   \<exists> (t::real) (F::real \<Rightarrow> real store). t \<ge> 0 \<and> F t = s2 \<and> isFlow F x s1 f G"
 proof-
@@ -101,29 +97,69 @@ hence "t \<ge> 0 \<and> F t = s2 \<and> isFlow F x s1 f G" by blast
 thus ?thesis by blast 
 qed
 
+thm wp_trafo
+thm rel_ad_def
+
+lemma boxProgrPred_chrctrztn:"(x,x) \<in> wp R (p2r P) = (\<forall> y. (x,y) \<in> R \<longrightarrow> P y)"
+by (metis boxAlphaProp_IsProp complement_rule1 complement_rule2 complement_rule3 
+complement_rule4 d_p2r wp_simp wp_trafo)
+
+lemma condAfterEv_remainsAlongEv: "(a, a) \<in> wp {(s, F t) |s t F. 0 \<le> t \<and> isFlow F x s f G} (p2r C)
+\<Longrightarrow> isFlow F x a f G \<Longrightarrow> isFlow F x a f (\<lambda>s. G s \<and> C s)"
+proof-
+assume "(a, a) \<in> wp {(s, F t) |s t F. 0 \<le> t \<and> isFlow F x s f G} (p2r C)" then have 
+diffHyp:"\<forall> c. (a,c) \<in> {(s, F t) |s t F. 0 \<le> t \<and> isFlow F x s f G} \<longrightarrow> C c" using wp_trafo
+by (metis (no_types, lifting) Domain.intros r2p_def)
+assume flowHyp:"isFlow F x a f G"
+show "isFlow F x a f (\<lambda>s. G s \<and> C s)"
+  proof(simp add: isFlow_def, rule conjI)
+  show "F 0 = a" using flowHyp isFlow_def by simp
+  from flowHyp have "\<forall>s\<ge>0. (\<forall>t. 0 < t \<and> t < s \<longrightarrow> ((\<lambda>y. F y x) has_derivative f \<circ> F) (at t)) \<and> 
+  (\<forall>t. 0 \<le> t \<and> t \<le> s \<longrightarrow> (\<forall>y. y \<noteq> x \<longrightarrow> F t y = a y)) \<and> continuous (at_left 0) (\<lambda>y. F y x) \<and> 
+  continuous (at_right s) (\<lambda>y. F y x)" by (simp add: isFlow_def)
+  from this show "\<forall>xa\<ge>0. (\<forall>t. 0 < t \<and> t < xa \<longrightarrow> ((\<lambda>y. F y x) has_derivative f \<circ> F) (at t)) \<and>
+  (\<forall>t. 0 \<le> t \<and> t \<le> xa \<longrightarrow> G (F t) \<and> C (F t) \<and> (\<forall>y. y \<noteq> x \<longrightarrow> F t y = a y)) \<and>
+  continuous (at_left 0) (\<lambda>y. F y x) \<and> continuous (at_right xa) (\<lambda>y. F y x)"
+    proof(clarsimp)
+    fix s t::"real" assume "0 \<le> t" and "t \<le> s"
+    hence "(a,F t) \<in> {(s, F t) |s t F. 0 \<le> t \<and> isFlow F x s f G}" using flowHyp by auto
+    then show "G (F t) \<and> C (F t)" using \<open>0 \<le> t\<close> isFlow_def and diffHyp by auto 
+    qed
+  qed
+qed
+
+lemma boxDiffPred_impliesAllTimeInDiff:"(a,a) \<in> wp (D [ x ] = f while G) (p2r C) \<Longrightarrow>
+\<forall> t F. t\<ge>0 \<and> isFlow F x a f G \<longrightarrow> (a,F t) \<in> (D [ x ] = f while (\<lambda>s. G s \<and> C s))"
+apply(clarify, simp add: guarDiffEqtn_def, rule_tac x="t" in exI)
+apply(rule_tac x="F" in exI, rule conjI, simp, rule conjI, simp)
+apply(simp add: condAfterEv_remainsAlongEv)
+done
+
 theorem dCut: "(PRE P (D[x] = f while G) POST C) \<Longrightarrow> (PRE P (D[x] = f while (\<lambda> s. G s \<and> C s)) POST Q)
 \<Longrightarrow> PRE P (D[x] = f while G) POST Q"
 proof(clarify)
 fix a b::"real store"
 have "rdom \<lceil>P\<rceil> = p2r P" by simp 
-assume pHenceWpCut:"rdom (p2r P) \<subseteq> wp (D [ x ] = f while G ) (p2r C)" and 
-abDef:"(a,b) \<in> rdom (p2r P)"
+assume pHenceWpCut:"rdom (p2r P) \<subseteq> wp (D [ x ] = f while G ) (p2r C)" 
+assume abHyp:"(a,b) \<in> rdom (p2r P)"
 from this have "a = b \<and> P a" by (metis Domain.DomainI contra_subsetD d_p2r 
 impl_prop p2r_subid pair_in_Id_conv r2p_def rpr)
-from this abDef and pHenceWpCut have "(a,a) \<in> wp (D [ x ] = f while G) (p2r C)" by blast
-hence hip1:"\<forall> c. (a,c) \<in> (D [ x ] = f while G) \<longrightarrow> C c" by (metis Domain.DomainI r2p_def wp_trafo) 
+from this abHyp and pHenceWpCut have hip1:"(a,a) \<in> wp (D [ x ] = f while G) (p2r C)" by blast 
 assume pHenceBoxCq:"rdom (p2r P) \<subseteq> wp (D [ x ] = f while (\<lambda>s. G s \<and> C s) ) (p2r Q)"
-from this and abDef have hip2:"\<forall> c. (a,c) \<in> (D [ x ] = f while (\<lambda>s. G s \<and> C s)) \<longrightarrow> Q c" 
-by (metis (no_types) Domain.DomainI abDef contra_subsetD pHenceBoxCq r2p_def wp_trafo)
+from this and abHyp have hip2:"\<forall> c. (a,c) \<in> (D [ x ] = f while (\<lambda>s. G s \<and> C s)) \<longrightarrow> Q c" 
+by (metis (no_types) Domain.DomainI abHyp contra_subsetD pHenceBoxCq r2p_def wp_trafo)
 have "\<forall> c. (a,c) \<in> (D [ x ] = f while G) \<longrightarrow> Q c"
   proof(clarify)
   fix c 
   assume "(a, c) \<in> D [ x ] = f while G" from this obtain t::"real" and F::"real \<Rightarrow> real store" 
-    where "t\<ge>0 \<and> F t = c \<and> isFlow F x a f G" 
-    using guarDiffEqtn_def2 by blast 
-  hence "\<forall> s. 0 \<le> s \<and> s \<le> t \<longrightarrow> (a, F s) \<in> D [ x ] = f while G" 
-    oops
-    oops
+  where Fdef:"t\<ge>0 \<and> F t = c \<and> isFlow F x a f G" using guarDiffEqtn_def2 by blast 
+  then have "(a, F t) \<in> D [ x ] = f while (\<lambda>s. G s \<and> C s)" using boxDiffPred_impliesAllTimeInDiff
+  using hip1 by blast
+  from this Fdef and hip2 show "Q c" by simp
+  qed
+from this and \<open>a = b \<and> P a\<close> show "(a,b) \<in> wp (D [ x ] = f while G) (p2r Q)" 
+by (simp add: boxProgrPred_chrctrztn)
+qed 
 
 lemma "PRE (\<lambda> s. s ''x'' > 0)  
       (D[''x''] = (\<lambda> s. 1) while (\<lambda> s. s ''x'' > 0))
