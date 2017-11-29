@@ -1,4 +1,4 @@
-theory FirstAttempt
+theory SecondAttempt
   imports 
 Main
 "../afp-2017-10-18/thys/Polynomials/Polynomials"
@@ -213,7 +213,7 @@ qed
 
 lemma natScale_isHomomorphism: "natScale n (c+d) = natScale n c + natScale n d"
 apply(induction n, simp add: natScale_def)
-by (simp add: add.commute add.left_commute natScaleDef2)
+by (simp add: add.assoc add.left_commute natScaleDef2)
 
 lemma natScale_preservesInverses:"c + d = 0 \<longrightarrow> natScale n c + natScale n d = 0"
 apply(induction n, simp add: natScale_def)
@@ -222,23 +222,38 @@ by (simp add: add.commute add.left_commute natScaleDef2)
 (* Derivative on polynomials with respect to a variable. *)
 fun deriv :: "('v::linorder) \<Rightarrow> ('v,'a:: semiring_0)poly \<Rightarrow> ('v,'a)poly" where
 "deriv x [] = zero_poly"|
-"deriv x [(mon, coef)] = (if (fst (derivMonom x mon)) = 0 then zero_poly 
+"deriv x [(mon, coef)] = (if natScale (fst (derivMonom x mon)) coef = 0 then zero_poly 
   else [(snd (derivMonom x mon),natScale (fst (derivMonom x mon)) coef)])"|
 "deriv x (headMonom # tailMonom) = (deriv x [headMonom]) @ (deriv x tailMonom)"
+
+(* This is our previous definition for the derivative of polynomials. We found 'an error'...
+fun deriv :: "('v::linorder) \<Rightarrow> ('v,'a:: semiring_0)poly \<Rightarrow> ('v,'a)poly" where
+    "deriv x [] = zero_poly"|
+    "deriv x [(mon, coef)] = (if (fst (derivMonom x mon)) = 0 then zero_poly else 
+    [(snd (derivMonom x mon),natScale (fst (derivMonom x mon)) coef)])"|
+    "deriv x (headMonom # tailMonom) = (deriv x [headMonom]) @ (deriv x tailMonom)"
+*)
+
+lemma derivDeletes1[simp]: "natScale (fst (derivMonom x mon)) coef = 0 \<longrightarrow> 
+  deriv x ((mon, coef) # q) = deriv x q"
+proof
+  assume "natScale (fst (derivMonom x mon)) coef = 0"
+  hence "deriv x [(mon,coef)] = zero_poly" by simp
+  thus "deriv x ((mon, coef) # q) = deriv x q"
+  by (metis append_Nil deriv.simps(1) deriv.simps(3) list.exhaust zero_poly_def)
+qed
+
+lemma derivDeletes2[simp]: "fst (derivMonom x mon) = 0 \<longrightarrow> deriv x ((mon, coef) # q) = deriv x q"
+proof
+  assume "fst (derivMonom x mon) = 0" 
+  hence "natScale (fst (derivMonom x mon)) coef = 0" by (simp add: natScale_def)
+  thus "deriv x ((mon, coef) # q) = deriv x q" by simp
+qed
 
 (* The following lemmas are necessary to prove that the derivative of a sum is the sum of the 
 derivatives. We divide them by the goals that they help to solve. *)
 
-(* Goal 2.a.I. *)
-lemma derivDeletes: "fst (derivMonom x mon) = 0 \<longrightarrow> deriv x ((mon, coef) # q) = deriv x q"
-  proof
-    assume "fst (derivMonom x mon) = 0"
-    hence "deriv x [(mon,coef)] = zero_poly" by simp
-    thus "deriv x ((mon, coef) # q) = deriv x q"
-    by (metis append_Nil deriv.simps(1) deriv.simps(3) list.exhaust zero_poly_def)
-  qed
-
-(* Goal 2.a.II. For this goal I thought it was necessary to prove some form of injectivity for the 
+(* At some point, I thought it was necessary to prove some form of injectivity for the 
 derivative operator. However, the injectivity was required for other function, specifically for the
 composition of "snd" and "derivMonom". This fact I discovered later, after doing many injectivity 
 proofs. Thus, I ended up having more theorems than required. *)
@@ -250,7 +265,7 @@ lemma noCoincidence_Implies_AddOfPoly_IsAppend:
     using extract_None_iff by blast
     thus "poly_add [(myMon, someCoef)] q = [(myMon, someCoef)] @ q"
     by (simp add: poly_add.simps(1) poly_add.simps(2))
-    qed
+  qed
 
 (* This lemma is necessary for the first case in the theorem immediately below. *)
 lemma distinctImpliesUniqueHead:
@@ -303,8 +318,8 @@ proof
 qed
 
 (* The function sum_var_list is the function that the team from the Executable Multivariate
-Polynomials use to characterizes distinct monomials. Basically, to monomials are the same 
-the function "sum_var_list" on them coincides in all variables (see thm commands below). 
+Polynomials use to characterizes distinct monomials. Basically, two monomials are the same iff
+the function "sum_var_list" applied on them coincides in all variables (see thm commands below). 
 We needed some properties of this function to generate our injectivity results. *)
 thm sum_var_list_def
 thm sum_var_list_not
@@ -321,7 +336,7 @@ proof(clarify)
   from this and sumVarSingleHead show "sum_var_list (head # tail) x = sum_var_list tail x" by auto
 qed
 
-lemma sumVarListOnSingleInstances:"monom_inv ml \<longrightarrow> (x, m) \<in> set ml \<longrightarrow> sum_var_list ml x = m"
+lemma sumVarListX_OnMonomsWithX:"monom_inv ml \<longrightarrow> (x, m) \<in> set ml \<longrightarrow> sum_var_list ml x = m"
 proof(clarify, induction ml rule: list.induct, simp, rename_tac head tail)
   fix head tail
   assume IH:"monom_inv tail \<Longrightarrow> (x, m) \<in> set tail \<Longrightarrow> sum_var_list tail x = m"
@@ -525,13 +540,13 @@ proof(transfer)
     then have "\<forall> num. (x,num)\<in> set ml1 \<longrightarrow> num = m"
     using m1IsMonom monomialsHaveUniqueExponents xInMonom1 by blast 
     hence sumVarM1:"sum_var_list ml1 x = m" 
-    using \<open>(x, m) \<in> set ml1\<close> m1IsMonom sumVarListOnSingleInstances by blast 
+    using \<open>(x, m) \<in> set ml1\<close> m1IsMonom sumVarListX_OnMonomsWithX by blast 
   -- "Results for ml2."
     from xInMonom2 obtain n where "(x,n) \<in> set ml2" by auto 
     hence "\<forall> num. (x,num)\<in> set ml2 \<longrightarrow> num = n"
     using m2IsMonom monomialsHaveUniqueExponents xInMonom2 by blast
     then have sumVarM2:"sum_var_list ml2 x = n"
-    using \<open>(x, n) \<in> set ml2\<close> m2IsMonom sumVarListOnSingleInstances by blast 
+    using \<open>(x, n) \<in> set ml2\<close> m2IsMonom sumVarListX_OnMonomsWithX by blast 
   assume differentMonoms: "ml1 \<noteq> ml2"
   then obtain y where resultsSumVar:"sum_var_list ml1 y \<noteq> sum_var_list ml2 y"
   using eq_monom_sum_var_list m1IsMonom m2IsMonom by blast 
@@ -545,7 +560,7 @@ proof(transfer)
   {assume diffVars:"x\<noteq>y" 
     from resultsSumVar m1IsMonom and m2IsMonom obtain k where 
     ykPair:"((y,k) \<in> set ml1 \<and> (y,k) \<notin> set ml2)  \<or> ((y,k) \<in> set ml2 \<and> (y,k) \<notin> set ml1)"
-    by (metis monomialsHaveUniqueExponents sumVarListOnSingleInstances sum_var_list_not)
+    by (metis monomialsHaveUniqueExponents sumVarListX_OnMonomsWithX sum_var_list_not)
     from this and diffVars have "((y,k) \<in> set (downExp x ml1) \<and> (y,k) \<notin> set (downExp x ml2))
       \<or> ((y,k) \<in> set (downExp x ml2) \<and> (y,k) \<notin> set (downExp x ml1))" 
     using downExpIgnoresVars downExp_X_doesNotAffectOtherVars by blast 
@@ -620,7 +635,8 @@ lemma monomsInDerivative_ComeFromMonomsInOriginal:
 "\<forall> m. m \<in> poly_monoms (deriv x q) \<longrightarrow> 
   (\<exists> n. n \<in> poly_monoms q \<and> m = (snd (derivMonom x n)) \<and> IsVar x (Rep_monom n))"
 proof(induction q, simp add: zero_poly_def, rename_tac head tail)
-  fix head tail
+  fix head::"'a monom \<times> 'b"
+  fix tail::"('a monom \<times> 'b) list"
   assume IH: "\<forall>m. m \<in> poly_monoms (deriv x tail) \<longrightarrow> 
     (\<exists>n. n \<in> poly_monoms tail \<and> m = snd (derivMonom x n) \<and> IsVar x (Rep_monom n))"
   show "\<forall>m. m \<in> poly_monoms (deriv x (head # tail)) \<longrightarrow> 
@@ -642,7 +658,7 @@ proof(induction q, simp add: zero_poly_def, rename_tac head tail)
         from this and fstOption have whoIsM:"m = (snd (derivMonom x n))" by auto
         hence nInHead:"n \<in> poly_monoms [head]" using \<open>head = (n, c)\<close> by simp
         from derivHead have "fst (derivMonom x n) > 0"
-        by (metis (full_types) \<open>head = (n, c)\<close> deriv.simps(1) derivDeletes empty_iff empty_is_image 
+        by (metis (full_types) \<open>head = (n, c)\<close> deriv.simps(1) derivDeletes2 empty_iff empty_is_image 
           empty_set fstOption gr0I zero_poly_def)
         hence "fst (derivMonomList x (Rep_monom n)) > 0"
         by (metis derivMonom.rep_eq eq_id_iff fst_map_prod) 
@@ -662,20 +678,21 @@ proof(induction q, simp add: zero_poly_def, rename_tac head tail)
   qed
   qed
 
-lemma nonZeroDerivX_Implies_XinTheAntideriv: "0 < fst (derivMonom x mon) \<Longrightarrow> IsVar x (Rep_monom mon)"
+lemma nonZeroDerivMonomX_Implies_XinTheAntideriv: 
+  "fst (derivMonom x mon) > 0 \<Longrightarrow> IsVar x (Rep_monom mon)"
 proof-
-  assume notZero:"0 < fst (derivMonom x mon)"
+assume notZero:"fst (derivMonom x mon) > 0"
   have "fst (derivMonom x mon) = fst (derivMonomList x (Rep_monom mon))"
   by (metis derivMonom.rep_eq fst_map_prod id_def)
-  hence "fst (derivMonomList x (Rep_monom mon)) > 0" using notZero by (simp)
-  then show xInMon:"IsVar x (Rep_monom mon)" using neq_iff by fastforce 
+  hence "fst (derivMonomList x (Rep_monom mon)) \<noteq> 0" using notZero by simp
+  thus xInMon:"IsVar x (Rep_monom mon)" using neq_iff by fastforce 
 qed
 
 theorem derivRespectsMonoms: "0 < fst (derivMonom x mon) \<Longrightarrow> mon \<notin> poly_monoms q \<Longrightarrow> 
   (snd (derivMonom x mon)) \<notin> poly_monoms (deriv x q)"
 proof
   assume notZero:"0 < fst (derivMonom x mon)"
-  then have xInMon:"IsVar x (Rep_monom mon)" using nonZeroDerivX_Implies_XinTheAntideriv by blast
+  then have xInMon:"IsVar x (Rep_monom mon)" using nonZeroDerivMonomX_Implies_XinTheAntideriv by blast
   assume "mon \<notin> poly_monoms q" from this have "\<forall> m. m \<in> poly_monoms q \<longrightarrow> mon \<noteq> m" by auto
   then have monomsInQDifferInDerivsFromMon:"\<forall> m. m\<in>poly_monoms q\<longrightarrow>derivMonom x mon\<noteq>derivMonom x m"
   by (simp add: derivMonomIsInjection xInMon)
@@ -713,38 +730,12 @@ proof
       monomialsHaveUniqueExponents)
     from this downExpN and downExpMon have "False" by simp}
   ultimately show "False" by auto
-qed
-
-lemma for2aIISubgoal: "0 < fst (derivMonom x mon) \<longrightarrow> List.extract (\<lambda>mc. fst mc = mon) q = None \<longrightarrow>
-deriv x ((mon, coef) # q) = 
-  poly_add [(snd (derivMonom x mon), natScale (fst (derivMonom x mon)) coef)] (deriv x q)"
-proof(clarify)
-  fix x mon coef
-  assume notZero:"0 < fst (derivMonom x mon)" and "List.extract (\<lambda>mc. fst mc = mon) q = None"
-  then have notInQ:"mon \<notin> poly_monoms q" by (metis (mono_tags, lifting) extract_None_iff imageE)
-  from notZero have anEqlty: "deriv x ((mon,coef) # q) = 
-    [(snd (derivMonom x mon), natScale (fst (derivMonom x mon)) coef)] @ (deriv x q)"
-    by (metis (no_types, hide_lams) append_Cons append_Nil deriv.simps(1) deriv.simps(2) 
-    deriv.simps(3) list.exhaust not_less_zero zero_poly_def)
-  from notZero and notInQ have "(snd (derivMonom x mon)) \<notin> poly_monoms (deriv x q)" 
-  by (rule derivRespectsMonoms)
-  hence fstEquality: 
-  "poly_add [(snd (derivMonom x mon), natScale (fst (derivMonom x mon)) coef)] (deriv x q) = 
-    [(snd (derivMonom x mon), natScale (fst (derivMonom x mon)) coef)] @ (deriv x q)"
-  using noCoincidence_Implies_AddOfPoly_IsAppend by blast 
-  from notZero have sndEquality: "deriv x ((mon, coef) # q) = 
-    [(snd (derivMonom x mon), natScale (fst (derivMonom x mon)) coef)] @ (deriv x q)"
-    by (metis (no_types, hide_lams) append_Cons append_Nil deriv.simps(1) deriv.simps(2) deriv.simps(3) 
-    neq_Nil_conv not_less_zero zero_poly_def)
-  from fstEquality and sndEquality show "deriv x ((mon, coef) # q) = 
-    poly_add [(snd (derivMonom x mon), natScale (fst (derivMonom x mon)) coef)] (deriv x q)" by simp
-qed  
-    
-(* Goal 2.b.I. *)
-lemma derivOnMonomPoly: "0 < fst (derivMonom x mon) \<longrightarrow> deriv x ((mon, coef) # q) =
+  qed
+  
+lemma derivOnMonomPoly: "0 \<noteq> natScale (fst (derivMonom x mon)) coef \<longrightarrow> deriv x ((mon, coef) # q) =
 (snd (derivMonom x mon), natScale (fst (derivMonom x mon)) coef) # deriv x q"
 proof
-assume notZero:"0 < fst (derivMonom x mon)" from this have derivOfMonCoef:
+assume notZero:"0 \<noteq> natScale (fst (derivMonom x mon)) coef" from this have derivOfMonCoef:
 "deriv x [(mon, coef)] = [(snd (derivMonom x mon), natScale (fst (derivMonom x mon)) coef)]" by simp
 also have "deriv x ((mon, coef) # q) = (deriv x [(mon, coef)]) @ (deriv x q)"
 by (metis append_Nil2 deriv.simps(1) deriv.simps(3) neq_Nil_conv zero_poly_def)
@@ -757,48 +748,37 @@ qed
   
 lemma derivOnAppend: "deriv x (p @ q) = (deriv x p) @ (deriv x q)"
   apply(induction p rule: deriv.induct)
-  apply(simp add: zero_poly_def)
-  apply(auto simp: derivDeletes zero_poly_def)
+  apply(auto simp: zero_poly_def)
   apply(simp add: derivOnMonomPoly)
   done
 
-lemma for2bIsubgoal: "List.extract (\<lambda>mc. fst mc = mon) q = Some (p1, (monom, cnst), p2) \<longrightarrow> 
- fst (derivMonom x mon) = 0 \<longrightarrow> deriv x p1 @ deriv x p2 = deriv x q"
-proof
-  assume extractResult:"List.extract (\<lambda>mc. fst mc = mon) q = Some (p1, (monom, cnst), p2)"
-  show "fst (derivMonom x mon) = 0 \<longrightarrow> deriv x p1 @ deriv x p2 = deriv x q"
-  proof
-    assume zeroDeriv:"fst (derivMonom x mon) = 0"
-    from extractResult have "mon = monom" by (metis (mono_tags, lifting) extract_Some_iff fst_conv) 
-    from this and zeroDeriv have derivOfMiddle: "deriv x [(monom,cnst)] = zero_poly" by auto 
-    from extractResult have "q = p1 @ [(monom,cnst)] @ p2"
-    by (metis (no_types, lifting) append_Cons append_self_conv2 extract_Some_iff)
-    hence eq1:"deriv x q = deriv x (p1 @ [(monom,cnst)] @ p2)" by simp
-    also have eq2: "deriv x (p1 @ [(monom,cnst)] @ p2) = 
-    (deriv x p1) @ (deriv x [(monom,cnst)]) @ (deriv x p2)" by (metis derivOnAppend)
-    thus "deriv x p1 @ deriv x p2 = deriv x q" using derivOfMiddle eq1 eq2 zero_poly_def by auto
-  qed
-  qed
 
-(* Goal 2.b.II. *)
-lemma for2bIIsubgoal: " List.extract (\<lambda>mc. fst mc = mon) q = Some (p1, (monom, cnst), p2) \<longrightarrow> 
-fst (derivMonom x mon) = 0 \<longrightarrow> deriv x ((mon, coef + cnst) # p1 @ p2) = deriv x q"
-proof
-  assume extractResult:"List.extract (\<lambda>mc. fst mc = mon) q = Some (p1, (monom, cnst), p2)"
-  show "fst (derivMonom x mon) = 0 \<longrightarrow> deriv x ((mon, coef + cnst) # p1 @ p2) = deriv x q"
-  proof
-    assume zeroDeriv:"fst (derivMonom x mon) = 0"
-    from this and extractResult have eq1:"deriv x q = deriv x p1 @ deriv x p2 "
-    by (metis (mono_tags, lifting) derivDeletes derivOnAppend extract_Some_iff fst_conv) 
-    from extractResult have "mon = monom" by (metis (mono_tags, lifting) extract_Some_iff fst_conv)
-    from this and zeroDeriv have coefConst:"deriv x [(monom, coef + cnst)] = zero_poly" by auto
-    then have "deriv x ((mon, coef + cnst) # p1 @ p2) = deriv x p1 @ deriv x p2"
-    by (simp add: derivDeletes derivOnAppend zeroDeriv) 
-    thus "deriv x ((mon, coef + cnst) # p1 @ p2) = deriv x q" by (simp add: eq1)
-  qed
+lemma listExtractFstCoord: "x \<in> fst ` set (list :: ('a \<times> 'b) list) \<Longrightarrow> 
+\<exists> p1 p2 y. List.extract (\<lambda>pair. fst pair = x) list = Some (p1, (x, y), p2) \<and> x \<notin> fst ` set p1"
+proof(induction list, simp, rename_tac head tail)
+  fix head::"'a \<times> 'b"
+  fix tail::"('a \<times> 'b) list"
+  assume IH:"x \<in> fst ` set tail \<Longrightarrow> 
+    \<exists>p1 p2 y. List.extract (\<lambda>pair. fst pair = x) tail = Some (p1, (x, y), p2) \<and> x \<notin> fst ` set p1"
+  assume xInList:"x \<in> fst ` set (head # tail)"
+  {assume "x = fst head" then obtain y where "head = (x,y)" using prod.exhaust_sel by blast 
+    then have "List.extract (\<lambda>pair. fst pair = x) (head # tail) = Some ([],(x,y),tail)"
+    by (metis (mono_tags, lifting) \<open>x = fst head\<close> extract_Cons_code)
+    hence "\<exists>p1 p2 y. List.extract (\<lambda>pair. fst pair = x) (head # tail) = Some (p1, (x, y), p2) \<and> 
+      x \<notin> fst ` set p1" by simp}
+  moreover
+  {assume "x \<noteq> fst head" from this xInList and IH obtain listP1 p2 y where 
+    indConclusion:"List.extract (\<lambda>pair. fst pair = x) tail = Some (listP1, (x, y), p2) \<and> 
+      x \<notin> fst ` set listP1" by auto
+    from this and \<open>x \<noteq> fst head\<close> have xtrctRslt:"List.extract (\<lambda>pair. fst pair = x) (head # tail) = 
+      Some (head # listP1,(x,y),p2)" by (simp add: extract_Cons_code)
+    from indConclusion and \<open>x \<noteq> fst head\<close> have "x \<notin> fst ` set (head # listP1)" by simp
+    hence "\<exists>p1 p2 y. List.extract (\<lambda>pair. fst pair = x) (head # tail) = Some (p1, (x, y), p2) \<and> 
+      x \<notin> fst ` set p1" using xtrctRslt by simp}
+  ultimately show "\<exists>p1 p2 y. List.extract (\<lambda>pair. fst pair = x) (head # tail) = 
+    Some (p1, (x, y), p2) \<and> x \<notin> fst ` set p1" by auto
 qed
 
-(* Goal 2.b.III.i. *) 
 lemma listExtractOnAppendWithInstance:"list = part1 @ [(x,y)] @ part2 \<Longrightarrow> x \<notin> fst ` set part1 \<Longrightarrow> 
   List.extract (\<lambda>pair. fst pair = x) list = Some (part1, (x, y), part2)"
 proof-
@@ -811,71 +791,6 @@ proof-
   thus "List.extract (\<lambda>pair. fst pair = x) list = Some (part1, (x, y), part2)"
   by (metis \<open>list = part1 @ (x, y) # part2\<close> extract_Some_iff) 
 qed
-
-lemma for2bIIIiSubgoal: " List.extract (\<lambda>mc. fst mc = mon) q = Some (p1, (monom, cnst), p2) \<Longrightarrow>
-coef + cnst = 0 \<Longrightarrow> 0 < fst (derivMonom x mon) \<Longrightarrow> deriv x (p1 @ p2) = 
-  poly_add [(snd (derivMonom x mon), natScale (fst (derivMonom x mon)) coef)] (deriv x q)"
-proof-
-  assume "List.extract (\<lambda>mc. fst mc = mon) q = Some (p1, (monom, cnst), p2)"
-  from this have qShape:"mon = monom \<and> q = p1 @ [(monom,cnst)] @ p2 \<and> mon \<notin> poly_monoms p1"
-  using extract_SomeE by fastforce
-  then have derivQShape:"deriv x q = (deriv x p1) @ (deriv x [(mon,cnst)]) @ (deriv x p2)" 
-  by (metis derivOnAppend)
-  assume notZero:"0 < fst (derivMonom x mon)" then have derivMonCnst:"deriv x [(mon,cnst)] = 
-    [(snd (derivMonom x mon), natScale (fst (derivMonom x mon)) cnst)]" by auto
-  from qShape have "snd (derivMonom x mon) \<notin> poly_monoms (deriv x p1)"
-  using derivRespectsMonoms notZero by blast 
-  from this derivMonCnst and derivQShape have 
-  extractOnDerivQ:"List.extract (\<lambda>mc. fst mc = snd (derivMonom x mon)) (deriv x q) = 
-  Some (deriv x p1, (snd (derivMonom x mon), natScale (fst (derivMonom x mon)) cnst), deriv x p2)" 
-    by (simp add: listExtractOnAppendWithInstance)
-  assume "coef + cnst = 0" from this 
-  have "natScale (fst (derivMonom x mon)) coef + natScale (fst (derivMonom x mon)) cnst = 0" 
-  by (simp add: natScale_preservesInverses)
-  from this and extractOnDerivQ have 
-  "poly_add [(snd (derivMonom x mon), natScale (fst (derivMonom x mon)) coef)] (deriv x q) = 
-    (deriv x p1) @ (deriv x p2)" by (simp add: poly_add.simps add.commute)
-  from this show ?thesis by (simp add: derivOnAppend)
-qed
-
-(* Goal 2.b.III.ii. *)
-lemma for2bIIIiiSubgoal: "0 < fst (derivMonom x mon) \<Longrightarrow> coef + cnst \<noteq> 0 \<Longrightarrow> 
-  List.extract (\<lambda>mc. fst mc = mon) q = Some (p1, (monom, cnst), p2) \<Longrightarrow>
-  deriv x ((mon, coef + cnst) # p1 @ p2) = 
-    poly_add [(snd (derivMonom x mon), natScale (fst (derivMonom x mon)) coef)] (deriv x q)"
-proof-
-  assume "List.extract (\<lambda>mc. fst mc = mon) q = Some (p1, (monom, cnst), p2)"
-  from this have qShape:"mon = monom \<and> q = p1 @ [(monom,cnst)] @ p2 \<and> mon \<notin> poly_monoms p1"
-  using extract_SomeE by fastforce
-  then have derivQShape:"deriv x q = (deriv x p1) @ (deriv x [(mon,cnst)]) @ (deriv x p2)" 
-  by (metis derivOnAppend)
-  assume notZero:"0 < fst (derivMonom x mon)" then have derivMonCnst:"deriv x [(mon,cnst)] = 
-    [(snd (derivMonom x mon), natScale (fst (derivMonom x mon)) cnst)]" by auto
-  from qShape have "snd (derivMonom x mon) \<notin> poly_monoms (deriv x p1)"
-  using derivRespectsMonoms notZero by blast 
-  from this derivMonCnst and derivQShape have 
-  extractOnDerivQ:"List.extract (\<lambda>mc. fst mc = snd (derivMonom x mon)) (deriv x q) = 
-  Some (deriv x p1, (snd (derivMonom x mon), natScale (fst (derivMonom x mon)) cnst), deriv x p2)" 
-  by (simp add: listExtractOnAppendWithInstance)
-  assume "coef + cnst \<noteq> 0"
-  {assume "natScale (fst (derivMonom x mon)) coef + natScale (fst (derivMonom x mon)) cnst \<noteq> 0"
-    from this and extractOnDerivQ have 
-    "poly_add [(snd (derivMonom x mon), natScale (fst (derivMonom x mon)) coef)] (deriv x q) = 
-      (snd (derivMonom x mon), (natScale (fst (derivMonom x mon)) coef) + 
-        (natScale (fst (derivMonom x mon)) cnst)) # ((deriv x p1) @ (deriv x p2))" 
-    by (simp add: poly_add.simps)
-    hence ?thesis
-    by (simp add: derivOnAppend derivOnMonomPoly natScale_isHomomorphism notZero)} 
-  moreover
-  {assume eq0:"natScale (fst (derivMonom x mon)) coef + natScale (fst (derivMonom x mon)) cnst = 0"
-    from this and extractOnDerivQ have 
-    "poly_add [(snd (derivMonom x mon), natScale (fst (derivMonom x mon)) coef)] (deriv x q) = 
-      (deriv x p1) @ (deriv x p2)" by (simp add: poly_add.simps add.commute)
-    have "deriv x [(mon, coef + cnst)] = ([(snd (derivMonom x mon), natScale (fst (derivMonom x mon)) coef + natScale (fst (derivMonom x mon)) cnst)])"
-    by (simp add: natScale_isHomomorphism notZero zero_poly_def)
-    hence ?thesis by sorry}
-  ultimately show ?thesis by auto
-qed
   
 text{* Reminders for what comes next: 
   · ('v,'a)poly = "('v monom \<times> 'a)list"
@@ -883,34 +798,193 @@ text{* Reminders for what comes next:
   · poly_inv p \<equiv> (\<forall> c \<in> snd ` set p. c \<noteq> 0) \<and> distinct (map fst p)" 
   · fun deriv :: "('v::linorder) \<Rightarrow> ('v,'a:: semiring_0)poly \<Rightarrow> ('v,'a)poly" where
     "deriv x [] = zero_poly"|
-    "deriv x [(mon, coef)] = (if (fst (derivMonom x mon)) = 0 then zero_poly else 
-    [(snd (derivMonom x mon),natScale (fst (derivMonom x mon)) coef)])"|
+    "deriv x [(mon, coef)] = (if natScale (fst (derivMonom x mon)) coef = 0 then zero_poly 
+      else [(snd (derivMonom x mon),natScale (fst (derivMonom x mon)) coef)])"|
     "deriv x (headMonom # tailMonom) = (deriv x [headMonom]) @ (deriv x tailMonom)"
   · definition natScale :: "nat \<Rightarrow> ('a::semiring_0) \<Rightarrow> 'a" where
     "natScale n x = ((plus x) ^^ n) 0 
 *}
 
+declare poly_add.simps[simp]
 
-lemma "deriv x (poly_add p q) = poly_add (deriv x p) (deriv x q)"
+lemma additivityOf_derivX:
+"set (deriv x (poly_add [(mon, coef)] q)) = set (poly_add (deriv x [(mon, coef)]) (deriv x q))"
+proof(cases "mon \<in> poly_monoms q")
+  case False
+  then have nonExtract:"List.extract (\<lambda>pair. fst pair = mon) q = None" 
+  using extract_None_iff by blast 
+  from this have "poly_add [(mon, coef)] q = (mon, coef) # q" by simp
+  hence eq1:"deriv x (poly_add [(mon, coef)] q) = (deriv x [(mon,coef)]) @ (deriv x q)"
+  by (metis False derivOnAppend noCoincidence_Implies_AddOfPoly_IsAppend)
+  {assume "natScale (fst (derivMonom x mon)) coef = 0" then have 
+    "deriv x [(mon, coef)] = zero_poly" by simp hence
+    "poly_add (deriv x [(mon, coef)]) (deriv x q) = deriv x q" by (simp add: zero_poly_def)
+    from this and eq1 have "deriv x (poly_add [(mon, coef)] q) = poly_add (deriv x [(mon, coef)]) (deriv x q)"
+    using \<open>deriv x [(mon, coef)] = zero_poly\<close> zero_poly_def by auto
+    hence ?thesis by simp}
+  moreover
+  {assume "natScale (fst (derivMonom x mon)) coef \<noteq> 0" then have
+    derivXSingleShape: "deriv x [(mon, coef)] = 
+      [(snd (derivMonom x mon),natScale (fst (derivMonom x mon)) coef)]" by simp
+    from this and nonExtract have "(snd (derivMonom x mon)) \<notin> poly_monoms (deriv x q)"
+    by (metis False deriv.simps(1) derivDeletes2 derivRespectsMonoms gr0I 
+      not_Cons_self2 zero_poly_def)
+    hence "List.extract (\<lambda>pair. fst pair = snd (derivMonom x mon)) (deriv x q) = None"
+    using extract_None_iff image_iff by fastforce
+    from this and derivXSingleShape have "poly_add (deriv x [(mon, coef)]) (deriv x q) = 
+      (deriv x [(mon,coef)]) @ (deriv x q)" by simp
+    from this and eq1 have ?thesis by simp}
+  ultimately show ?thesis by blast
+next
+  case True
+  then obtain p1 p2 cnst where cnstAndpsDef:"List.extract (\<lambda>pair. fst pair = mon) q = 
+    Some (p1, (mon, cnst), p2) \<and> mon \<notin> poly_monoms p1" using listExtractFstCoord by force 
+  from this have qShape:"q = p1 @ [(mon,cnst)] @ p2" using extract_SomeE by fastforce 
+  hence derivQShape:"deriv x q = (deriv x p1) @ (deriv x [(mon,cnst)]) @ (deriv x p2)" 
+  by (metis derivOnAppend) 
+  {assume "coef + cnst = 0"
+    from this and cnstAndpsDef have "poly_add [(mon, coef)] q = p1 @ p2" by simp
+    hence eq1:"deriv x (poly_add [(mon, coef)] q) = (deriv x p1) @ (deriv x p2)" 
+    by (simp add: derivOnAppend)
+    {assume scaleCoefIsZero:"natScale (fst (derivMonom x mon)) coef = 0" then have 
+      "deriv x [(mon, coef)] = zero_poly" by simp from this have 
+      eq2:"poly_add (deriv x [(mon, coef)]) (deriv x q) = 
+        (deriv x p1) @ (deriv x [(mon,cnst)]) @ (deriv x p2)" 
+      by (simp add: derivQShape zero_poly_def)
+      from \<open>coef + cnst = 0\<close> have 
+      "natScale (fst (derivMonom x mon)) coef + natScale (fst (derivMonom x mon)) cnst = 0"
+      using natScale_preservesInverses by blast
+      then have "natScale (fst (derivMonom x mon)) cnst = 0" by (simp add: scaleCoefIsZero)
+      hence "deriv x [(mon,cnst)] = zero_poly" by simp
+      from this eq1 and eq2 have ?thesis by (simp add: zero_poly_def)}
+    moreover
+    {assume scaleCoefNotZero:"natScale (fst (derivMonom x mon)) coef \<noteq> 0" from this have
+      "deriv x [(mon, coef)] = [(snd (derivMonom x mon),natScale (fst (derivMonom x mon)) coef)]" 
+      by simp from this have "fst (derivMonom x mon) > 0"
+      by (metis deriv.simps(1) derivDeletes2 gr0I list.discI zero_poly_def) 
+      from this and cnstAndpsDef 
+      have notInDerivP1:"snd (derivMonom x mon) \<notin> poly_monoms (deriv x p1)" 
+      by (simp add: derivRespectsMonoms)
+      from \<open>coef + cnst = 0\<close> have 
+      eq0: "natScale (fst (derivMonom x mon)) coef + natScale (fst (derivMonom x mon)) cnst = 0"
+      using natScale_preservesInverses by blast
+      then have "natScale (fst (derivMonom x mon)) cnst \<noteq> 0" using scaleCoefNotZero by auto 
+      hence "deriv x [(mon,cnst)] = 
+        [(snd (derivMonom x mon),natScale (fst (derivMonom x mon)) cnst)]" by simp
+      from this and derivQShape have 
+      "List.extract (\<lambda>pair. fst pair = snd (derivMonom x mon)) (deriv x q) =
+      Some ((deriv x p1),
+        (snd (derivMonom x mon),natScale(fst (derivMonom x mon)) cnst),
+        (deriv x p2))"
+      by (simp add: notInDerivP1 listExtractOnAppendWithInstance) 
+      hence "poly_add (deriv x [(mon, coef)]) (deriv x q) = (deriv x p1) @ (deriv x p2)" using eq0
+      \<open>deriv x [(mon, coef)] = [(snd (derivMonom x mon), natScale (fst (derivMonom x mon)) coef)]\<close> 
+      by auto then have ?thesis using eq1 by simp}
+    ultimately have ?thesis by auto}
+  moreover
+  {assume "coef + cnst \<noteq> 0" from this and cnstAndpsDef 
+    have "poly_add [(mon, coef)] q = (mon,coef+cnst) # (p1 @ p2)" by simp
+    hence eq1:"deriv x (poly_add [(mon, coef)] q) = 
+      (deriv x [(mon, coef+cnst)]) @ (deriv x p1) @ (deriv x p2)" 
+    by (metis append_Cons append_Nil derivOnAppend) 
+    {assume natScaleSumZero:"natScale (fst (derivMonom x mon)) (coef + cnst) = 0" from this have 
+      derivXCoefCnst:"deriv x [(mon, coef+cnst)] = zero_poly" by simp 
+      {assume natScaleCoef0:"natScale (fst (derivMonom x mon)) coef = 0" then have 
+        derivXwithCoef:"deriv x [(mon, coef)] = zero_poly" by simp hence
+        eq2:"poly_add (deriv x [(mon, coef)]) (deriv x q) = deriv x q" by (simp add: zero_poly_def)
+        from natScaleSumZero and natScaleCoef0 have "natScale (fst (derivMonom x mon)) cnst = 0"
+        by (simp add: natScale_isHomomorphism)
+        hence "deriv x [(mon, cnst)] = zero_poly" by simp
+        then have ?thesis using eq1 eq2 derivXCoefCnst derivQShape by (simp add: zero_poly_def)}
+      moreover
+      {assume natScaleCoefNot0:"natScale (fst (derivMonom x mon)) coef \<noteq> 0" then have
+        derivXSingleShape:"deriv x [(mon, coef)] = 
+          [(snd (derivMonom x mon), natScale (fst (derivMonom x mon)) coef)]" by simp
+        from this and cnstAndpsDef have notInP1:"(snd (derivMonom x mon))\<notin>poly_monoms (deriv x p1)"
+        by(metis deriv.simps(1) derivDeletes2 derivRespectsMonoms list.discI neq0_conv zero_poly_def)
+        from natScaleCoefNot0 have "natScale (fst (derivMonom x mon)) cnst \<noteq> 0"
+        by (metis add.comm_neutral natScaleSumZero natScale_isHomomorphism)
+        hence "List.extract (\<lambda>pair. fst pair = snd (derivMonom x mon)) (deriv x q) =
+          Some ((deriv x p1), (snd (derivMonom x mon),natScale(fst (derivMonom x mon)) cnst),
+          (deriv x p2))" using notInP1 derivQShape by (simp add: listExtractOnAppendWithInstance) 
+        from this and derivXSingleShape have "poly_add (deriv x [(mon, coef)]) (deriv x q) = 
+          (if (natScale (fst (derivMonom x mon)) coef + natScale (fst (derivMonom x mon)) cnst = 0) 
+          then poly_add [] ((deriv x p1) @ (deriv x p2)) 
+          else (snd (derivMonom x mon), 
+            natScale (fst (derivMonom x mon)) coef + natScale (fst (derivMonom x mon)) cnst) 
+            # poly_add [] ((deriv x p1) @ (deriv x p2)))" by simp
+        hence "poly_add (deriv x [(mon, coef)]) (deriv x q) = ((deriv x p1) @ (deriv x p2))"
+        using natScaleSumZero by (simp add: natScale_isHomomorphism) 
+        from this derivXCoefCnst and eq1 have ?thesis by (simp add: zero_poly_def)}
+      ultimately have ?thesis by auto}
+    moreover
+    {assume natScaleSumZero:"natScale (fst (derivMonom x mon)) (coef + cnst) \<noteq> 0" from this have 
+      derivXCoefCnst:"deriv x [(mon, coef+cnst)] = [(snd (derivMonom x mon), 
+      natScale(fst (derivMonom x mon)) (coef + cnst))]" by simp
+      {assume natScaleCoef0:"natScale (fst (derivMonom x mon)) coef = 0" then have 
+        derivXwithCoef:"deriv x [(mon, coef)] = zero_poly" by simp hence
+        eq2:"poly_add (deriv x [(mon, coef)]) (deriv x q) = deriv x q" by (simp add: zero_poly_def)
+        from natScaleSumZero and natScaleCoef0 have "natScale (fst (derivMonom x mon)) cnst \<noteq> 0"
+        by (simp add: natScale_isHomomorphism)
+        from natScaleSumZero and natScaleCoef0 have "natScale (fst (derivMonom x mon)) coef = 0" 
+        by blast
+        hence "deriv x [(mon, cnst)] = deriv x [(mon, coef+cnst)]"
+        by (simp add: natScale_isHomomorphism) 
+        then have "set ((deriv x [(mon, coef+cnst)]) @ (deriv x p1) @ (deriv x p2)) = 
+          set ((deriv x [(mon, cnst)]) @ (deriv x p1) @ (deriv x p2))" by simp
+        also have "set ((deriv x p1) @ (deriv x [(mon, cnst)]) @ (deriv x p2)) = 
+          set ((deriv x [(mon, cnst)]) @ (deriv x p1) @ (deriv x p2))" by auto
+       (* Needed to add the "set" outer part because "poly_add" changes the order of polynomials. *)
+        ultimately have "set ((deriv x [(mon, coef+cnst)]) @ (deriv x p1) @ (deriv x p2)) =
+        set ((deriv x p1) @ (deriv x [(mon,cnst)]) @ (deriv x p2))" by simp
+        from this have ?thesis using eq1 eq2 derivXCoefCnst derivQShape by (simp)}
+      moreover
+      {assume natScaleCoefNot0:"natScale (fst (derivMonom x mon)) coef \<noteq> 0" then have
+        derivXSingleShape:"deriv x [(mon, coef)] = 
+          [(snd (derivMonom x mon), natScale (fst (derivMonom x mon)) coef)]" by simp
+        {assume "natScale (fst (derivMonom x mon)) cnst = 0"
+          (* For this case we have: 
+           * natScale (fst (derivMonom x mon)) cnst = 0 \<Longrightarrow>
+           * deriv x [(mon, coef + cnst)] = deriv x [(mon, coef)] 
+              \<and> deriv x [(mon,cnst)] = zero_poly \<Longrightarrow>
+           * deriv x (poly_add [(mon, coef)] q)= (deriv x [(mon, coef)]) @(deriv x p1) @(deriv x p2)
+              \<and> deriv x q = (deriv x p1) @ (deriv x p2) [using eq1 and derivQShape] \<Longrightarrow>
+           * Thus the result depends on knowing whether "deriv x [(mon, coef)]" appears on 
+              "(deriv x p2)" [because we are interested in: 
+              poly_add (deriv x [(mon, coef)]) (deriv x q)]. Notice that if it is not there, the
+              desired result follows. *) have ?thesis sorry}
+        moreover
+        {assume "natScale (fst (derivMonom x mon)) cnst \<noteq> 0"
+          (* For this case we have: 
+           * natScale (fst (derivMonom x mon)) cnst \<noteq> 0 \<Longrightarrow>
+           * deriv x [(mon, coef + cnst)] = 
+              [(snd (derivMonom x mon), natScale (fst (derivMonom x mon)) (coef + cnst))]
+              \<and> deriv x [(mon,cnst)] = 
+                [(snd (derivMonom x mon), natScale (fst (derivMonom x mon)) cnst)] \<Longrightarrow>
+           * poly_add (deriv x [(mon, coef)]) (deriv x q) = 
+              (snd (derivMonom x mon), natScale (fst (derivMonom x mon)) (coef + cnst)) # 
+                ((deriv x p1) @ (deriv x p2))
+           * Which is what we wanted. *) have ?thesis sorry}
+        ultimately have ?thesis by blast}
+      ultimately have ?thesis by auto}
+    ultimately have ?thesis by blast}
+  ultimately show ?thesis by blast
+qed
+
+  value "set [0::nat,1,1,2::nat,0::nat] = set [0,2,0,1,1]"
+  thm set_def
+
+(* Needed to add the "set" outer part because "poly_add" changes the order of polynomials. *)
+theorem "set (deriv x (poly_add p q)) = set (poly_add (deriv x p) (deriv x q))"
   apply(induction p rule: deriv.induct) (* 3 subgoals appear. *)
-  apply(simp add: poly_zero_add poly_add.simps) (* Goal 1 gone. *)
-  apply(simp only: poly_add.simps, split option.split, rule conjI) (* Goal 2 split in a and b. *)
-  apply(simp only: deriv.simps deriv.elims)
-  apply(simp add: poly_zero_add, rule conjI) (* Goal a split in I and II. *)
-  apply(simp add: derivDeletes, clarify) (* Goal I gone. *)
-  apply(simp only: for2aIISubgoal) (* Goal II gone. Hence, goal a gone. *)
-  apply(clarsimp, rule conjI, clarsimp, rule conjI, clarify) (* Goal b split in I, II and III. *)
-  apply(simp add: derivOnAppend poly_zero_add for2bIsubgoal) (* Goal I gone. *)                              
-  apply(simp add: derivOnAppend poly_zero_add for2bIIsubgoal)(* Goal II gone. *)  
-  apply(clarsimp, rule conjI) (* Goal III split in i and ii. *)
-  apply(simp add: for2bIIIiSubgoal) (* Goal i gone. *)
-  apply(rename_tac p1 monom cnst p2)
-  apply(clarify)
+  apply(simp add: poly_zero_add) (* Goal 1 gone. *)
+  apply(simp only: additivityOf_derivX) (* Goal 2 gone.*)
+  apply(rename_tac head1 head2 tail)
+  apply(clarsimp, auto)
   (* p1 and p2 stand for "part1" and "part2" of q divided by the monomial (monom, cnst). *)
   oops
 
-declare [[show_types]]
-declare [[show_sorts]]
+declare poly_add.simps[simp del]
 
 (* Derivative on polynomials: syntactic version. *)
 fun derivList :: "('v::linorder) \<Rightarrow> ('v monom_list \<times> 'a:: semiring_0)list \<Rightarrow> ('v monom_list \<times> 'a)list" where
@@ -932,5 +1006,9 @@ value "(derivList 3 [([],2),([((1::int),1),(2,1),(3,1)],3::real),([(1,2)],3),([(
 value "(derivList 4 [([],2),([((1::int),1),(2,1),(3,1)],3::real),([(1,2)],3),([(2,2),(3,1)],1),([(3,3)],5),([(4,1)],1)])"
 (* \<partial> v P(x,y,z,w) = 0. *)
 value "(derivList 5 [([],2),([((1::int),1),(2,1),(3,1)],3::real),([(1,2)],3),([(2,2),(3,1)],1),([(3,3)],5),([(4,1)],1)])"
+
+declare [[show_types]]
+declare [[show_sorts]]
+
 
 end
