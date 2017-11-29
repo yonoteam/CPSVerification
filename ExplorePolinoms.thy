@@ -30,7 +30,8 @@ value "shows_monom_list [((1::int),1),(2,2),(3,2)] ''''"
 value "eval_monom_list
  (\<lambda> s. if s = (1::int) then (-1::int) else (if s = (2::int) then (2::int) else 3))
  [((1::int),1),(2,2),(3,2)]"
-(* Don't know why they added the "inv" in the function below. It tests three things:
+(* Not sure why they added the "inv" in the function below. I guess they are making reference to 
+an "invariant". It tests three things:
   - All the powers are greater than or equal to 1.
   - All the variables are different.
   - The variables appear ordered. *)
@@ -46,7 +47,23 @@ term "Collect monom_inv"
 value "[((1::int),1),(2,2),(3,2)] \<in> Collect monom_inv"
 term "Abs_monom [((1::int),1),(2,2),(3,2)]"
 term "Rep_monom (x:: int monom)"
+value "Rep_monom (Abs_monom [((1::int),1),(2,2),(3,2)])"
+term "Rep_monom (Abs_monom [((1::int),1),(2,2),(3,2)])"
 
+thm monom_inv_def
+thm distinct_def
+
+lemma "Rep_monom (Abs_monom [((1::int),1),(2,2),(3,2)]) = [((1::int),1),(2,2),(3,2)]"
+apply(rule  Polynomials.monom.Abs_monom_inverse)
+apply(auto simp: monom_inv_def)
+done
+(* try *)
+
+value "List.extract (\<lambda> list. fst list = [(2, 2), (3, 1)]) 
+[([],2),([((1::int),1),(2,1),(3,1)],3::real),([(1,2::nat)],3),([(2,2),(3,1)],1),([(3,3)],5),([(4,1)],1)]"
+
+declare [[show_types]]
+declare [[show_sorts]]
 
 (* P O L Y N O M I A L *)
 
@@ -83,10 +100,10 @@ typedef (overloaded) 'a poly = "{f :: nat \<Rightarrow> 'a::zero. \<forall>\<^su
 *)
 value "coeff [:3, 2, 4, (1::int), 5, 1:] (2::nat)"
 value "poly_of_list ([0,1,2,1,0,1]::int list)"
-value "poly_of_list ([]::int list)"
-
-(* Polynomial: 3 + 4x + x\<^sup>2 evaluated in 2 equals 15. =/  *)
+value "poly_of_list ([]::int list)" 
+(*\<partial> (0 + x + 2x\<^sup>2 + x\<^sup>3 + x\<^sup>5) = [:1, 4, 3, 0, 5:] *)
+value "pderiv (poly_of_list ([0,1,2,1,0,1]::int list))"
+(* Polynomial: 3 + 4x + x\<^sup>2 evaluated in 2 equals 15. *)
 value "poly [:3, 4, (1::int):] 2"
-
 
 end
