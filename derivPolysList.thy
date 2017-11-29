@@ -1,7 +1,7 @@
-theory SecondAttempt
+theory derivPolysList
   imports 
 Main
-"../afp-2017-10-18/thys/Polynomials/Polynomials"
+"Polynomials.Polynomials"
 "HOL.Real"
 
 begin
@@ -986,26 +986,6 @@ theorem "set (deriv x (poly_add p q)) = set (poly_add (deriv x p) (deriv x q))"
 
 declare poly_add.simps[simp del]
 
-(* Derivative on polynomials: syntactic version. *)
-fun derivList :: "('v::linorder) \<Rightarrow> ('v monom_list \<times> 'a:: semiring_0)list \<Rightarrow> ('v monom_list \<times> 'a)list" where
-"derivList x [] = []"|
-"derivList x [(mon, coef)] = (if (derivCoeffMonomList x mon) = 0 then [] else 
-[((if (IsNotVar x mon) then [] else downExp x mon),natScale (derivCoeffMonomList x mon) coef)])"|
-"derivList x (headMonom # tailMonom) = (derivList x [headMonom]) @ (derivList x tailMonom)"
-
-(* \<real>[x,y,z,w] \<ni> P(x,y,z,w) = 2 + w + 3xyz + 3x\<^sup>2 + y\<^sup>2z + 5z\<^sup>3. *)
-term "[([],2),([((1::int),1),(2,1),(3,1)],3::real),([(1,2::nat)],3),([(2,2),(3,1)],1),([(3,3)],5),([(4,1)],1)]"
-term "(deriv 1 [(Abs_monom [((1::int),1),(2,1),(3,1)],3::real)])::(int,real)poly"
-(* \<partial> x P(x,y,z,w) = 3yz + 6x. *)
-value "(derivList 1 [([],2),([((1::int),1),(2,1),(3,1)],3::real),([(1,2)],3),([(2,2),(3,1)],1),([(3,3)],5),([(4,1)],1)])"
-(* \<partial> y P(x,y,z,w) = 3xz + 2yz. *)
-value "(derivList 2 [([],2),([((1::int),1),(2,1),(3,1)],3::real),([(1,2)],3),([(2,2),(3,1)],1),([(3,3)],5),([(4,1)],1)])"
-(* \<partial> z P(x,y,z,w) = 3xy + y\<^sup>2 + 15z\<^sup>2. *)
-value "(derivList 3 [([],2),([((1::int),1),(2,1),(3,1)],3::real),([(1,2)],3),([(2,2),(3,1)],1),([(3,3)],5),([(4,1)],1)])"
-(* \<partial> w P(x,y,z,w) = 1. *)
-value "(derivList 4 [([],2),([((1::int),1),(2,1),(3,1)],3::real),([(1,2)],3),([(2,2),(3,1)],1),([(3,3)],5),([(4,1)],1)])"
-(* \<partial> v P(x,y,z,w) = 0. *)
-value "(derivList 5 [([],2),([((1::int),1),(2,1),(3,1)],3::real),([(1,2)],3),([(2,2),(3,1)],1),([(3,3)],5),([(4,1)],1)])"
 
 declare [[show_types]]
 declare [[show_sorts]]

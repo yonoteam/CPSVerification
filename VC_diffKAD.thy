@@ -68,14 +68,15 @@ qed
 lemma boxAlphaProp_IsProp: "wp R (p2r P) \<subseteq> Id"
 by (simp add: rel_antidomain_kleene_algebra.a_subid' rel_antidomain_kleene_algebra.addual.bbox_def)
 
-lemma complement_rule1[simp]: "(x,x) \<notin> rel_ad (p2r P) \<Longrightarrow> P x"
+(* Should not add these "complement_rule's" to simp... *)
+lemma complement_rule1: "(x,x) \<notin> rel_ad (p2r P) \<Longrightarrow> P x"
 proof-
 assume "(x,x) \<notin> rel_ad (p2r P)" then have "\<exists> y. (x,y) \<in> (p2r P)" by (simp add: rel_ad_def)
 from this and p2r_subid have "(x,x) \<in> (p2r P)" by blast
 thus "P x" by (simp add: p2r_def)
 qed
 
-lemma complement_rule2[simp]: "(x,x) \<in> rel_ad (p2r P) \<Longrightarrow> \<not> P x"
+lemma complement_rule2: "(x,x) \<in> rel_ad (p2r P) \<Longrightarrow> \<not> P x"
 by (metis ComplD VC_KAD.p2r_neg_hom complement_rule1 empty_iff mem_Collect_eq p2s_neg_hom 
 rel_antidomain_kleene_algebra.a_one rel_antidomain_kleene_algebra.am1 relcomp.relcompI)
 
@@ -94,7 +95,7 @@ lemma guarDiffEqtn_def2: "(s1,s2) \<in> D [ x ] = f while G \<Longrightarrow>
 proof-
 assume "(s1, s2) \<in> D [ x ] = f while G" from this have 
 "(s1, s2) \<in> {(s,(F::real \<Rightarrow> real store) t) |s t F. t \<ge> 0 \<and> (isFlow F x s f G)}"
-using guarDiffEqtn_def by blast
+using guarDiffEqtn_def by simp
 then obtain s t F where "s = s1 \<and> t \<ge> 0 \<and> s2 = F t \<and> (isFlow F x s f G)" by blast
 hence "t \<ge> 0 \<and> F t = s2 \<and> isFlow F x s1 f G" by blast
 thus ?thesis by blast 
@@ -118,11 +119,11 @@ have "\<forall> c. (a,c) \<in> (D [ x ] = f while G) \<longrightarrow> Q c"
   proof(clarify)
   fix c 
   assume "(a, c) \<in> D [ x ] = f while G" from this obtain t::"real" and F::"real \<Rightarrow> real store" 
-  where "t\<ge>0 \<and> F t = c \<and> isFlow F x a f G" using guarDiffEqtn_def2 by blast 
+    where "t\<ge>0 \<and> F t = c \<and> isFlow F x a f G" 
+    using guarDiffEqtn_def2 by blast 
   hence "\<forall> s. 0 \<le> s \<and> s \<le> t \<longrightarrow> (a, F s) \<in> D [ x ] = f while G" 
-  oops
-  thm isFlow_def
-oops
+    oops
+    oops
 
 lemma "PRE (\<lambda> s. s ''x'' > 0)  
       (D[''x''] = (\<lambda> s. 1) while (\<lambda> s. s ''x'' > 0))
