@@ -18,12 +18,15 @@ term fun_upd
 thm fun_upd_def
 term "(\<lambda> s. s ''x'')"
 value "((\<lambda> s. if s = ''x'' then (1::nat) else 0) (''x'' := 2)) ''1''"
+term "\<lambda>s. 2 \<cdot> s ''x''"
 term "''x'' ::= (\<lambda>s. 2 \<cdot> s ''x'')"
 
 (* Trigonometric functions and pi available from HOL.Transcendental. *)
 term pi
 term "cos (2.3::real)"
 term "cos pi"
+
+lemma "cos pi = -1"
 
 (* Exploring the behavior of stores, preds, rels and strings. *)
 term "(\<lambda>s::int store. s ''x'' = a \<and> s ''y'' = b)"
@@ -44,5 +47,8 @@ term "r"
 
 declare [[show_types]]
 declare [[show_sorts]]
+
+term "INF k. principal "
+value "{.. (2::nat)}"
 
 end
