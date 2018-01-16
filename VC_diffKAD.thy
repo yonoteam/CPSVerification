@@ -200,31 +200,52 @@ from this and \<open>a = b \<and> P a\<close> show "(a,b) \<in> wp (D [ x ] = f 
 by (simp add: boxProgrPred_chrctrztn)
 qed 
 
+(* Diffierential Invariant Rule. *)
+(*datatype trms = Const real | Eq trms trms | Geq trms trms
+
+datatype props = Const "real \<Rightarrow> real \<Rightarrow> bool" | Var "real \<Rightarrow> real \<Rightarrow> bool" | Neg boolex | And boolex boolex*)
+
+term "\<lambda> s. s ''x'' > (0::real)"
+
+
+(* deriv_Pred :: "real store pred \<Rightarrow> real store pred" *)
+function deriv_Pred :: "(bool \<Rightarrow> bool \<Rightarrow> bool) \<Rightarrow> (bool \<Rightarrow> bool \<Rightarrow> bool)" where
+"deriv_Pred (op \<and>) = (op \<and>)"|
+"deriv_Pred (op \<or>) = (op \<and>)"
+oops
+
+theorem "\<forall> st. P st \<longrightarrow> G st \<longrightarrow> Q st \<Longrightarrow> PRE G (var ::= S) POST Q \<Longrightarrow> 
+PRE P (D [var] = f with G) POST Q"
+oops
+
+lemma "PRE (\<lambda> s. s ''x'' >0 \<and> s ''v'' > 0)
+      ((D[''x''] = (\<lambda> t s var. s ''v'') with (\<lambda> s. True)))
+      POST (\<lambda> s. s ''x''> 0)"
+      apply(rule_tac C = "\<lambda> s. s ''v'' \<ge> 0" in dCut)
+      defer
+      apply(rule_tac C = "\<lambda> s. s ''x'' > 0" in dCut)
+      defer
+      apply(rule dWeakening)
+      apply(simp)
+      oops
 
 (* Solve-Differential-Equation Rule. *)
-(* The following definition is in the AFP entry on ODE's:
-solves_ode :: "(real \<Rightarrow> 'a::real_normed_vector) \<Rightarrow> (real \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> real set \<Rightarrow> 'a set \<Rightarrow> bool"
-where "(X solves_ode F) DerivDom CodOfX \<longleftrightarrow> (X has_vderiv_on (\<lambda>t. F t (X t))) DerivDom \<and> 
-                                             X: DerivDom \<rightarrow> CodOfX"
-Hence, to use this theory/definition with our own predicate "isSolution", we should feed it with:
-    - (\<lambda> y. x y var) as X.                   [ x :: real \<Rightarrow> (string \<Rightarrow> real) ]
-    - (\<lambda> y. \<lambda> z. f y (x y) var) as F.        [ f :: real \<Rightarrow> (string \<Rightarrow> real) \<Rightarrow> (string \<Rightarrow> real)]
 
-Hmm, we are encountering a type-problem. We need some clever way to convert "f" to a function of 
-type \<real> \<Rightarrow> \<real> \<Rightarrow> \<real>. Alternatively we could try to show that "real store" is a "real_normed_vector";
-but that seems to NOT be the case as there is no standard norm for unbounded sequences. *)
-
-declare [[show_types]]
-declare [[show_sorts]]
-
-theorem solveDiff:"(\<forall> (t::real) \<ge> 0. ((\<lambda> y. x y var) has_derivative (\<lambda>y. (expr y (F y)) var)) (at t)) \<Longrightarrow>
-\<forall> st. P st \<longrightarrow> (\<forall> t \<ge> 0. (\<forall> rr. 0 \<le> rr \<and> rr \<le> t \<longrightarrow> G (x rr)) \<longrightarrow> 
-(r2p (wp (var ::= (\<lambda> ss. (x t) var)) (p2r Q))) st)
+theorem solveDiffCorrected:"\<forall> st. \<forall> (t::real) > 0. ((\<lambda> y. (x::real\<Rightarrow>real store\<Rightarrow>real) y st) has_derivative (\<lambda>y. f y st var)) (at t)
+\<Longrightarrow> \<forall> st. \<exists>! (x::real \<Rightarrow> real store). isSolution x var st f G  \<Longrightarrow> (* this hypothesis is not adequate, the uniqueness should be specified by you. *)
+\<forall> st. P st \<longrightarrow> (\<forall> t \<ge> 0. (\<forall> rr. 0 \<le> rr \<and> rr \<le> t \<longrightarrow> G (st(var := (x rr st)))) \<longrightarrow> 
+(r2p (wp (var ::= x t) (p2r Q)) st))
+(* Holly cow! It might be even the case that adding the line above, won't help. See first verification example.*)
 \<Longrightarrow> PRE P (D[var] = f with G) POST Q "
-proof(clarify)
-fix a b
-assume DerivOfxIsf:"\<forall>t\<ge>0. ((\<lambda>y. x y var) has_derivative (\<lambda>y. (expr y (F y)) var)) (at t)" 
-assume "(a, b) \<in> rdom (p2r P)" then have aHyp:"a = b \<and> P a" by (metis rdom_p2r_contents)
+proof
+fix pair
+assume "pair \<in> rdom (p2r P)" from this obtain a::"real store" where
+aHyp:"pair = (a,a) \<and> P a" by (metis IdE contra_subsetD d_p2r p2r_subid rdom_p2r_contents) 
+assume DerivOfxIsf:"\<forall>t>0. ((\<lambda>y. x y var) has_derivative (\<lambda>z. f z (x z) var)) (at t)"
+assume "\<forall> st. \<exists>! (X::real \<Rightarrow> real store). isSolution X var st f G" 
+from this obtain X::"real \<Rightarrow> real store" where 
+uniq:"\<forall> z. isSolution z var a f G \<longrightarrow> X = z" by metis 
+from DerivOfxIsf and uniq have eq1:"X = x" by simp
 assume "\<forall>st. P st \<longrightarrow> (\<forall>t\<ge>0. (\<forall>rr. 0 \<le> rr \<and> rr \<le> t \<longrightarrow> G (x rr)) \<longrightarrow> 
 (r2p (wp (var ::= (\<lambda> ss. (x t) var)) (p2r Q))) st)"
 from this and aHyp have "(\<forall>t\<ge>0. (\<forall>rr. 0 \<le> rr \<and> rr \<le> t \<longrightarrow> G (x rr)) \<longrightarrow> 
@@ -237,28 +258,140 @@ have "\<forall> c. (a,c) \<in> (D [ var ] = f with G) \<longrightarrow> Q c"
   fix c 
   assume "(a, c) \<in> D [ var ] = f with G" from this obtain t::"real" and F::"real \<Rightarrow> real store" 
   where Fdef:"t\<ge>0 \<and> F t = c \<and> isSolution F var a f G" using guarDiffEqtn_def2 by blast 
-  hence "\<forall> rr. 0 \<le> rr \<and> rr \<le> t "
-  (* Proof sketch goes as follows (backwardly):
-     We need to prove that "Q c", i.e. "Q (F t)".
-     Hence, we should prove that "(a, Ft) \<in> (var ::= (\<lambda> ss. (x t) var))"
-     which is the same as proving that "Ft = a[var \<mapsto> (\<lambda> ss. (x t) var) a] = a[var \<mapsto> (x t) var]"
-     in summary, we need to show that "c = Ft = a[var \<mapsto> (x t) var]"
-     because this is an equality between functions, we could prove that for all string "str", the
-        equation "F t str = a[var \<mapsto> (x t) var] str"
-     this is reduced to two cases:
-        · str \<noteq> var \<Longrightarrow> F t str = a str (this is guaranteed by the definition of "solution").
-        · str = var \<Longrightarrow> F t str = (x t) str.
-     for the second case we need uniqueness of solutions for systems of differential equations in 
-     order to prove that F and x are the same. This requires us to add some context either  by 
-     providing our own definitions or using the ordinary_differential_equations entry on the AFP. 
-  *)
+  hence "(\<forall> (s::real). s \<ge> 0 \<longrightarrow>
+  (\<forall> t. 0 < t \<and> t < s \<longrightarrow> ((\<lambda> y. F y var) has_derivative (\<lambda>y. (f y (F y)) var)) (at t)))" 
+  using isSolution_def by simp
+  then have "\<forall> t > 0. ((\<lambda> y. F y var) has_derivative (\<lambda>y. (f y (F y)) var)) (at t)"
+  by (meson less_eq_real_def less_trans reals_Archimedean3) (* Lipschitz continuity required here? *)
+  from this eq1 and uniq have eq2:"F = x" by simp         
+  from Fdef have "\<forall>s\<ge>0::real.(\<forall>t::real. (0::real) \<le> t \<and> t \<le> s \<longrightarrow> (\<forall>y::char list. y \<noteq> var \<longrightarrow> F t y = a y))"
+  using isSolution_def by simp
+  from this have "(\<forall>y::char list. y \<noteq> var \<longrightarrow> F t y = a y)" using Fdef by auto
+  then have "\<forall> y. F t y = (a (var := x t var)) y" using eq2 by auto
+  hence "F t = a (var := x t var)" by auto
+  from this have "(a, F t) \<in> (var ::= (\<lambda> ss. (x t) var))" using gets_def by blast 
+  then show "Q c" using Fdef eq2 antiDerivHyp and isSolution_def by auto
+  qed
+from this have "(a,a) \<in>  wp (D [ var ] = f with G ) (p2r Q)" by (simp add: boxProgrPred_chrctrztn)
+then show "pair \<in> wp (D [ var ] = f with G ) (p2r Q)" using aHyp by simp
 oops
 
 
+theorem solveDiff:"\<forall> (t::real) > 0. ((\<lambda> y. x y var) has_derivative (\<lambda>z. (f z (x z)) var)) (at t)
+\<Longrightarrow> \<exists>! (x::real \<Rightarrow> real store).\<forall> (t::real) > 0. ((\<lambda> y. x y var) has_derivative (\<lambda>y. (f y (x y)) var)) (at t) \<Longrightarrow>
+\<forall> st. P st \<longrightarrow> (\<forall> t \<ge> 0. (\<forall> rr. 0 \<le> rr \<and> rr \<le> t \<longrightarrow> G (x rr)) \<longrightarrow> 
+(r2p (wp (var ::= (\<lambda> ss. (x t) var)) (p2r Q))) st)
+\<Longrightarrow> PRE P (D[var] = f with G) POST Q "
+proof
+fix pair
+assume "pair \<in> rdom (p2r P)" from this obtain a::"real store" where
+aHyp:"pair = (a,a) \<and> P a" by (metis IdE contra_subsetD d_p2r p2r_subid rdom_p2r_contents) 
+assume DerivOfxIsf:"\<forall> (t::real) > 0. ((\<lambda> y. x y var) has_derivative (\<lambda>y. (f y (x y)) var)) (at t)"
+assume "\<exists>! (X::real \<Rightarrow> real store).\<forall>t>0. ((\<lambda>y. X y var) has_derivative (\<lambda>y. (f y (X y)) var)) (at t)" 
+from this obtain X::"real \<Rightarrow> real store" where 
+uniq:"\<forall> z. (\<forall>t > 0. ((\<lambda>y. z y var) has_derivative (\<lambda>y. (f y (z y)) var)) (at t)) \<longrightarrow> X = z" by metis 
+from DerivOfxIsf and uniq have eq1:"X = x" by simp
+assume "\<forall>st. P st \<longrightarrow> (\<forall>t\<ge>0. (\<forall>rr. 0 \<le> rr \<and> rr \<le> t \<longrightarrow> G (x rr)) \<longrightarrow> 
+(r2p (wp (var ::= (\<lambda> ss. (x t) var)) (p2r Q))) st)"
+from this and aHyp have "(\<forall>t\<ge>0. (\<forall>rr. 0 \<le> rr \<and> rr \<le> t \<longrightarrow> G (x rr)) \<longrightarrow> 
+(r2p (wp (var ::= (\<lambda> ss. (x t) var)) (p2r Q))) a)" by auto
+then have antiDerivHyp:"(\<forall>t\<ge>0. (\<forall>rr. 0 \<le> rr \<and> rr \<le> t \<longrightarrow> G (x rr)) \<longrightarrow> 
+(\<forall> c. (a,c) \<in> (var ::= (\<lambda> ss. (x t) var)) \<longrightarrow> Q c))" 
+by (metis rdom_p2r_contents wp_simp boxProgrRel_eRule1) 
+have "\<forall> c. (a,c) \<in> (D [ var ] = f with G) \<longrightarrow> Q c"
+  proof(clarify)
+  fix c 
+  assume "(a, c) \<in> D [ var ] = f with G" from this obtain t::"real" and F::"real \<Rightarrow> real store" 
+  where Fdef:"t\<ge>0 \<and> F t = c \<and> isSolution F var a f G" using guarDiffEqtn_def2 by blast 
+  hence "(\<forall> (s::real). s \<ge> 0 \<longrightarrow>
+  (\<forall> t. 0 < t \<and> t < s \<longrightarrow> ((\<lambda> y. F y var) has_derivative (\<lambda>y. (f y (F y)) var)) (at t)))" 
+  using isSolution_def by simp
+  then have "\<forall> t > 0. ((\<lambda> y. F y var) has_derivative (\<lambda>y. (f y (F y)) var)) (at t)"
+  by (meson less_eq_real_def less_trans reals_Archimedean3) (* Lipschitz continuity required here? *)
+  from this eq1 and uniq have eq2:"F = x" by simp
+  from Fdef have "\<forall>s\<ge>0::real.(\<forall>t::real. (0::real) \<le> t \<and> t \<le> s \<longrightarrow> (\<forall>y::char list. y \<noteq> var \<longrightarrow> F t y = a y))"
+  using isSolution_def by simp
+  from this have "(\<forall>y::char list. y \<noteq> var \<longrightarrow> F t y = a y)" using Fdef by auto
+  then have "\<forall> y. F t y = (a (var := x t var)) y" using eq2 by auto
+  hence "F t = a (var := x t var)" by auto
+  from this have "(a, F t) \<in> (var ::= (\<lambda> ss. (x t) var))" using gets_def by blast 
+  then show "Q c" using Fdef eq2 antiDerivHyp and isSolution_def by auto
+  qed
+from this have "(a,a) \<in>  wp (D [ var ] = f with G ) (p2r Q)" by (simp add: boxProgrPred_chrctrztn)
+then show "pair \<in> wp (D [ var ] = f with G ) (p2r Q)" using aHyp by simp
+qed
 
-(* Diffierential Invariant Rule. *)
-theorem "\<forall> st. P st \<longrightarrow> G st \<longrightarrow> Q st \<Longrightarrow> PRE G (var ::= S) POST Q \<Longrightarrow> 
-PRE P (D [var] = f with G) POST Q"
+(* This definition is in the AFP entry on ODE's:
+solves_ode :: "(real \<Rightarrow> 'a::real_normed_vector) \<Rightarrow> (real \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> real set \<Rightarrow> 'a set \<Rightarrow> bool"
+where "(X solves_ode F) DerivDom CodOfX \<longleftrightarrow> (X has_vderiv_on (\<lambda>t. F t (X t))) DerivDom \<and> 
+                                             X: DerivDom \<rightarrow> CodOfX"
+Hence, to use this theory/definition with our own predicate "isSolution", we should feed it with:
+    - (\<lambda> y. x y var) as X.                   [ x :: real \<Rightarrow> (string \<Rightarrow> real) ]
+    - (\<lambda> y. \<lambda> z. f y (x y) var) as F.        [ f :: real \<Rightarrow> (string \<Rightarrow> real) \<Rightarrow> (string \<Rightarrow> real)]
+
+However, the way they proved the Picard-Lindelöf theorem, does not help us to show uniqueness of our
+solutions, even if we constrain them to being Lipschitz continuous.  *)
+
+declare [[show_types]]
+declare [[show_sorts]]
+
+lemma "PRE (\<lambda> s. s ''station'' < s ''pos'' \<and> s ''vel'' = vel \<and> s ''vel'' > 0 \<and> s ''pos'' = pos)  
+      (
+      (D[''pos''] = (\<lambda> t s var. s ''vel'') with (\<lambda> s. True))
+      )
+      POST (\<lambda> s. (s ''station'' < s ''pos''))"
+      apply(rule_tac x = "(\<lambda> t. \<lambda> str. if str = ''vel'' then vel else (vel\<cdot>t + pos))" in solveDiff)
+      apply(simp)
+      oops
+      
+      thm solveDiff
+      thm dCut
+
+(* Verification Examples. *)
+lemma "rdom (p2r P) \<subseteq> wp X (wp Y (p2r Q)) \<Longrightarrow> rdom (p2r P) \<subseteq> wp (X; Y) (p2r Q)"
+by simp
+
+lemma "rdom (p2r (\<lambda> s. P s \<and> (s str = e s))) \<subseteq> (p2r (\<lambda> s. Q (s(str := e s)))) \<Longrightarrow> rdom (p2r P) \<subseteq> wp (str ::= (e::real store \<Rightarrow> real)) (p2r Q)"
+apply(auto)
 oops
+
+lemma "rdom (p2r (\<lambda> s. P (s(str := e s)))) \<subseteq> (p2r (\<lambda> s. Q (s(str := e s)))) \<Longrightarrow> rdom (p2r P) \<subseteq> wp (str ::= (e::real store \<Rightarrow> real)) (p2r Q)"
+apply(auto)
+oops
+
+lemma randomRule:"(p2r P) \<subseteq> (p2r (\<lambda> s. Q (s(str := e s)))) \<Longrightarrow> (p2r P) \<subseteq> wp (str ::= e) (p2r Q)"
+apply(auto)
+done
+
+lemma convRandomRule: "(p2r P) \<subseteq> wp (str ::= e) (p2r Q) \<Longrightarrow> (p2r P) \<subseteq> (p2r (\<lambda> s. Q (s(str := e s))))"
+by auto
+
+lemma firstMastersVerification:
+      "PRE (\<lambda> s. s ''station'' > s ''pos'' \<and> s ''vel'' > 0)  
+      (
+      (''acc'' ::= (\<lambda>s. - (s ''vel'')*(s ''vel'') / (2 * (s ''station'' - s ''pos''))));
+      ((D[''pos''] = (\<lambda> t s var. s ''vel'') with (\<lambda> s. True))\<inter>(D[''vel''] = (\<lambda> t s var. s ''acc'') with (\<lambda> s. s ''vel'' \<ge> 0)) )
+      )
+      POST (\<lambda> s. (s ''station'' \<ge> s ''pos'') \<and> (s ''vel'' = 0 \<longleftrightarrow> s ''station'' = s ''pos''))"
+      apply(simp)
+      apply(erule convRandomRule)
+      (* just add the "acc ::= blah, blah" to the preconditions and try to use your solveDiff rule.*)
+      oops
+      
+(*proof(auto)
+fix a b::"real store"
+assume "(a, b) \<in> p2r (\<lambda>s. s ''pos'' < s ''station'' \<and> 0 < s ''vel'')"
+from this have "a = b \<and> (a ''pos'' < a ''station'') \<and> (0 < a ''vel'')"
+by (metis (no_types, lifting) d_p2r rdom_p2r_contents)
+have "\<forall> c. (a,c) \<in> (''acc'' ::= (\<lambda>s. - (s ''vel'' \<cdot> s ''vel'' / (2 \<cdot> s ''station'' - 2 \<cdot> s ''pos''))))
+\<longrightarrow> (r2p (wp ((D [ ''pos'' ] = (\<lambda>t s var. s ''vel'') with (\<lambda>s. True) ) \<inter> (D [ ''vel'' ] = (\<lambda>t s var. s ''acc'') with (\<lambda>s. 0 \<le> s ''vel'') ))
+                        (p2r (\<lambda>s. s ''pos'' \<le> s ''station'' \<and> (s ''vel'' = 0) = (s ''station'' = s ''pos'')))) c)"
+   proof(clarify)
+   fix c
+   assume "(a, c) \<in> ''acc'' ::= (\<lambda>s. - (s ''vel'' \<cdot> s ''vel'' / (2 \<cdot> s ''station'' - 2 \<cdot> s ''pos'')))"
+   from this have "c = a(''acc'' := (- (a ''vel'' \<cdot> a ''vel'' / (2 \<cdot> a ''station'' - 2 \<cdot> a ''pos''))))" 
+   by (simp add: gets_def)
+oops*)
+
 
 end
