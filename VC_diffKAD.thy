@@ -230,51 +230,44 @@ lemma "PRE (\<lambda> s. s ''x'' >0 \<and> s ''v'' > 0)
       oops
 
 (* Solve-Differential-Equation Rule. *)
-
-theorem solveDiffCorrected:"\<forall> st. \<forall> (t::real) > 0. ((\<lambda> y. (x::real\<Rightarrow>real store\<Rightarrow>real) y st) has_derivative (\<lambda>y. f y st var)) (at t)
-\<Longrightarrow> \<forall> st. \<exists>! (x::real \<Rightarrow> real store). isSolution x var st f G  \<Longrightarrow> (* this hypothesis is not adequate, the uniqueness should be specified by you. *)
+theorem solveDiffCorrected:"\<forall> st. isSolution (\<lambda> t. st(var := (x t st))) var st f G
+\<Longrightarrow> \<forall> st. \<exists>! X. isSolution X var st f G  \<Longrightarrow>
 \<forall> st. P st \<longrightarrow> (\<forall> t \<ge> 0. (\<forall> rr. 0 \<le> rr \<and> rr \<le> t \<longrightarrow> G (st(var := (x rr st)))) \<longrightarrow> 
 (r2p (wp (var ::= x t) (p2r Q)) st))
-(* Holly cow! It might be even the case that adding the line above, won't help. See first verification example.*)
 \<Longrightarrow> PRE P (D[var] = f with G) POST Q "
 proof
 fix pair
 assume "pair \<in> rdom (p2r P)" from this obtain a::"real store" where
-aHyp:"pair = (a,a) \<and> P a" by (metis IdE contra_subsetD d_p2r p2r_subid rdom_p2r_contents) 
-assume DerivOfxIsf:"\<forall>t>0. ((\<lambda>y. x y var) has_derivative (\<lambda>z. f z (x z) var)) (at t)"
-assume "\<forall> st. \<exists>! (X::real \<Rightarrow> real store). isSolution X var st f G" 
-from this obtain X::"real \<Rightarrow> real store" where 
-uniq:"\<forall> z. isSolution z var a f G \<longrightarrow> X = z" by metis 
-from DerivOfxIsf and uniq have eq1:"X = x" by simp
-assume "\<forall>st. P st \<longrightarrow> (\<forall>t\<ge>0. (\<forall>rr. 0 \<le> rr \<and> rr \<le> t \<longrightarrow> G (x rr)) \<longrightarrow> 
-(r2p (wp (var ::= (\<lambda> ss. (x t) var)) (p2r Q))) st)"
-from this and aHyp have "(\<forall>t\<ge>0. (\<forall>rr. 0 \<le> rr \<and> rr \<le> t \<longrightarrow> G (x rr)) \<longrightarrow> 
-(r2p (wp (var ::= (\<lambda> ss. (x t) var)) (p2r Q))) a)" by auto
-then have antiDerivHyp:"(\<forall>t\<ge>0. (\<forall>rr. 0 \<le> rr \<and> rr \<le> t \<longrightarrow> G (x rr)) \<longrightarrow> 
-(\<forall> c. (a,c) \<in> (var ::= (\<lambda> ss. (x t) var)) \<longrightarrow> Q c))" 
+aHyp:"pair = (a,a) \<and> P a" by (metis IdE contra_subsetD d_p2r p2r_subid rdom_p2r_contents)
+assume "\<forall> st. isSolution (\<lambda> t. st(var := (x t st))) var st f G"
+from this have xIsSolution:"isSolution (\<lambda> t. a(var := (x t a))) var a f G" by simp
+assume "\<forall> st. \<exists>! X. isSolution X var st f G" 
+from this have uniq:"\<forall> z. isSolution z var a f G \<longrightarrow> (\<lambda> t. a(var := (x t a))) = z" 
+using xIsSolution by metis
+assume "\<forall> st. P st \<longrightarrow> (\<forall> t \<ge> 0. (\<forall> rr. 0 \<le> rr \<and> rr \<le> t \<longrightarrow> G (st(var := (x rr st)))) \<longrightarrow> 
+r2p (wp (var ::= x t) (p2r Q)) st)"
+from this and aHyp have "(\<forall>t\<ge>0. (\<forall>rr. 0 \<le> rr \<and> rr \<le> t \<longrightarrow> G (a(var := (x rr a)))) \<longrightarrow> 
+r2p (wp (var ::= x t) (p2r Q)) a)" by simp
+then have antiDerivHyp:"(\<forall>t\<ge>0. (\<forall>rr. 0 \<le> rr \<and> rr \<le> t \<longrightarrow> G (a(var := (x rr a)))) \<longrightarrow> 
+(\<forall> c. (a,c) \<in> (var ::= x t) \<longrightarrow> Q c))" 
 by (metis rdom_p2r_contents wp_simp boxProgrRel_eRule1) 
 have "\<forall> c. (a,c) \<in> (D [ var ] = f with G) \<longrightarrow> Q c"
   proof(clarify)
   fix c 
   assume "(a, c) \<in> D [ var ] = f with G" from this obtain t::"real" and F::"real \<Rightarrow> real store" 
   where Fdef:"t\<ge>0 \<and> F t = c \<and> isSolution F var a f G" using guarDiffEqtn_def2 by blast 
-  hence "(\<forall> (s::real). s \<ge> 0 \<longrightarrow>
-  (\<forall> t. 0 < t \<and> t < s \<longrightarrow> ((\<lambda> y. F y var) has_derivative (\<lambda>y. (f y (F y)) var)) (at t)))" 
-  using isSolution_def by simp
-  then have "\<forall> t > 0. ((\<lambda> y. F y var) has_derivative (\<lambda>y. (f y (F y)) var)) (at t)"
-  by (meson less_eq_real_def less_trans reals_Archimedean3) (* Lipschitz continuity required here? *)
-  from this eq1 and uniq have eq2:"F = x" by simp         
-  from Fdef have "\<forall>s\<ge>0::real.(\<forall>t::real. (0::real) \<le> t \<and> t \<le> s \<longrightarrow> (\<forall>y::char list. y \<noteq> var \<longrightarrow> F t y = a y))"
+  from this and uniq have eq2:"(\<lambda> t. a(var := (x t a))) = F" by simp         
+  from Fdef have "\<forall>s\<ge>0.(\<forall>t. 0 \<le> t \<and> t \<le> s \<longrightarrow> (\<forall>y::char list. y \<noteq> var \<longrightarrow> F t y = a y))"
   using isSolution_def by simp
   from this have "(\<forall>y::char list. y \<noteq> var \<longrightarrow> F t y = a y)" using Fdef by auto
-  then have "\<forall> y. F t y = (a (var := x t var)) y" using eq2 by auto
-  hence "F t = a (var := x t var)" by auto
-  from this have "(a, F t) \<in> (var ::= (\<lambda> ss. (x t) var))" using gets_def by blast 
+  then have "\<forall> y. F t y = (a (var := x t a)) y" using eq2 by auto
+  hence "F t = a (var := x t a)" by auto
+  from this have "(a, F t) \<in> (var ::= x t)" using gets_def by blast 
   then show "Q c" using Fdef eq2 antiDerivHyp and isSolution_def by auto
   qed
 from this have "(a,a) \<in>  wp (D [ var ] = f with G ) (p2r Q)" by (simp add: boxProgrPred_chrctrztn)
 then show "pair \<in> wp (D [ var ] = f with G ) (p2r Q)" using aHyp by simp
-oops
+qed
 
 
 theorem solveDiff:"\<forall> (t::real) > 0. ((\<lambda> y. x y var) has_derivative (\<lambda>z. (f z (x z)) var)) (at t)
@@ -332,18 +325,55 @@ Hence, to use this theory/definition with our own predicate "isSolution", we sho
 However, the way they proved the Picard-Lindelöf theorem, does not help us to show uniqueness of our
 solutions, even if we constrain them to being Lipschitz continuous.  *)
 
-declare [[show_types]]
-declare [[show_sorts]]
+(* Useful observations *)
+thm boxProgrPred_chrctrztn
+thm r2p_def
+term "Set.Collect"
+term "Domain R" 
+thm rel_antidomain_kleene_algebra.fbox_def
+thm rel_ad_def
 
-lemma "PRE (\<lambda> s. s ''station'' < s ''pos'' \<and> s ''vel'' = vel \<and> s ''vel'' > 0 \<and> s ''pos'' = pos)  
+lemma boxProgrPred_chrctrztn2:"x \<in> r2s (wp R P) = (\<forall>y. (x, y) \<in> R \<longrightarrow> (r2p P) y)"
+apply(auto simp: r2p_def rel_antidomain_kleene_algebra.fbox_def rel_ad_def, blast)
+by fastforce
+
+lemma precondPost:"(st::real store) ''station'' < st ''pos'' \<Longrightarrow> 0 < st ''vel'' \<Longrightarrow> 0 \<le> t \<Longrightarrow> 
+st(''pos'' := st ''vel'' \<cdot> t + st ''pos'') \<in> r2s {(s, s) |s. s ''station'' < s ''pos''}"
+proof-
+assume "st ''station'' < st ''pos''" " 0 < st ''vel''" and "0 \<le> t"
+from this have "(st(''pos'' := st ''vel'' \<cdot> t + st ''pos'')) ''pos'' = st ''vel'' \<cdot> t + st ''pos''" by simp
+also have "(st(''pos'' := st ''vel'' \<cdot> t + st ''pos'')) ''station'' = st ''station''" by simp
+ultimately have "(st(''pos'' := st ''vel'' \<cdot> t + st ''pos'')) ''station'' < 
+(st(''pos'' := st ''vel'' \<cdot> t + st ''pos'')) ''pos''"
+by (metis \<open>0 < st ''vel''\<close> \<open>0 \<le> t\<close> \<open>st ''station'' < st ''pos''\<close> add_mono_thms_linordered_field(4) 
+less_eq_real_def monoid_add_class.add_0_left mult_nonneg_nonneg)
+thus "st(''pos'' := st ''vel'' \<cdot> t + st ''pos'') \<in> r2s {(s, s) |s. s ''station'' < s ''pos''}"
+by blast
+qed
+
+lemma "PRE (\<lambda> s. s ''station'' < s ''pos''  \<and> s ''vel'' > 0)  
       (
       (D[''pos''] = (\<lambda> t s var. s ''vel'') with (\<lambda> s. True))
       )
       POST (\<lambda> s. (s ''station'' < s ''pos''))"
-      apply(rule_tac x = "(\<lambda> t. \<lambda> str. if str = ''vel'' then vel else (vel\<cdot>t + pos))" in solveDiff)
-      apply(simp)
+      apply(rule_tac x = "(\<lambda> t. \<lambda> s. s ''vel'' \<cdot> t + s ''pos'')" in solveDiffCorrected)
+      defer
+      defer
+      apply(simp add: p2r_def r2p_def boxProgrPred_chrctrztn2 gets_def, clarify)
+      apply(simp add: precondPost)
+      apply(simp add: isSolution_def)
+      thm derivative_intros
+      thm derivative_intros(8)
+      apply(clarsimp, rule conjI, clarify)
+      apply(rule_tac f="\<lambda> t. st ''vel''\<cdot>t" f'="st ''vel''" g="\<lambda> t. st ''pos''" g'="\<lambda> t.0"  in derivative_intros(8))
+      defer
+      defer
+      defer
       oops
-      
+
+declare [[show_types]]
+declare [[show_sorts]]
+
       thm solveDiff
       thm dCut
 
