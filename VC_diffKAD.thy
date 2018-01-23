@@ -379,6 +379,7 @@ apply(clarify)
 apply(rule derivative_eq_intros)
 apply(rule derivative_intros)+
 by simp
+
 let ?goal = "(X 0)(''pos'' := X 0 ''vel'' \<cdot> t + X 0 ''pos'') = X t"
 oops
 
