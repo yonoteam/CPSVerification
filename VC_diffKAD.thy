@@ -82,8 +82,8 @@ done
        f:\<real>\<^sup>n\<^sup>+\<^sup>1\<rightarrow>\<real>\<^sup>n (or f:\<real>\<rightarrow>\<real>\<^sup>n\<rightarrow>\<real>\<^sup>n) and x:\<real>\<rightarrow>\<real>\<^sup>n, hence x':\<real>\<rightarrow>\<real>\<^sup>n such that 
        x'=f\<circ>(id,x) (alternatively, x'= (\<lambda>s.f s (x s))) where
        (id,x):t\<mapsto>(t, \<pi>\<^sub>1(x(t)), \<pi>\<^sub>2(x(t)),\<dots>,\<pi>\<^sub>n(x(t))) and \<pi>\<^sub>i is the ith projection.*)
-definition solves_ivp :: "(real \<Rightarrow> 'a::banach) \<Rightarrow> (real \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow>
-real \<Rightarrow> 'a \<Rightarrow> real set \<Rightarrow> 'a set \<Rightarrow> bool" 
+definition solves_ivp :: "(real \<Rightarrow> 'a::banach) \<Rightarrow> (real \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> real \<Rightarrow> 'a \<Rightarrow> 
+real set \<Rightarrow> 'a set \<Rightarrow> bool" 
 ("solvesTheIVP: D _ = _ withInitCond  _ \<mapsto> _" [70, 70, 70, 70] 68) where
 "(solvesTheIVP: D x = f withInitCond t0 \<mapsto> x0) Domf Codf \<equiv> (x solves_ode f) Domf Codf \<and> x t0 = x0"
 
@@ -198,7 +198,7 @@ lemma boxDiffCond_impliesAllTimeInCond:
   apply(simp add: guarDiffEqtn_def)
   apply(rule_tac x="t" in exI, rule_tac x="F" in exI, simp add: allTime)
   apply(rule condAfterEvol_remainsAlongEvol)
-  using boxDifCond guarDiffEqtn_def FisSol by auto
+  using boxDifCond guarDiffEqtn_def FisSol by safe
 
 theorem dCut: 
   assumes pBoxDiffCut:"(PRE P (D[x] = f with G) POST C)"
@@ -223,27 +223,108 @@ qed
 datatype props = Const "real \<Rightarrow> real \<Rightarrow> bool" | Var "real \<Rightarrow> real \<Rightarrow> bool" | Neg boolex | And boolex boolex*)
 
 term "\<lambda> s. s ''x'' > (0::real)"
-
+term "(\<lambda> (s::real store). (P::real store \<Rightarrow> string \<Rightarrow> bool) (s::real store) str)"
 
 (* deriv_Pred :: "real store pred \<Rightarrow> real store pred" *)
-function deriv_Pred :: "(bool \<Rightarrow> bool \<Rightarrow> bool) \<Rightarrow> (bool \<Rightarrow> bool \<Rightarrow> bool)" where
-"deriv_Pred (op \<and>) = (op \<and>)"|
-"deriv_Pred (op \<or>) = (op \<and>)"
-oops
+function deriv_Term :: "(real store \<Rightarrow> real) \<Rightarrow> (real store \<Rightarrow> real)" where
+"deriv_Term (\<lambda> s. s var) = (\<lambda> s. s (''d''@var))"|
+"deriv_Term (\<lambda> s. c) = (\<lambda> s. 0)"|
+"deriv_Term (\<lambda> s. f s + g s) = (\<lambda> s. (deriv_Term f) s + (deriv_Term g) s)"|
+"deriv_Term (\<lambda> s. f s \<cdot> g s) = (\<lambda> s. (deriv_Term f) s \<cdot> (deriv_Term g) s)"
+sorry
 
-theorem "\<forall> st. P st \<longrightarrow> G st \<longrightarrow> Q st \<Longrightarrow> PRE G (var ::= S) POST Q \<Longrightarrow> 
-PRE P (D [var] = f with G) POST Q"
-oops
+function deriv_Pred :: "(real store pred) \<Rightarrow> (real store pred)" where
+"deriv_Pred (\<lambda> s. f s \<ge> g s) = (\<lambda> s. (deriv_Term f) s \<ge> (deriv_Term g) s)"|
+"deriv_Pred (\<lambda> s. f s > g s) = (\<lambda> s. (deriv_Term f) s \<ge> (deriv_Term g) s)"|
+"deriv_Pred (\<lambda> s. \<not> P s) = (\<lambda> s. deriv_Pred P s)"|
+"deriv_Pred (\<lambda> s. P s \<and> Q s) = (\<lambda> s. (deriv_Pred P) s \<and> (deriv_Pred Q) s)"|
+"deriv_Pred (\<lambda> s. P s \<or> Q s) = (\<lambda> s. (deriv_Pred P) s \<and> (deriv_Pred Q) s)"|
+"deriv_Pred (\<lambda> s. (\<forall> (x::string). (P s) x)) = (\<lambda> s. (\<forall> x. (deriv_Pred (\<lambda> s. P s x)) s))"
+sorry
+
+thm deriv_Pred.cases
+thm deriv_Pred.pelims
+thm deriv_Pred.pinduct
+thm deriv_Pred.psimps
+
+definition smthng :: "(real store \<Rightarrow> real) \<Rightarrow> (real store \<Rightarrow> string \<Rightarrow> bool) \<Rightarrow> (real store \<Rightarrow> string \<Rightarrow> bool)" where
+"smthng f Q = (\<lambda> s var. Q s (''d''@var))"
+
+lemma pelim_dInv:
+assumes "\<lceil>G\<rceil> \<subseteq> \<lceil>Q\<rceil>"
+shows "PRE Q (D [x] = f with G) POST Q"
+
+theorem dInv:
+assumes "\<forall> st. P st \<longrightarrow> G st \<longrightarrow> Q st x" (* Notice that the conjunction below is not valid. *)
+assumes "PRE G ((''d''@x) ::= f) POST (\<lambda> s. Q s (''d''@x))"
+shows " PRE P (D [x] = f with G) POST (\<lambda> s. Q s x)"
+proof(clarify)
+fix a b assume "(a, b) \<in> rdom \<lceil>P\<rceil>"
+from this have "a = b \<and> P a" by (metis rdom_p2r_contents)
+have "\<forall> c. (a,c) \<in> (D [ x ] = f with G) \<longrightarrow> Q c x"
+proof(clarify)
+fix c assume "(a, c) \<in> D [ x ] = f with G"
+show "Q c x"
+sorry
+qed
+thus "(a, b) \<in> wp (D [ x ] = f with G ) \<lceil>\<lambda>s. Q s x\<rceil>" sorry
+qed
+
+
+theorem dInv2:
+assumes "\<forall> st. P st \<longrightarrow> G st \<longrightarrow> Q st x" (* Notice that the conjunction below is not valid. *)
+assumes "PRE (\<lambda> s. P s \<and> G s) ((''d''@x) ::= f) POST (\<lambda> s. Q s (''d''@x))"
+shows " PRE P (D [x] = f with G) POST (\<lambda> s. Q s x)"
+sorry
+
+theorem dInv3:
+assumes "\<forall> st. P st \<longrightarrow> G st \<longrightarrow> Q st"
+assumes "PRE G ((''d''@x) ::= f) POST (deriv_Pred Q)"
+shows " PRE P (D [x] = f with G) POST Q"
+sorry
 
 lemma "PRE (\<lambda> s. s ''x'' >0 \<and> s ''v'' > 0)
       ((D[''x''] = (\<lambda> s. s ''v'') with (\<lambda> s. True)))
       POST (\<lambda> s. s ''x''> 0)"
-      apply(rule_tac C = "\<lambda> s. s ''v'' \<ge> 0" in dCut)
+      apply(rule_tac C = "\<lambda> s. s ''v'' > 0" in dCut)
+      apply(rule dInv)
+      subgoal by simp
+      apply(simp)
       defer
       apply(rule_tac C = "\<lambda> s. s ''x'' > 0" in dCut)
+      apply(rule dInv2)
+      subgoal by simp
+      subgoal by simp
+      subgoal by(rule dWeakening, simp)
+      oops
+
+lemma "PRE (\<lambda> s. s ''x'' >0 \<and> s ''v'' > 0)
+      ((D[''x''] = (\<lambda> s. s ''v'') with (\<lambda> s. True)))
+      POST (\<lambda> s. s ''x''> 0)"
+      apply(rule_tac C = "\<lambda> s. s ''v'' > 0" in dCut)
+      apply(rule dInv2)
+      subgoal by simp
+      subgoal by simp
+      apply(rule_tac C = "\<lambda> s. s ''x'' > 0" in dCut)
+      apply(rule dInv2)
+      subgoal by simp
+      subgoal by simp
+      by(rule dWeakening, simp)
+
+lemma "PRE (\<lambda> s. s ''x'' >0 \<and> s ''v'' > 0)
+      ((D[''x''] = (\<lambda> s. s ''v'') with (\<lambda> s. True)))
+      POST (\<lambda> s. s ''x''> 0)"
+      apply(rule_tac C = "\<lambda> s. s ''v'' > 0" in dCut)
+      apply(rule dInv3)
+      subgoal by simp
+      apply(simp, clarify)
       defer
-      apply(rule dWeakening)
-      apply(simp)
+      apply(rule_tac C = "\<lambda> s. s ''x'' > 0" in dCut)
+      apply(rule dInv3)
+      subgoal by simp
+      apply(simp, clarify)
+      defer
+      subgoal by(rule dWeakening, simp)
       oops
 
  
