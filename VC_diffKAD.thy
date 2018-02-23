@@ -1128,7 +1128,7 @@ thm continuous_intros
 lemma "PRE (\<lambda> s. s ''station'' < s ''pos''  \<and> s ''vel'' > 0)  
       (ODEsystem [(''pos'',(\<lambda> s. s ''vel''))] with (\<lambda> s. True))
       POST (\<lambda> s. (s ''station'' < s ''pos''))"
-apply(rule_tac uInput="[\<lambda> t s. s ''vel'' \<cdot> t + s ''pos'']" in dSolve_toSolveUBC) (* 11 subgoals *)
+apply(rule_tac uInput="[\<lambda> t s. s ''vel'' \<cdot> t + s ''pos'']" in dSolve_toSolveUBC) (* 12 subgoals *)
 prefer 12 subgoal by(simp add: wp_trafo vdiff_def add_strict_increasing2)
 apply(simp_all add: vdiff_def varDiffs_def)
 subgoal
@@ -1147,7 +1147,64 @@ subgoal
   from this and 1 have "\<forall>str. str \<noteq> ''pos'' \<and> str \<notin> varDiffs \<longrightarrow> X t str = st str" by simp
   then show "X r ''vel'' = st ''vel''" using vdiff_def by (simp add: varDiffs_def "1" \<open>0 \<le> r\<close>)
   qed
+(* subgoal apply(simp del: vdiff_def)*)
 done
+
+lemma "PRE (\<lambda> s. s ''station'' < s ''x''  \<and> s ''v'' \<ge> 0 \<and> s ''a'' > 0)  
+      (ODEsystem [(''x'',(\<lambda> s. s ''v'')),(''v'',(\<lambda> s. s ''a''))] with (\<lambda> s. True))
+      POST (\<lambda> s. (s ''station'' < s ''x''))"
+apply(rule_tac uInput="[\<lambda> t s. s ''a'' \<cdot> t ^ 2/2 + s ''v'' \<cdot> t + s ''x'', 
+  \<lambda> t s. s ''a'' \<cdot> t + s ''v'']" in dSolve_toSolveUBC)
+prefer 12 subgoal by(simp add: wp_trafo vdiff_def add_strict_increasing2)
+prefer 7 subgoal (* DERIVATIVES *)
+    apply(simp add: vdiff_def, clarify, rule conjI)
+    apply(rule_tac f'1="\<lambda>x. st ''a'' \<cdot> x + st ''v''" and g'1="\<lambda> x. 0" in derivative_intros(173))
+    apply(rule_tac f'1="\<lambda>x. st ''a'' \<cdot> x" and g'1="\<lambda> x. st ''v''" in derivative_intros(173))
+    subgoal sorry
+    apply(rule_tac f'1="\<lambda> x.0" and g'1="\<lambda> x.1" in derivative_intros(176))
+    apply(rule derivative_intros, simp, simp)+
+    apply(simp, rule derivative_intros, simp, simp)
+    apply(rule_tac f'1="\<lambda> x. st ''a''" and g'1="\<lambda> x. 0" in derivative_intros(173))
+    apply(rule_tac f'1="\<lambda> x.0" and g'1="\<lambda> x.1" in derivative_intros(176))
+    by(rule derivative_intros, simp, simp)+
+prefer 9 subgoal (* CONTINUITY *)
+    apply(auto simp: vdiff_def)
+    prefer 2 apply(rule continuous_intros) 
+    sorry
+prefer 9 subgoal (* UNIQUENESS *)
+    apply(auto simp: vdiff_def closed_segment_eq_real_ivl)
+    prefer 2 subgoal by(simp add: solvesStoreIVP_def vdiff_def varDiffs_def)
+    proof-
+    fix st X and t r::real 
+    assume solHyp:"solvesStoreIVP X [(''x'', \<lambda>s. s ''v''), (''v'', \<lambda>s. s ''a'')] st (\<lambda> s. True)"
+    and rHyp:"0 \<le> r" and tHyp:"r \<le> t"
+    then have 1:"((\<lambda>t. X t ''v'') solvesTheIVP (\<lambda>t r. X t ''a'') 
+    withInitCond  0 \<mapsto> st ''v'') {0--t} UNIV" by (simp add: solvesStoreIVP_def)
+    from solHyp rHyp and tHyp have "\<forall> t \<ge> 0. X t ''a'' = st ''a''" 
+    using solvesStoreIVP_def by (simp add: varDiffs_def vdiff_def)
+    hence obs:"\<forall> s \<in> {0--t}. X s ''a'' = st ''a''" 
+    using rHyp tHyp closed_segment_eq_real_ivl by simp
+    have 2:"((\<lambda>t. st ''a'' \<cdot> t + st ''v'') solvesTheIVP (\<lambda>t r. X t ''a'') 
+    withInitCond  0 \<mapsto> st ''v'') {0--t} UNIV"
+      apply(simp add: solves_ivp_def solves_ode_def)
+      apply(rule_tac f'1="\<lambda> x. st ''a''" and g'1="\<lambda> x. 0" in derivative_intros(173))
+      apply(rule_tac f'1="\<lambda> x.0" and g'1="\<lambda> x.1" in derivative_intros(176))
+      apply(rule derivative_intros, simp)+
+      apply(simp, rule derivative_intros, simp)
+      using obs by simp
+    have 3:"unique_on_bounded_closed 0 {0--t} (st ''v'') (\<lambda>t r. X t ''a'') UNIV  (if t = 0 then 1 else 1/(t+1))"
+      apply(simp add: unique_on_bounded_closed_def unique_on_bounded_closed_axioms_def 
+        unique_on_closed_def compact_interval_def compact_interval_axioms_def nonempty_set_def 
+        interval_def self_mapping_def self_mapping_axioms_def closed_domain_def global_lipschitz_def 
+        lipschitz_def, rule conjI)
+      using rHyp tHyp obs apply(simp_all add: continuous_rhs_def closed_segment_eq_real_ivl, clarify)
+      apply (auto)
+      sorry
+    from 1 2 and 3 have "\<forall> s \<in> {0--t}. X s ''v'' = st ''a'' \<cdot> s + st ''v''"
+    using unique_on_bounded_closed.ivp_unique_solution by blast
+    thus "X r ''v'' = st ''a'' \<cdot> r + st ''v''" using rHyp tHyp closed_segment_eq_real_ivl by simp
+    qed
+by(auto simp: varDiffs_def vdiff_def)
 
 -- "Differential Invariant."
 (* So the problem here is that we need to define the following operation over real-store-predicates:
