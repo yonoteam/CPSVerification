@@ -1,4 +1,4 @@
-theory VC_diffKAD
+theory VC_diffKAD3
 imports
 Main
 "HOL.Transcendental"
@@ -77,7 +77,6 @@ subgoal by blast
 done
 
 -- {* dL CALCULUS. *}
-
 (*  When people specify an initial value problem (IVP) like:
        x' = f(t,x)    x(0) = x\<^sub>0 \<in> \<real>\<^sup>n
     They are assuming many things and abusing notation strongly. Formally, the following holds:
@@ -86,24 +85,24 @@ done
        (id,x):t\<mapsto>(t, \<pi>\<^sub>1(x(t)), \<pi>\<^sub>2(x(t)),\<dots>,\<pi>\<^sub>n(x(t))) and \<pi>\<^sub>i is the ith projection.*)
 definition solves_ivp :: "(real \<Rightarrow> 'a::banach) \<Rightarrow> (real \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> real \<Rightarrow> 'a \<Rightarrow> 
 real set \<Rightarrow> 'a set \<Rightarrow> bool" 
-("solvesTheIVP: D _ = _ withInitCond  _ \<mapsto> _" [70, 70, 70, 70] 68) where
-"(solvesTheIVP: D x = f withInitCond t0 \<mapsto> x0) Domf Codf \<equiv> (x solves_ode f) Domf Codf \<and> x t0 = x0"
+("_ solvesTheIVP _ withInitCond  _ \<mapsto> _" [70, 70, 70, 70] 68) where
+"(x solvesTheIVP f withInitCond t0 \<mapsto> x0) Domf Codf \<equiv> (x solves_ode f) Domf Codf \<and> x t0 = x0"
 
 lemma solves_ivpI:
 assumes "(x solves_ode f) A B"
 assumes "x t0 = x0"
-shows "(solvesTheIVP: D x = f withInitCond t0 \<mapsto> x0) A B"
+shows "(x solvesTheIVP f withInitCond t0 \<mapsto> x0) A B"
 using assms by (simp add: solves_ivp_def)
 
 lemma solves_ivpD:
-assumes "(solvesTheIVP: D x = f withInitCond t0 \<mapsto> x0) A B"
+assumes "(x solvesTheIVP f withInitCond t0 \<mapsto> x0) A B"
 shows "(x solves_ode f) A B"
 and "x t0 = x0"
 using assms by (auto simp: solves_ivp_def)
 
 theorem(in unique_on_bounded_closed) ivp_unique_solution:
-assumes xIsSol:"(solvesTheIVP: D x = f withInitCond t0 \<mapsto> x0) T X"
-assumes yIsSol:"(solvesTheIVP: D y = f withInitCond t0 \<mapsto> x0) T X"
+assumes xIsSol:"(x solvesTheIVP f withInitCond t0 \<mapsto> x0) T X"
+assumes yIsSol:"(y solvesTheIVP f withInitCond t0 \<mapsto> x0) T X"
 shows "\<forall> t \<in> T. x t = y t"
 proof
 fix t assume "t \<in> T"
@@ -113,43 +112,80 @@ qed
 
 (* Observations *)
 term "closed_segment a (b::real)"
+term "atLeastAtMost a (b::real)"
 term "open_segment a b"
+term "greaterThanLessThan a b"
+thm closed_segment_def
+thm atLeast_def
 
 (* In our store implementation:
     · The solution "x:\<real>\<rightarrow>\<real>\<^sup>n" is changed for "F::real \<Rightarrow> real store" (i.e. real \<Rightarrow> string \<Rightarrow> real).
       The letter "x" is reserved for strings.
-    · Instead of "f:\<real>\<rightarrow>\<real>\<^sup>n\<rightarrow>\<real>\<^sup>n)" we use "f::real store \<Rightarrow> real". This is for consistency with the
+    · Instead of "f:\<real>\<rightarrow>\<real>\<^sup>n\<rightarrow>\<real>\<^sup>n" we use "f::real store \<Rightarrow> real". This is for consistency with the
       "expressions" in assignments in VC_KAD.thy and because we mainly focus on "autonomous systems
       of ODE'S (i.e. systems of the form x'(t)=f(x(t))). *)
-definition solvesStoreIVP :: 
-"(real \<Rightarrow> real store) \<Rightarrow> string \<Rightarrow> (real store \<Rightarrow> real) \<Rightarrow> real store \<Rightarrow> (real store pred) \<Rightarrow> bool" 
-("(_ solvesTheStoreIVP: D _ = _ withInitState _ andGuard _)" [70, 70, 70, 70, 70] 68) where
-"(F solvesTheStoreIVP: D x = f withInitState st andGuard G) \<equiv> 
-  (F 0 = st) \<and> 
-  (\<forall> s \<ge> 0. \<forall> t \<in> {0 -- s}. G (F t) \<and> (\<forall> y. y\<noteq>x \<longrightarrow> F t y = st y)) \<and>
-  (\<forall> s \<ge> 0. (solvesTheIVP: D (\<lambda> t. F t x) = (\<lambda> t. \<lambda> r. f (F t)) withInitCond 0 \<mapsto> (st x)) {0 -- s} UNIV)"
 
-definition guarDiffEqtn :: "string \<Rightarrow> (real store \<Rightarrow> real) \<Rightarrow> (real store pred) \<Rightarrow> 
-real store rel" ("D [ _ ] = _ with _ " [70, 70, 70] 61) where
-"D [x] = f with G = {(st,(F::real \<Rightarrow> real store) t) |st t F. t \<ge> 0 \<and> solvesStoreIVP F x f st G}"
+definition vdiff ::"string \<Rightarrow> string" where
+"vdiff x = ''d[''@x@'']''" (* Alternatively, we could use: "''d''@x@''/dt''" *)
+
+definition varDiffs :: "string set" where
+"varDiffs = {str. \<exists> x. str = vdiff x}"
+
+definition solvesStoreIVP :: "(real \<Rightarrow> real store) \<Rightarrow> (string \<times> (real store \<Rightarrow> real)) list \<Rightarrow> 
+real store \<Rightarrow> (real store pred) \<Rightarrow> bool" 
+("(_ solvesTheStoreIVP _ withInitState _ andGuard _)" [70, 70, 70, 70] 68) where
+"solvesStoreIVP F xfList st G \<equiv>
+(* At the beginning F is the initial state. *)
+(F 0 = st) \<and>
+(* F preserves the guard statement. *)
+(\<forall> t \<ge> 0. G (F t) \<and> (\<forall> xf \<in> set xfList. (F t (vdiff (\<pi>\<^sub>1 xf))) = (\<pi>\<^sub>2 xf) (F t)) \<and>
+(* F preserves the rest of the variables and F sends derivs of constants to 0. *)
+  (\<forall> str. (str \<notin> (\<pi>\<^sub>1\<lbrakk>set xfList\<rbrakk>) \<longrightarrow> F t str = st str)) \<and> 
+(* F solves the induced IVP. *)
+  (\<forall> xf \<in> set xfList. ((\<lambda> t. F t (\<pi>\<^sub>1 xf)) solvesTheIVP (\<lambda> t. \<lambda> r. (\<pi>\<^sub>2 xf) (F t)) 
+  withInitCond 0 \<mapsto> (st (\<pi>\<^sub>1 xf))) {0 -- t} UNIV))"
+
+lemma solves_store_ivpI:
+  assumes "F 0 = st"
+  assumes "\<forall> t \<ge> 0. G (F t)"
+  assumes "\<forall> t \<ge> 0.\<forall> xf \<in> set xfList. (F t (vdiff (\<pi>\<^sub>1 xf))) = (\<pi>\<^sub>2 xf) (F t)"
+  assumes "\<forall> t \<ge> 0.\<forall> str. str \<notin> (\<pi>\<^sub>1\<lbrakk>set xfList\<rbrakk>) \<longrightarrow> F t str = st str"
+  assumes "\<forall> t \<ge> 0. \<forall> xf \<in> set xfList. ((\<lambda> t. F t (\<pi>\<^sub>1 xf)) solvesTheIVP (\<lambda> t. \<lambda> r. (\<pi>\<^sub>2 xf) (F t)) 
+withInitCond 0 \<mapsto> (st (\<pi>\<^sub>1 xf))) {0 -- t} UNIV"
+  shows "F solvesTheStoreIVP xfList withInitState st andGuard G"
+  using assms solvesStoreIVP_def by auto
+
+lemma solves_store_ivpD:
+  assumes "F solvesTheStoreIVP xfList withInitState st andGuard G"
+  shows "F 0 = st"
+and "\<forall> t \<ge> 0. G (F t)"
+and "\<forall> t \<ge> 0.\<forall> xf \<in> set xfList. (F t (vdiff (\<pi>\<^sub>1 xf))) = (\<pi>\<^sub>2 xf) (F t)"
+and "\<forall> t \<ge> 0.\<forall> str. str \<notin> (\<pi>\<^sub>1\<lbrakk>set xfList\<rbrakk>) \<longrightarrow> F t str = st str"
+and "\<forall> t \<ge> 0. \<forall> xf \<in> set xfList. ((\<lambda> t. F t (\<pi>\<^sub>1 xf)) solvesTheIVP (\<lambda> t. \<lambda> r. (\<pi>\<^sub>2 xf) (F t)) 
+withInitCond 0 \<mapsto> (st (\<pi>\<^sub>1 xf))) {0 -- t} UNIV"
+  using assms solvesStoreIVP_def by auto
+
+definition guarDiffEqtn :: "(string \<times> (real store \<Rightarrow> real)) list \<Rightarrow> (real store pred) \<Rightarrow> 
+real store rel" ("ODEsystem _ with _ " [70, 70] 61) where
+"ODEsystem xfList with G = {(st,F t) |st t F. t \<ge> 0 \<and> solvesStoreIVP F xfList st G}"
 
 -- "Differential Weakening."
 (* Sketch of dW's proof: 
     \<pi>\<^sub>2[\<alpha>] \<subseteq> \<phi> \<Longrightarrow> (\<alpha> \<circ> \<phi>\<^sup>C) = \<emptyset> \<Longleftrightarrow> Univ = (\<alpha> \<circ> \<phi>\<^sup>C)\<^sup>C = \<not> <\<alpha>> \<not> \<phi>  = [\<alpha>] \<phi> *)
-lemma dEvolutionImpliesGuard:"\<pi>\<^sub>2\<lbrakk>D [ x ] = f with G\<rbrakk> \<subseteq> p2s G"
-  by (auto simp: guarDiffEqtn_def solvesStoreIVP_def)
+lemma dEvolutionImpliesGuard:"\<pi>\<^sub>2\<lbrakk>ODEsystem xfList with G\<rbrakk> \<subseteq> p2s G"
+  by (auto simp: guarDiffEqtn_def solves_store_ivpD)
 
 lemma relAdNullComposIfCodSubset:"\<pi>\<^sub>2\<lbrakk>R\<rbrakk> \<subseteq> p2s P \<Longrightarrow> R ; \<Delta>\<^sup>c\<^sub>1 \<lceil>P\<rceil> = {}"
   by (auto simp: p2r_def p2r_subid rel_ad_def)
 
 theorem dWeakening: 
 assumes guardImpliesPost: "\<lceil>G\<rceil> \<subseteq> \<lceil>Q\<rceil>"
-shows "PRE P (D[x] = f with G) POST Q"
+shows "PRE P (ODEsystem xfList with G) POST Q"
 proof-
-  have "\<pi>\<^sub>2\<lbrakk>D [ x ] = f with G\<rbrakk> \<subseteq> p2s Q" using
+  have "\<pi>\<^sub>2\<lbrakk>ODEsystem xfList with G\<rbrakk> \<subseteq> p2s Q" using
   guardImpliesPost dEvolutionImpliesGuard
     by (metis (mono_tags, lifting) contra_subsetD impl_prop mem_Collect_eq subsetI) 
-  then have "(D[x] = f with G) ; \<Delta>\<^sup>c\<^sub>1 \<lceil>Q\<rceil> = {}" 
+  then have "(ODEsystem xfList with G) ; \<Delta>\<^sup>c\<^sub>1 \<lceil>Q\<rceil> = {}" 
     by (meson relAdNullComposIfCodSubset)
   from this show ?thesis
     by (simp add: p2r_subid rel_antidomain_kleene_algebra.addual.bbox_def) 
@@ -157,64 +193,59 @@ qed
 
 (* Example of hybrid program verified with differential weakening. *)  
 lemma "PRE (\<lambda> s. s ''x'' > 0)  
-      (D[''x''] = (\<lambda> s. s ''x'' + 1) with (\<lambda> s. s ''x'' > 0))
+      (ODEsystem [(''x'',(\<lambda> s. s ''x'' + 1))] with (\<lambda> s. s ''x'' > 0))
       POST (\<lambda> s. s ''x'' > 0)"
-using dWeakening by simp
+  using dWeakening by simp
       
 lemma "PRE (\<lambda> s. s ''x'' > 0)  
-      (D[''x''] = (\<lambda> s. s ''x'' + 1) with (\<lambda> s. s ''x'' > 0))
+      (ODEsystem [(''x'',(\<lambda> s. s ''x'' + 1))] with (\<lambda> s. s ''x'' > 0))
       POST (\<lambda> s. s ''x'' > 0)"
-apply(clarify, simp add: p2r_def)
-apply(simp add: rel_ad_def rel_antidomain_kleene_algebra.addual.ars_r_def)
-apply(simp add: rel_antidomain_kleene_algebra.fbox_def)
-apply(simp add: relcomp_def rel_ad_def guarDiffEqtn_def solvesStoreIVP_def)
-apply(auto)
-done
+  apply(clarify, simp add: p2r_def)
+  apply(simp add: rel_ad_def rel_antidomain_kleene_algebra.addual.ars_r_def)
+  apply(simp add: rel_antidomain_kleene_algebra.fbox_def)
+  apply(simp add: relcomp_def rel_ad_def guarDiffEqtn_def)
+  apply(simp add: solvesStoreIVP_def)
+  apply(auto)
+  done
 
 -- "Differential Cut."
 lemma condAfterEvol_remainsAlongEvol:
-  assumes boxDiffC:"(a, a) \<in> wp (D [ x ] = f with G) \<lceil>C\<rceil>"
-  assumes FisSol:"(F solvesTheStoreIVP: D x = f withInitState a andGuard G)"
-  shows "(F solvesTheStoreIVP: D x = f withInitState a andGuard (\<lambda>s. G s \<and> C s))"
-  apply(simp add: solvesStoreIVP_def, safe)
-  subgoal using FisSol solvesStoreIVP_def by simp
-  subgoal using FisSol solvesStoreIVP_def by simp
-  subgoal proof-
-  from boxDiffC have diffHyp:"\<forall> c. (a,c) \<in> (D [ x ] = f with G) \<longrightarrow> C c"
+  assumes boxDiffC:"(a, a) \<in> wp (ODEsystem xfList with G) \<lceil>C\<rceil>"
+  assumes FisSol:"solvesStoreIVP F xfList a G"
+  shows "solvesStoreIVP F xfList a (\<lambda>s. G s \<and> C s)"
+  apply(rule solves_store_ivpI)
+  defer   subgoal proof(clarify)
+  from boxDiffC have diffHyp:"\<forall> c. (a,c) \<in> (ODEsystem xfList with G) \<longrightarrow> C c"
   using guarDiffEqtn_def wp_trafo by (metis (no_types, lifting) Domain.intros r2p_def)
-  fix s t::real
-  assume "0 \<le> s" and "t \<in> {0 -- s}"
-  hence "(a,F t) \<in> (D [ x ] = f with G)" 
-  using closed_segment_eq_real_ivl FisSol guarDiffEqtn_def by auto 
-  then show "C (F t)" using diffHyp by blast  
+  fix t::real assume tHyp:"0 \<le> t"
+  then have odeF:"(a,F t) \<in> (ODEsystem xfList with G)" using FisSol guarDiffEqtn_def by auto 
+  from this diffHyp and tHyp show "G (F t) \<and> C (F t)" using solves_store_ivpD(2) FisSol by blast
   qed
-  subgoal using FisSol solvesStoreIVP_def by simp
-  subgoal using FisSol solvesStoreIVP_def by simp
-  done
+  using FisSol solvesStoreIVP_def by auto
 
 lemma boxDiffCond_impliesAllTimeInCond:
   assumes allTime: "(t::real)\<ge> 0"
-  assumes boxDifCond:"(a,a) \<in> wp (D [ x ] = f with G) \<lceil>C\<rceil>"
-  assumes FisSol:"(F solvesTheStoreIVP: D x = f withInitState a andGuard G)"
-  shows "(a,F t) \<in> (D [ x ] = f with (\<lambda>s. G s \<and> C s))"
+  assumes boxDifCond:"(a,a) \<in> wp (ODEsystem xfList with G) \<lceil>C\<rceil>"
+  assumes FisSol:"solvesStoreIVP F xfList a G"
+  shows "(a,F t) \<in> (ODEsystem xfList with (\<lambda>s. G s \<and> C s))"
   apply(simp add: guarDiffEqtn_def)
   apply(rule_tac x="t" in exI, rule_tac x="F" in exI, simp add: allTime)
   apply(rule condAfterEvol_remainsAlongEvol)
   using boxDifCond guarDiffEqtn_def FisSol by safe
 
 theorem dCut: 
-  assumes pBoxDiffCut:"(PRE P (D[x] = f with G) POST C)"
-  assumes pBoxCutQ:"(PRE P (D[x] = f with (\<lambda> s. G s \<and> C s)) POST Q)"
-  shows "PRE P (D[x] = f with G) POST Q"
+  assumes pBoxDiffCut:"(PRE P (ODEsystem xfList with G) POST C)"
+  assumes pBoxCutQ:"(PRE P (ODEsystem xfList with (\<lambda> s. G s \<and> C s)) POST Q)"
+  shows "PRE P (ODEsystem xfList with G) POST Q"
 proof(clarify)
   fix a b::"real store" assume abHyp:"(a,b) \<in> rdom \<lceil>P\<rceil>"
   from this have "a = b \<and> P a" by (metis rdom_p2r_contents)
-  from this abHyp and pBoxDiffCut have "(a,a) \<in> wp (D [ x ] = f with G) \<lceil>C\<rceil>" by blast
-  moreover from pBoxCutQ and abHyp have "\<forall> c. (a,c) \<in> (D [ x ] = f with (\<lambda>s. G s \<and> C s)) \<longrightarrow> Q c"
+  from this abHyp and pBoxDiffCut have "(a,a) \<in> wp (ODEsystem xfList with G) \<lceil>C\<rceil>" by blast
+  moreover from pBoxCutQ and abHyp have "\<forall> c. (a,c) \<in> (ODEsystem xfList with (\<lambda>s. G s \<and> C s)) \<longrightarrow> Q c"
     by (metis (no_types, lifting) \<open>a = b \<and> P a\<close> boxProgrPred_chrctrztn set_mp)
-  ultimately have "\<forall> c. (a,c) \<in> (D [ x ] = f with G) \<longrightarrow> Q c" using
+  ultimately have "\<forall> c. (a,c) \<in> (ODEsystem xfList with G) \<longrightarrow> Q c" using
       guarDiffEqtn_def boxDiffCond_impliesAllTimeInCond by auto
-  from this and \<open>a = b \<and> P a\<close> show "(a,b) \<in> wp (D [ x ] = f with G) \<lceil>Q\<rceil>" 
+  from this and \<open>a = b \<and> P a\<close> show "(a,b) \<in> wp (ODEsystem xfList with G) \<lceil>Q\<rceil>" 
     by (simp add: boxProgrPred_chrctrztn)
 qed 
 
@@ -224,39 +255,44 @@ x::"real \<Rightarrow> (real store) \<Rightarrow> real". For that reason, in thi
 "xvar" represents the string, while "x" is the user input. *)
 lemma prelim_dSolve:
 fixes x::"real \<Rightarrow> (real store) \<Rightarrow> real"
-assumes xIsSolutionOnA:"solvesStoreIVP (\<lambda> t. a(xvar := (x t a))) xvar f a G"
-assumes uniqOnA:"\<forall> X. solvesStoreIVP X xvar f a G \<longrightarrow> (\<forall> t \<ge> 0. a(xvar := (x t a))= X t)"
+assumes xIsSolutionOnA:"solvesStoreIVP (\<lambda> t. a(xvar := (x t a))) [(xvar,f)] a G"
+assumes uniqOnA:"\<forall> X. solvesStoreIVP X [(xvar,f)] a G \<longrightarrow> (\<forall> t \<ge> 0. a(xvar := (x t a))= X t)"
 assumes guardPreservedImpliesPost: 
 "(\<forall>t\<ge>0. (\<forall>r \<in> {0 -- t}. G (a(xvar := (x r a)))) \<longrightarrow> (\<forall> c. (a,c) \<in> (xvar ::= x t) \<longrightarrow> Q c))"
-shows "\<forall> c. (a,c) \<in> (D [ xvar ] = f with G) \<longrightarrow> Q c"
+shows "\<forall> c. (a,c) \<in> (ODEsystem [(xvar,f)] with G) \<longrightarrow> Q c"
 proof(clarify)
-fix c assume "(a,c) \<in> (D [ xvar ] = f with G)"
-from this obtain t::"real" and F::"real \<Rightarrow> real store" 
-where FHyp:"t\<ge>0 \<and> F t = c \<and> solvesStoreIVP F xvar f a G" using guarDiffEqtn_def by auto 
-from this and uniqOnA have "F t = a (xvar := x t a)" by auto
-then have "(a, F t) \<in> (xvar ::= x t)" using gets_def by blast 
-thus "Q c" using xIsSolutionOnA guardPreservedImpliesPost FHyp
-by (metis solvesStoreIVP_def) 
+  fix c assume "(a,c) \<in> (ODEsystem [(xvar,f)] with G)"
+  from this obtain t::"real" and F::"real \<Rightarrow> real store" 
+    where FHyp:"t\<ge>0 \<and> F t = c \<and> solvesStoreIVP F [(xvar,f)] a G" using guarDiffEqtn_def by auto
+  from this and uniqOnA have "(\<lambda> r. a(xvar := (x r a))) t = F t" by blast
+  hence eq1:"F t xvar = (a(xvar := (x t a))) xvar" by simp
+  moreover have "\<forall>r\<ge>0. \<forall>str. str \<noteq> xvar \<longrightarrow> F r str = a str" 
+    using FHyp solvesStoreIVP_def by simp
+  then have eq2:"\<forall>str. str \<noteq> xvar \<longrightarrow> F t str = a str" using FHyp by blast
+  ultimately have "F t = a (xvar := x t a)" by auto
+  then have "(a, F t) \<in> (xvar ::= x t)" using gets_def by blast 
+  thus "Q c" using FHyp closed_segment_eq_real_ivl guardPreservedImpliesPost
+solvesStoreIVP_def uniqOnA by fastforce
 qed
 
 theorem dSolve:
 fixes x::"real \<Rightarrow> (real store) \<Rightarrow> real"
-assumes xSolves:"\<forall> st. solvesStoreIVP (\<lambda> t. st(xvar := (x t st))) xvar f st G"
-assumes solIsUniq:"\<forall> st. \<forall> X. solvesStoreIVP X xvar f st G \<longrightarrow> (\<forall> t \<ge> 0. st(xvar := (x t st)) = X t)"
+assumes xSolves:"\<forall> st. solvesStoreIVP (\<lambda> t. st(xvar := (x t st))) [(xvar,f)] st G"
+assumes solIsUniq:"\<forall> st. \<forall> X. solvesStoreIVP X [(xvar,f)] st G \<longrightarrow> (\<forall> t \<ge> 0. st(xvar := (x t st)) = X t)"
 assumes diffAssgn:
 "\<forall>st. P st \<longrightarrow> (\<forall>t\<ge>0. (\<forall>r \<in> {0 -- t}. G (st(xvar := x r st))) \<longrightarrow> \<lfloor>wp (xvar ::= x t) \<lceil>Q\<rceil>\<rfloor> st)"
-shows "PRE P (D[xvar] = f with G) POST Q" 
+shows "PRE P (ODEsystem [(xvar,f)] with G) POST Q" 
 proof
 fix pair assume "pair \<in> rdom \<lceil>P\<rceil>" 
 from this obtain a::"real store" where aHyp:"pair = (a,a) \<and> P a" 
 by (metis IdE contra_subsetD d_p2r p2r_subid rdom_p2r_contents)
-from xSolves have pre1:"solvesStoreIVP (\<lambda> t. a(xvar := (x t a))) xvar f a G" by simp
-from this have pre2:"\<forall> X. solvesStoreIVP X xvar f a G \<longrightarrow> (\<forall> t \<ge> 0. a(xvar := (x t a))= X t)" 
+from xSolves have pre1:"solvesStoreIVP (\<lambda> t. a(xvar := (x t a))) [(xvar,f)] a G" by simp
+from this have pre2:"\<forall> X. solvesStoreIVP X [(xvar,f)] a G \<longrightarrow> (\<forall> t \<ge> 0. a(xvar := (x t a))= X t)" 
 using solIsUniq by metis
 from diffAssgn and aHyp have pre3: "(\<forall>t\<ge>0. (\<forall>r \<in> {0 -- t}. G (a(xvar := (x r a)))) \<longrightarrow> 
 (\<forall> c. (a,c) \<in> (xvar ::= x t) \<longrightarrow> Q c))" by (metis wp_trafo)
-from pre1 pre2 and pre3 have "\<forall> c. (a,c) \<in> (D [ xvar ] = f with G) \<longrightarrow> Q c" by (rule prelim_dSolve)
-thus "pair \<in> wp (D [ xvar ] = f with G ) (p2r Q)" by (simp add: aHyp boxProgrPred_chrctrztn)
+from pre1 pre2 and pre3 have "\<forall> c. (a,c) \<in> (ODEsystem [(xvar,f)] with G) \<longrightarrow> Q c" by (rule prelim_dSolve)
+thus "pair \<in> wp (ODEsystem [(xvar,f)] with G ) (p2r Q)" by (simp add: aHyp boxProgrPred_chrctrztn)
 qed
 
 (* OBSERVATIONS *)
@@ -284,8 +320,8 @@ fixes x:: "real \<Rightarrow> (real store) \<Rightarrow> real"
 assumes sHyp:"s \<ge> 0"
 assumes contHyp:"continuous_on ({0--s} \<times> UNIV) (\<lambda>(t, (r::real)). f (a(xvar := x t a)))"
 assumes eqDerivs:"\<forall> t \<in>{0--s}. f (F t) = f (a(xvar := (x t a)))"
-assumes Fsolves:"solvesStoreIVP F xvar f a G"
-assumes xSolves:"solvesStoreIVP (\<lambda> t. a(xvar := (x t a))) xvar f a G"
+assumes Fsolves:"solvesStoreIVP F [(xvar,f)] a G"
+assumes xSolves:"solvesStoreIVP (\<lambda> t. a(xvar := (x t a))) [(xvar,f)] a G"
 shows "(a(xvar := x s a)) = F s"
 proof
   fix str::"string" show "(a(xvar := x s a)) str = F s str"
@@ -295,7 +331,7 @@ proof
     from xSolves have "\<forall>s\<ge>0. \<forall>t\<in>{0--s}. \<forall>str. str \<noteq> xvar \<longrightarrow> (a(xvar := (x t a))) str = a str"
     by (simp add: solvesStoreIVP_def) 
     hence 1:"(a(xvar := (x s a))) str = a str" using sHyp notXvar by blast
-    from Fsolves have "\<forall>s\<ge>0. \<forall>t\<in>{0--s}. \<forall>str. str \<noteq> xvar \<longrightarrow> F t str = a str" 
+    from Fsolves have "\<forall>t\<ge>0. \<forall>str. str \<noteq> xvar \<longrightarrow> F t str = a str" 
     by (simp add: solvesStoreIVP_def) 
     then have 2:"F s str = a str" using sHyp notXvar by blast
     thus "(a(xvar := x s a)) str = F s str" using 1 and 2 by simp
@@ -326,51 +362,49 @@ proof
 theorem dSolveUBC:
 fixes x::"real \<Rightarrow> (real store) \<Rightarrow> real"
 assumes contHyp:"\<forall> st. \<forall> r \<ge> 0. continuous_on ({0--r} \<times> UNIV) (\<lambda>(t, (s::real)). f (st(xvar := x t st)))"
-assumes xSolves:"\<forall> st. solvesStoreIVP (\<lambda> t. st(xvar := (x t st))) xvar f st G"
+assumes xSolves:"\<forall> st. solvesStoreIVP (\<lambda> t. st(xvar := (x t st))) [(xvar,f)] st G"
 assumes solIsUniq:
-"\<forall> st. \<forall> X. solvesStoreIVP X xvar f st G \<longrightarrow> (\<forall> t \<ge> 0. f (X t) = f (st(xvar := (x t st))))"
+"\<forall> st. \<forall> X. solvesStoreIVP X [(xvar,f)] st G \<longrightarrow> (\<forall> t \<ge> 0. f (X t) = f (st(xvar := (x t st))))"
 assumes diffAssgn:
 "\<forall>st. P st \<longrightarrow> (\<forall>t\<ge>0. (\<forall>r \<in> {0 -- t}. G (st(xvar := x r st))) \<longrightarrow> \<lfloor>wp (xvar ::= x t) \<lceil>Q\<rceil>\<rfloor> st)"
-shows "PRE P (D[xvar] = f with G) POST Q"
+shows "PRE P (ODEsystem [(xvar,f)] with G) POST Q"
 apply(rule_tac x="x" in dSolve)
 subgoal using xSolves by simp
 subgoal proof(clarify)
 fix a::"real store" and X::"real \<Rightarrow> real store" and s::"real"
-assume XisSol:"solvesStoreIVP X xvar f a G" and sHyp:"0 \<le> s"
+assume XisSol:"solvesStoreIVP X [(xvar,f)] a G" and sHyp:"0 \<le> s"
 from this and solIsUniq have "\<forall> t \<in> {0--s}. f (X t) = f (a(xvar := (x t a)))" 
 by(simp add: closed_segment_eq_real_ivl) (* This equivalence helps Isabelle a lot. *)
 moreover have "continuous_on ({0--s} \<times> UNIV) (\<lambda>(t, (r::real)). f (a(xvar := x t a)))"
 using contHyp and sHyp by blast
-moreover from xSolves have "solvesStoreIVP (\<lambda> t. a(xvar := (x t a))) xvar f a G" by simp
+moreover from xSolves have "solvesStoreIVP (\<lambda> t. a(xvar := (x t a))) [(xvar,f)] a G" by simp
 ultimately show "(a(xvar := x s a)) = X s" using sHyp XisSol ubcStoreUniqueSol by simp
 qed
 subgoal using diffAssgn by simp
 done
 
 (* OBSERVATIONS *)
-thm derivative_intros(173)
 thm derivative_intros
+thm derivative_intros(173)
 thm derivative_intros(176)
-thm derivative_eq_intros(22)
 thm derivative_eq_intros
 thm continuous_intros
 
-(* Example of hybrid program verified with differential weakening. *)  
+(* Example of hybrid program verified with differential solve. *)  
 lemma "PRE (\<lambda> s. s ''station'' < s ''pos''  \<and> s ''vel'' > 0)  
-      (D[''pos''] = (\<lambda> s. s ''vel'') with (\<lambda> s. True))
+      (ODEsystem [(''pos'',(\<lambda> s. s ''vel''))] with (\<lambda> s. True))
       POST (\<lambda> s. (s ''station'' < s ''pos''))"
-apply(rule_tac x ="(\<lambda> t. \<lambda> s. s ''vel'' \<cdot> t + s ''pos'')" in dSolveUBC) (* 4 goal appear. *)
-subgoal by (clarsimp, rule continuous_intros)
-subgoal
-  apply(simp add: solvesStoreIVP_def solves_ivp_def solves_ode_def,clarify)
-  apply(rule_tac f'1="\<lambda> x. st ''vel''" and g'1="\<lambda> x. 0" in derivative_intros(173))(* 3 goals appear. *)
-  apply(rule_tac f'1="\<lambda> x.0" and g'1="\<lambda> x.1" in derivative_intros(176))           (* 3 goals appear. *)
-  by(auto intro: derivative_intros)
-subgoal by(simp add: solvesStoreIVP_def)
-subgoal 
+  apply(rule_tac x ="(\<lambda> t. \<lambda> s. s ''vel'' \<cdot> t + s ''pos'')" in dSolveUBC) (* 4 goal appear. *)
+  subgoal by (clarsimp, rule continuous_intros)
+  subgoal
+    apply(simp add: solvesStoreIVP_def solves_ivp_def solves_ode_def vdiff_def, clarify, safe)
+    subgoal sorry
+    apply(rule_tac f'1="\<lambda> x. st ''vel''" and g'1="\<lambda> x. 0" in derivative_intros(173))(* 3 goals appear. *)
+    apply(rule_tac f'1="\<lambda> x.0" and g'1="\<lambda> x.1" in derivative_intros(176))           (* 3 goals appear. *)
+    by(auto intro: derivative_intros)
+  subgoal by(simp add: solvesStoreIVP_def)
   apply(clarsimp, simp add: p2r_def r2p_def)
   by(simp add: Domain_iff add_strict_increasing2)
-done
 
 -- "Differential Invariant."
 (* So the problem here is that we need to define the following operation over real-store-predicates:
@@ -407,6 +441,10 @@ done
       doing any of these will affect "solvesStoreIVP" in a way that we won't be able to generalize
       later to many variables with the approach: 
         "(D[x] = f, D[x]=g with G) = (D[x]=f with G) \<inter> (D[y]=g with G)"
+      THE LAST TWO SENTENCES OF MY PREVIOUS PARAGRAPH ARE NOT TRUE. Apparently we do not need to
+      modify the "solvesStoreIVP" definition. It is more about the partial derivatives of the 
+      functions of type "real store \<Rightarrow> real". We'll have to think about it... a lot... 
+
       Moreover, assuming that we can use this approach in a way that it generalizes nicely to many
       variables, we still have to learn how to define "simprocs in Isabelle/ML" so that we can
       automate the tool enough that it competes with KeYmaera X's invariant rules.
@@ -427,11 +465,11 @@ thm solvesStoreIVP_def
 
 lemma dInvForVars: 
 assumes "\<forall> c. (a,c) \<in> ((''d''@x) ::= f) \<longrightarrow> (\<lambda> s. s (''d''@y)) c = 0"
-shows "(\<lambda> s. s y) a = 0 \<longrightarrow> (\<forall> c. (a,c) \<in> (D [x] = f with (\<lambda> s. True)) \<longrightarrow> (\<lambda> s. s y) c = 0)"
+shows "(\<lambda> s. s y) a = 0 \<longrightarrow> (\<forall> c. (a,c) \<in> (ODEsystem [(x,f)] with (\<lambda> s. True)) \<longrightarrow> (\<lambda> s. s y) c = 0)"
 proof(clarify)
-fix c assume "a y = 0" and cHyp:"(a, c) \<in> D [ x ] = f with (\<lambda>s. True)"
+fix c assume "a y = 0" and cHyp:"(a, c) \<in> ODEsystem [(x,f)] with (\<lambda>s. True)"
 from this obtain t::"real" and F::"real \<Rightarrow> real store" 
-where FHyp:"t\<ge>0 \<and> F 0 = a \<and> F t = c \<and> solvesStoreIVP F x f a (\<lambda> s. True)" 
+where FHyp:"t\<ge>0 \<and> F 0 = a \<and> F t = c \<and> solvesStoreIVP F [(x,f)] a (\<lambda> s. True)" 
 using guarDiffEqtn_def solvesStoreIVP_def by auto
 show "c y = 0"
   proof(cases "y=x")
@@ -447,59 +485,58 @@ show "c y = 0"
     thus "c y = 0" using \<open>y=x\<close> FHyp \<open>a y = 0\<close> by fastforce
   next
     case False
-    from this and FHyp  have "\<forall>r\<in>{0--t}. \<forall>y. y \<noteq> x \<longrightarrow> F r y = a y" 
-    by (meson solvesStoreIVP_def)
-    then show ?thesis using \<open>y \<noteq> x\<close> \<open>a y = 0\<close> FHyp 
-    by (metis ends_in_segment(2)) 
+    from this and FHyp have "\<forall>y. y \<noteq> x \<longrightarrow> F t y = a y"
+      using solves_store_ivpD(4) by auto 
+    then show ?thesis using \<open>y \<noteq> x\<close> \<open>a y = 0\<close> FHyp by (metis) 
   qed
 qed
 
 lemma dInvForSums:
 assumes "\<forall> c. (a,c) \<in> ((''d''@x) ::= f) \<longrightarrow> (\<lambda> s. f s + g s) c = 0"
-shows "(\<lambda> s. f s + g s) a = 0 \<longrightarrow> (\<forall> c. (a,c) \<in> (D [x] = f with (\<lambda> s. True)) \<longrightarrow> (\<lambda> s. f s + g s) c = 0)"
+shows "(\<lambda> s. f s + g s) a = 0 \<longrightarrow> (\<forall> c. (a,c) \<in> (ODEsystem [(x,f)] with (\<lambda> s. True)) \<longrightarrow> (\<lambda> s. f s + g s) c = 0)"
 sorry
 
 lemma 
 fixes g::"real store \<Rightarrow> real"
 assumes "\<forall> c. (a,c) \<in> ((''d''@x) ::= f) \<longrightarrow> g c = 0"
-shows "g a = 0 \<longrightarrow> (\<forall> c. (a,c) \<in> (D [x] = f with (\<lambda> s. s = s)) \<longrightarrow> g c = 0)"
+shows "g a = 0 \<longrightarrow> (\<forall> c. (a,c) \<in> (ODEsystem [(x,f)] with (\<lambda> s. s = s)) \<longrightarrow> g c = 0)"
 sorry
 
 lemma pelim_dInv:
 assumes "\<lceil>G\<rceil> \<subseteq> \<lceil>Q\<rceil>"
-shows "PRE Q (D [x] = f with G) POST Q"
+shows "PRE Q (ODEsystem [(x,f)] with G) POST Q"
 sorry
 
 theorem dInv:
 assumes "\<forall> st. P st \<longrightarrow> G st \<longrightarrow> Q st x" (* Notice that the conjunction below is not valid. *)
 assumes "PRE G ((''d''@x) ::= f) POST (\<lambda> s. Q s (''d''@x))"
-shows " PRE P (D [x] = f with G) POST (\<lambda> s. Q s x)"
+shows " PRE P (ODEsystem [(x,f)] with G) POST (\<lambda> s. Q s x)"
 proof(clarify)
 fix a b assume "(a, b) \<in> rdom \<lceil>P\<rceil>"
 from this have "a = b \<and> P a" by (metis rdom_p2r_contents)
-have "\<forall> c. (a,c) \<in> (D [ x ] = f with G) \<longrightarrow> Q c x"
+have "\<forall> c. (a,c) \<in> (ODEsystem [(x,f)] with G) \<longrightarrow> Q c x"
 proof(clarify)
-fix c assume "(a, c) \<in> D [ x ] = f with G"
+fix c assume "(a, c) \<in> ODEsystem [(x,f)] with G"
 show "Q c x"
 sorry
 qed
-thus "(a, b) \<in> wp (D [ x ] = f with G ) \<lceil>\<lambda>s. Q s x\<rceil>" sorry
+thus "(a, b) \<in> wp (ODEsystem [(x,f)] with G ) \<lceil>\<lambda>s. Q s x\<rceil>" sorry
 qed
 
 theorem dInv2:
 assumes "\<forall> st. P st \<longrightarrow> G st \<longrightarrow> Q st x" (* Notice that the conjunction below is not valid. *)
 assumes "PRE (\<lambda> s. P s \<and> G s) ((''d''@x) ::= f) POST (\<lambda> s. Q s (''d''@x))"
-shows " PRE P (D [x] = f with G) POST (\<lambda> s. Q s x)"
+shows " PRE P (ODEsystem [(x,f)] with G) POST (\<lambda> s. Q s x)"
 sorry
 
 theorem dInv3:
 assumes "\<forall> st. P st \<longrightarrow> G st \<longrightarrow> Q st"
 assumes "PRE G ((''d''@x) ::= f) POST (deriv_Pred Q)"
-shows " PRE P (D [x] = f with G) POST Q"
+shows " PRE P (ODEsystem [(x,f)] with G) POST Q"
 sorry
 
 lemma "PRE (\<lambda> s. s ''x'' >0 \<and> s ''v'' > 0)
-      ((D[''x''] = (\<lambda> s. s ''v'') with (\<lambda> s. True)))
+      (ODEsystem [(''x'', \<lambda> s. s ''v'')] with (\<lambda> s. True))
       POST (\<lambda> s. s ''x''> 0)"
       apply(rule_tac C = "\<lambda> s. s ''v'' > 0" in dCut)
       apply(rule dInv)
@@ -514,7 +551,7 @@ lemma "PRE (\<lambda> s. s ''x'' >0 \<and> s ''v'' > 0)
       oops
 
 lemma "PRE (\<lambda> s. s ''x'' >0 \<and> s ''v'' > 0)
-      ((D[''x''] = (\<lambda> s. s ''v'') with (\<lambda> s. True)))
+      (ODEsystem [(''x'', \<lambda> s. s ''v'')] with (\<lambda> s. True))
       POST (\<lambda> s. s ''x''> 0)"
       apply(rule_tac C = "\<lambda> s. s ''v'' > 0" in dCut)
       apply(rule dInv2)
@@ -527,7 +564,7 @@ lemma "PRE (\<lambda> s. s ''x'' >0 \<and> s ''v'' > 0)
       by(rule dWeakening, simp)
 
 lemma "PRE (\<lambda> s. s ''x'' >0 \<and> s ''v'' > 0)
-      ((D[''x''] = (\<lambda> s. s ''v'') with (\<lambda> s. True)))
+      (ODEsystem [(''x'', \<lambda> s. s ''v'')] with (\<lambda> s. True))
       POST (\<lambda> s. s ''x''> 0)"
       apply(rule_tac C = "\<lambda> s. s ''v'' > 0" in dCut)
       apply(rule dInv3)
@@ -549,8 +586,7 @@ lemma firstMastersVerification:
       "PRE (\<lambda> s. s ''station'' > s ''pos'' \<and> s ''vel'' > 0)  
       (
       (''acc'' ::= (\<lambda>s. - (s ''vel'')*(s ''vel'') / (2 * (s ''station'' - s ''pos''))));
-      ((D[''pos''] = (\<lambda> s. s ''vel'') with (\<lambda> s. True))\<inter>
-      (D[''vel''] = (\<lambda> s. s ''acc'') with (\<lambda> s. s ''vel'' \<ge> 0)) )
+      ((ODEsystem [(''x'', \<lambda> s. s ''v''),(''vel'',\<lambda> s. s ''acc'')] with (\<lambda> s. True)))
       )
       POST (\<lambda> s. (s ''station'' \<ge> s ''pos'') \<and> (s ''vel'' = 0 \<longleftrightarrow> s ''station'' = s ''pos''))"
       apply(simp)

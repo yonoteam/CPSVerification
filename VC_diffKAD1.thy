@@ -1,4 +1,4 @@
-theory VC_diffKAD
+theory VC_diffKAD1
 imports
 Main
 "HOL.Transcendental"
@@ -8,9 +8,7 @@ Main
 (*"../afp-2017-10-18/thys/Ordinary_Differential_Equations/IVP/Initial_Value_Problem"*)
 (*"../afp-2017-10-18/thys/Algebraic_VCs/AVC_KAD/VC_KAD"*)
 
-
 begin
-
 -- "Notation."
 no_notation Archimedean_Field.ceiling ("\<lceil>_\<rceil>")
 no_notation Archimedean_Field.floor ("\<lfloor>_\<rfloor>")
@@ -233,7 +231,12 @@ proof(clarify)
 fix c assume "(a,c) \<in> (D [ xvar ] = f with G)"
 from this obtain t::"real" and F::"real \<Rightarrow> real store" 
 where FHyp:"t\<ge>0 \<and> F t = c \<and> solvesStoreIVP F xvar f a G" using guarDiffEqtn_def by auto 
-from this and uniqOnA have "F t = a (xvar := x t a)" by auto
+from this and uniqOnA have "(\<lambda> r. a(xvar := (x r a))) t = F t" by blast
+hence eq1:"F t xvar = (a(xvar := (x t a))) xvar" by simp
+moreover have "\<forall>s\<ge>0.(\<forall>r \<in> {0 -- s}. \<forall>str. str \<noteq> xvar \<longrightarrow> F r str = a str)" 
+using FHyp solvesStoreIVP_def by simp
+then have eq2:"\<forall>str. str \<noteq> xvar \<longrightarrow> F t str = a str" using FHyp by blast
+ultimately have "F t = a (xvar := x t a)" by auto
 then have "(a, F t) \<in> (xvar ::= x t)" using gets_def by blast 
 thus "Q c" using xIsSolutionOnA guardPreservedImpliesPost FHyp
 by (metis solvesStoreIVP_def) 
@@ -362,7 +365,7 @@ lemma "PRE (\<lambda> s. s ''station'' < s ''pos''  \<and> s ''vel'' > 0)
 apply(rule_tac x ="(\<lambda> t. \<lambda> s. s ''vel'' \<cdot> t + s ''pos'')" in dSolveUBC) (* 4 goal appear. *)
 subgoal by (clarsimp, rule continuous_intros)
 subgoal
-  apply(simp add: solvesStoreIVP_def solves_ivp_def solves_ode_def,clarify)
+apply(simp add: solvesStoreIVP_def solves_ivp_def solves_ode_def,clarify)
   apply(rule_tac f'1="\<lambda> x. st ''vel''" and g'1="\<lambda> x. 0" in derivative_intros(173))(* 3 goals appear. *)
   apply(rule_tac f'1="\<lambda> x.0" and g'1="\<lambda> x.1" in derivative_intros(176))           (* 3 goals appear. *)
   by(auto intro: derivative_intros)
@@ -390,80 +393,107 @@ done
     3. (Wishful) Magically, some Isabelle command/theorem lets me do what I want easily, for example 
     typedef or function, which reduces my problem to just proving properties...
 
-    IN THIS VERSION WE ARE GOING TO TRY THE SECOND (2) APPROACH
+    IN THIS VERSION WE ARE GOING TO TRY THE FIRST (1) APPROACH
 *)
+definition stringDiff ::"string \<Rightarrow> string" ("vdiff _" [99] 100) where
+"vdiff x = ''d''@x"
 
-(* UPDATE: Here's the situation...
-      · Method 3 is ruled out because of the following argument (provided by Andreas Lochbihler). 
-      Suppose that you are able to create operators "D" such that "D:(a' \<Rightarrow> bool) \<Rightarrow> (a' \<Rightarrow> bool)" 
-      depends on the inductive structure of its argument. Then you could define a D such that 
-      D(\<lambda> x. P x) = (\<lambda> x. True) and D(\<lambda> x. P x \<and> True) = (\<lambda> x. False). Notice then that by the 
-      "substitution axiom", (\<lambda> x. False) = D(\<lambda> x. True \<and> True) = D(\<lambda> x. True) = (\<lambda> x. True).
-      Picking any arbitrary "x::'a", we would have a proof of True = False within Isabelle. =/
-      · Method 2 is then the suggested approach. However, as shown in the dInvForVars-lemma (below),
-      it requires us to talk about the semantics of differential variables. This in turn requires us
-      to expand our domain of work from "string" to "string \<union> string'", or modify our definitions 
-      so that "solvesStoreIVP" has a special treatment for the subset "{d@\<alpha>| \<alpha>::string }". However,
-      doing any of these will affect "solvesStoreIVP" in a way that we won't be able to generalize
-      later to many variables with the approach: 
-        "(D[x] = f, D[x]=g with G) = (D[x]=f with G) \<inter> (D[y]=g with G)"
-      Moreover, assuming that we can use this approach in a way that it generalizes nicely to many
-      variables, we still have to learn how to define "simprocs in Isabelle/ML" so that we can
-      automate the tool enough that it competes with KeYmaera X's invariant rules.
-      · Finally, method 1 is quickly discarded by Andreas Lochbihler.
-*) 
+datatype trms = Const real | Var string | Inv trms | Sum trms trms | Mult trms trms
 
-term "\<lambda> (t::real). (f::real store \<Rightarrow> real) (x t)"
+primrec rval ::"trms \<Rightarrow> (real store \<Rightarrow> real)" where
+"rval (Const r) = (\<lambda> s. r)"|
+"rval (Var x) = (\<lambda> s. s x)"|
+"rval (Inv \<theta>) = (\<lambda> s. 1/(rval \<theta> s))"|
+"rval (Sum \<theta> \<eta>) = (\<lambda> s. rval \<theta> s + rval \<eta> s)"|
+"rval (Mult \<theta> \<eta>) = (\<lambda> s. rval \<theta> s \<cdot> rval \<eta> s)"
 
-term "\<lambda> s. s ''x'' > (0::real)"
-term "(\<lambda> (s::real store). (P::real store \<Rightarrow> string \<Rightarrow> bool) (s::real store) str)"
-definition predToPrime :: "string \<Rightarrow> (real store \<Rightarrow> string \<Rightarrow> bool) \<Rightarrow> (real store \<Rightarrow> bool)" where
-"predToPrime str Q = (\<lambda> s. Q s (''d''@str))"
-value "(\<lambda> s var. s var > s ''y'' \<or> s var \<noteq> 0) a ''x''"
-value "(predToPrime ''x'' (\<lambda> s var. s var > s ''y'' \<or> s var \<noteq> 0)) a"
+datatype props = Eq trms trms | Less trms trms | Neg props | And props props | Or props props
 
-thm derivative_eq_intros
-thm solvesStoreIVP_def
+primrec pval ::"props \<Rightarrow> (real store \<Rightarrow> bool)" where
+"pval (Eq \<theta> \<eta>) = (\<lambda> s. (rval \<theta>) s = (rval \<eta>) s)"|
+"pval (Less \<theta> \<eta>) = (\<lambda> s. (rval \<theta>) s < (rval \<eta>) s)"|
+"pval (Neg \<phi>) = (\<lambda> s. \<not> (pval \<phi>) s)"|
+"pval (And \<phi> \<psi>) = (\<lambda> s. (pval \<phi>) s \<and> (pval \<psi>) s)"|
+"pval (Or \<phi> \<psi>) = (\<lambda> s. (pval \<phi>) s \<or> (pval \<psi>) s)"
 
-lemma dInvForVars: 
-assumes "\<forall> c. (a,c) \<in> ((''d''@x) ::= f) \<longrightarrow> (\<lambda> s. s (''d''@y)) c = 0"
-shows "(\<lambda> s. s y) a = 0 \<longrightarrow> (\<forall> c. (a,c) \<in> (D [x] = f with (\<lambda> s. True)) \<longrightarrow> (\<lambda> s. s y) c = 0)"
+primrec rdiff ::"trms \<Rightarrow> (real store \<Rightarrow> real)" where
+"rdiff (Const r) = (\<lambda> s. 0)"|
+"rdiff (Var x) = (\<lambda> s. s (vdiff x))"|
+"rdiff (Inv \<theta>) = (\<lambda> s. - (rdiff \<theta>) s \<cdot> (rval (Inv (Mult \<theta> \<theta>))) s)"|
+"rdiff (Sum \<theta> \<eta>) = (\<lambda> s. (rdiff \<theta>) s + (rdiff \<eta>) s)"|
+"rdiff (Mult \<theta> \<eta>) = (\<lambda> s. ((rdiff \<theta>) s \<cdot> (rval \<eta>) s) + ((rval \<theta>) s \<cdot> (rdiff \<eta>) s))"
+
+value "rval (Sum (Mult (Var ''x'') (Const c)) (Inv (Var ''y'')))"
+value "rdiff (Sum (Mult (Var ''x'') (Const c)) (Inv (Var ''y'')))"
+value "rval (Sum (Mult (Var ''y'') (Inv (Var ''x''))) (Const c) )"
+value "rdiff (Sum (Mult (Var ''y'') (Inv (Var ''x''))) (Const c) )"
+
+primrec pdiff ::"props \<Rightarrow> (real store \<Rightarrow> bool)" where
+"pdiff (Eq \<theta> \<eta>) = (\<lambda> s. (rdiff \<theta>) s = (rdiff \<eta>) s)"|
+"pdiff (Less \<theta> \<eta>) = (\<lambda> s. (rdiff \<theta>) s < (rdiff \<eta>) s \<or> (rdiff \<theta>) s = (rdiff \<eta>) s)"|
+"pdiff (Neg \<phi>) = (\<lambda> s. (pdiff \<phi>) s)"|
+"pdiff (And \<phi> \<psi>) = (\<lambda> s. (pdiff \<phi>) s \<and> (pdiff \<psi>) s)"|
+"pdiff (Or \<phi> \<psi>) = (\<lambda> s. (pdiff \<phi>) s \<and> (pdiff \<psi>) s)"
+
+value "pval (Eq (Mult (Var ''x'') (Const c)) (Sum (Var ''y'') (Var ''z'')))"
+value "pdiff (Eq (Mult (Var ''x'') (Const c)) (Sum (Var ''y'') (Var ''z'')))"
+value "(pval (Less (Var ''x'') (Var ''z''))) (\<lambda> str. if str = ''x'' then 0 else 1)"
+value "(pdiff (Less (Var ''x'') (Var ''z''))) (\<lambda> str. if str = ''x'' then 0 else 1)"
+value "pval (And (Or (Less (Var ''x'') (Const c)) (Less (Const c) (Var ''x''))) 
+                (Neg (Eq (Mult (Var ''x'') (Const c)) (Sum (Inv (Var ''y'')) (Var ''z'')))))"
+value "pdiff (And (Or (Less (Var ''x'') (Const c)) (Less (Const c) (Var ''x''))) 
+                (Neg (Eq (Mult (Var ''x'') (Const c)) (Sum (Inv (Var ''y'')) (Var ''z'')))))"
+
+typedef realStoreTerm = "{f :: real store \<Rightarrow> real. \<exists> \<theta>. rval \<theta> = f}"
+  by auto
+
+typedef realStorePred = "{P :: real store \<Rightarrow> bool. \<exists> \<phi>. pval \<phi> = P}"
+  by auto
+
+(* Prove Platzer's derivation lemmas 5 and 6... *)
+  
+lemma
+fixes f::"realStoreTerm"
+assumes "rval \<eta> = (Rep f)"
+assumes "\<forall> c. rdiff \<eta> c = 0"
+shows "(Rep f) a = 0 \<longrightarrow> (\<forall> c. (a,c) \<in> (D [x] = (Rep f) with (\<lambda> s. True)) \<longrightarrow> (Rep f) c = 0)"
 proof(clarify)
-fix c assume "a y = 0" and cHyp:"(a, c) \<in> D [ x ] = f with (\<lambda>s. True)"
-from this obtain t::"real" and F::"real \<Rightarrow> real store" 
-where FHyp:"t\<ge>0 \<and> F 0 = a \<and> F t = c \<and> solvesStoreIVP F x f a (\<lambda> s. True)" 
-using guarDiffEqtn_def solvesStoreIVP_def by auto
-show "c y = 0"
-  proof(cases "y=x")
-    case True
-    then have "a x = 0" using \<open>a y = 0\<close> by blast 
-    from FHyp have "c = a ((''d''@x) := f a)" sorry (* behavior of store-solutions on primed vars. *)
-    hence "(a,c) \<in> ((''d''@x) ::= f)" by (simp add: gets_def)
-    from this and assms have "c (''d''@y) = 0" by simp
-    hence derivInC: "c (''d''@x) = 0" using \<open>y=x\<close> by simp
-    then have dIsZero:"\<forall> s \<in> {0 -- t}. f (F s) = 0" (* derivative is zero. *)
-    using FHyp and solvesStoreIVP_def sorry 
-    hence "\<forall> s \<in> {0 -- t}. F s x = a x" sorry (* Integrating *)
-    thus "c y = 0" using \<open>y=x\<close> FHyp \<open>a y = 0\<close> by fastforce
-  next
-    case False
-    from this and FHyp  have "\<forall>r\<in>{0--t}. \<forall>y. y \<noteq> x \<longrightarrow> F r y = a y" 
-    by (meson solvesStoreIVP_def)
-    then show ?thesis using \<open>y \<noteq> x\<close> \<open>a y = 0\<close> FHyp 
-    by (metis ends_in_segment(2)) 
-  qed
+fix c assume fHyp:"Rep f a = 0" and "(a, c) \<in> D [ x ] = Rep f with (\<lambda>s. True)"
+from this obtain t::"real" and F::"real \<Rightarrow> real store" where 
+FHyp:"t\<ge>0 \<and> F t = c \<and> solvesStoreIVP F x (Rep f) a (\<lambda> s. True)" using guarDiffEqtn_def by auto
+then show "Rep f c = 0"
+proof(cases "t=0")
+case True
+then have "F t = a" using solvesStoreIVP_def FHyp by blast 
+thus ?thesis using fHyp FHyp by simp
+next
+case False hence tHyp:"t > 0" using FHyp by simp
+from FHyp have "((\<lambda>t. F t x) has_vderiv_on (\<lambda>t. (Rep f) (F t))) {0 -- t}"
+by (simp add: solvesStoreIVP_def solves_ivp_def solves_ode_def)
+then show ?thesis sorry
+qed
 qed
 
-lemma dInvForSums:
-assumes "\<forall> c. (a,c) \<in> ((''d''@x) ::= f) \<longrightarrow> (\<lambda> s. f s + g s) c = 0"
-shows "(\<lambda> s. f s + g s) a = 0 \<longrightarrow> (\<forall> c. (a,c) \<in> (D [x] = f with (\<lambda> s. True)) \<longrightarrow> (\<lambda> s. f s + g s) c = 0)"
-sorry
-
 lemma 
-fixes g::"real store \<Rightarrow> real"
-assumes "\<forall> c. (a,c) \<in> ((''d''@x) ::= f) \<longrightarrow> g c = 0"
-shows "g a = 0 \<longrightarrow> (\<forall> c. (a,c) \<in> (D [x] = f with (\<lambda> s. s = s)) \<longrightarrow> g c = 0)"
-sorry
+assumes "\<forall> c. (a,c) \<in> ((''d''@x) ::= f) \<longrightarrow> (\<lambda> s. s (''d''@y)) c = 0"
+shows "(\<lambda> s. s y) a = 0 \<longrightarrow> (\<forall> c. (a,c) \<in> (D [x] = f with (\<lambda> s. s = s)) \<longrightarrow> (\<lambda> s. s y) c = 0)"
+proof(clarify)
+fix c assume "a y = 0" and cHyp:"(a, c) \<in> D [ x ] = f with (\<lambda>s. s = s)"
+from this show "c y = 0"
+proof(cases "y=x")
+case True
+then have "a x = 0" using \<open>a y = 0\<close> by blast 
+from cHyp have "c = a ((''d''@x) := f a)" sorry
+hence "(a,c) \<in> ((''d''@x) ::= f)" by (simp add: gets_def)
+from this and assms have "c (''d''@y) = 0" by simp
+hence "c (''d''@x) = 0" using \<open>y=x\<close> by simp
+show ?thesis sorry
+next
+case False
+then show ?thesis sorry
+qed
+qed
+
 
 lemma pelim_dInv:
 assumes "\<lceil>G\<rceil> \<subseteq> \<lceil>Q\<rceil>"
@@ -485,6 +515,7 @@ sorry
 qed
 thus "(a, b) \<in> wp (D [ x ] = f with G ) \<lceil>\<lambda>s. Q s x\<rceil>" sorry
 qed
+
 
 theorem dInv2:
 assumes "\<forall> st. P st \<longrightarrow> G st \<longrightarrow> Q st x" (* Notice that the conjunction below is not valid. *)
