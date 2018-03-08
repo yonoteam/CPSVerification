@@ -280,34 +280,6 @@ real store \<Rightarrow> (real store pred) \<Rightarrow> bool"
 (* F solves the induced IVP. *)
   (\<forall> xf \<in> set xfList. ((\<lambda> t. F t (\<pi>\<^sub>1 xf)) solvesTheIVP (\<lambda> t. \<lambda> r. (\<pi>\<^sub>2 xf) (F t)) 
   withInitCond 0 \<mapsto> (st (\<pi>\<^sub>1 xf))) {0--t} UNIV))"
-
-lemma storeIVP_def_couldBeModified:
-assumes "\<forall> t \<ge> 0. \<forall> xf \<in> set xfList. ((\<lambda> t. F t (\<pi>\<^sub>1 xf)) solvesTheIVP (\<lambda> t. \<lambda> r. (\<pi>\<^sub>2 xf) (F t)) 
-withInitCond 0 \<mapsto> (st (\<pi>\<^sub>1 xf))) {0--t} UNIV"
-assumes "\<forall> t \<ge> 0. \<forall> r \<in> {0<--<t}. \<forall> xf \<in> set xfList. (F r (vdiff (\<pi>\<^sub>1 xf))) = (\<pi>\<^sub>2 xf) (F r)"
-shows "\<forall> xf \<in> set xfList. \<forall> r>0. ((\<lambda> t. F t (\<pi>\<^sub>1 xf)) has_vector_derivative 
-(\<lambda> t. F t (vdiff (\<pi>\<^sub>1 xf))) r) (at r within {0<--<2 \<cdot> r})"
-proof(clarify)
-fix x f and r::real
-assume "0 < r" then have rHyp:"0 < 2 \<cdot> r" by auto
-assume xfHyp:"(x, f) \<in> set xfList" 
-from this and assms(1) have "((\<lambda> t. F t (\<pi>\<^sub>1 (x, f))) solvesTheIVP (\<lambda> t. \<lambda> r. (\<pi>\<^sub>2 (x, f)) (F t)) 
-withInitCond 0 \<mapsto> (st (\<pi>\<^sub>1 (x, f)))) {0--2 \<cdot> r} UNIV"  using less_eq_real_def rHyp by blast 
-then have "((\<lambda> t. F t x) has_vderiv_on (\<lambda> t. f (F t))) {0--2 \<cdot> r}" 
-by (simp add: solves_ode_def solves_ivp_def)
-hence *:"\<forall> s \<in> {0--2 \<cdot> r}. ((\<lambda> t. F t x) has_vector_derivative (\<lambda> t. f (F t)) s) 
-(at s within {0--2 \<cdot> r})" by (simp add: has_vderiv_on_def rHyp real_Icc_closed_segment) 
-have "{0<--<2\<cdot>r} \<subseteq> {0--2 \<cdot> r}" using open_segment_eq_real_ivl closed_segment_eq_real_ivl by auto
-from this and * have dHyp:"\<forall> s \<in> {0<--<2\<cdot>r}. ((\<lambda> t. F t x) has_vector_derivative (\<lambda> t. f (F t)) s) 
-(at s within {0<--<2\<cdot>r})" using Derivative.has_vector_derivative_within_subset by blast 
-from rHyp have "\<forall> s \<in> {0<--<2 \<cdot> r}. \<forall> xf \<in> set xfList. (F s (vdiff (\<pi>\<^sub>1 xf))) = (\<pi>\<^sub>2 xf) (F s)"
-using assms(2) less_eq_real_def by blast
-then have "\<forall> s \<in> {0<--<2 \<cdot> r}. (F s (vdiff x)) = f (F s)" 
-using xfHyp open_segment_eq_real_ivl by force
-from this and dHyp show "((\<lambda>t. F t (\<pi>\<^sub>1 (x, f))) has_vector_derivative F r 
-(vdiff (\<pi>\<^sub>1 (x, f)))) (at r within {0<--<2 \<cdot> r})"
-using \<open>0 < r\<close> open_segment_eq_real_ivl by auto
-qed
   
 lemma solves_store_ivpI:
 assumes "\<forall> str. str \<notin> varDiffs \<longrightarrow> F 0 str = st str"
@@ -419,11 +391,7 @@ proof(clarify)
 qed 
 
 -- "Solve Differential Equation."
-(* The rule "dSolve" requires an input from the user, i.e. the unique list of solutions to the 
-system of ODE's, i.e. uInput::"(real \<Rightarrow> (real store) \<Rightarrow> real) list". This fact forces us to handle
-several lists. For that reason, in this section we change the name "xfList" for "varFunList".
-Moreover, we combine the user input with the list of variables in a single list "varSolList" to
-compute the corresponding solution to the store-IVP. *)
+
 definition "vderiv_of f S = (SOME f'. (f has_vderiv_on f') S)"
 abbreviation "toInit a \<equiv> (override_on a (\<lambda> str. 0) varDiffs)"
 
@@ -1122,6 +1090,9 @@ thm derivative_intros(173)
 thm derivative_intros
 thm derivative_intros(176)
 thm derivative_eq_intros(8)
+thm derivative_eq_intros(17)
+thm derivative_eq_intros(6)
+thm derivative_eq_intros(15)
 thm derivative_eq_intros
 thm continuous_intros
 
@@ -1147,7 +1118,6 @@ subgoal
   from this and 1 have "\<forall>str. str \<noteq> ''pos'' \<and> str \<notin> varDiffs \<longrightarrow> X t str = st str" by simp
   then show "X r ''vel'' = st ''vel''" using vdiff_def by (simp add: varDiffs_def "1" \<open>0 \<le> r\<close>)
   qed
-(* subgoal apply(simp del: vdiff_def)*)
 done
 
 lemma "PRE (\<lambda> s. s ''station'' < s ''x''  \<and> s ''v'' \<ge> 0 \<and> s ''a'' > 0)  
@@ -1160,16 +1130,12 @@ prefer 7 subgoal (* DERIVATIVES *)
     apply(simp add: vdiff_def, clarify, rule conjI)
     apply(rule_tac f'1="\<lambda>x. st ''a'' \<cdot> x + st ''v''" and g'1="\<lambda> x. 0" in derivative_intros(173))
     apply(rule_tac f'1="\<lambda>x. st ''a'' \<cdot> x" and g'1="\<lambda> x. st ''v''" in derivative_intros(173))
-    subgoal sorry
-    apply(rule_tac f'1="\<lambda> x.0" and g'1="\<lambda> x.1" in derivative_intros(176))
-    apply(rule derivative_intros, simp, simp)+
-    apply(simp, rule derivative_intros, simp, simp)
-    apply(rule_tac f'1="\<lambda> x. st ''a''" and g'1="\<lambda> x. 0" in derivative_intros(173))
-    apply(rule_tac f'1="\<lambda> x.0" and g'1="\<lambda> x.1" in derivative_intros(176))
-    by(rule derivative_intros, simp, simp)+
+    subgoal sorry (*(* OBS: *) thm derivative_eq_intros(1)*)
+    apply(rule_tac f'1="\<lambda> x.0" and g'1="\<lambda> x. 1" in derivative_intros(176))
+    by(rule derivative_intros, simp_all)+
 prefer 9 subgoal (* CONTINUITY *)
     apply(auto simp: vdiff_def)
-    prefer 2 apply(rule continuous_intros) 
+    prefer 2 apply(rule continuous_intros)
     sorry
 prefer 9 subgoal (* UNIQUENESS *)
     apply(auto simp: vdiff_def closed_segment_eq_real_ivl)
@@ -1207,82 +1173,328 @@ prefer 9 subgoal (* UNIQUENESS *)
 by(auto simp: varDiffs_def vdiff_def)
 
 -- "Differential Invariant."
-(* So the problem here is that we need to define the following operation over real-store-predicates:
-  D(f=g) \<equiv> D(f)=D(g)      D(f<g)\<equiv>D(f)\<le>D(g)      D(f\<le>g)\<equiv>D(f)\<le>D(g)
-  D(\<not>P) \<equiv> D(P)            D(P\<and>Q)\<equiv>D(P)\<and>D(Q)      D(P\<or>Q)\<equiv>D(P)\<and>D(Q)
-   So that we have in isabelle the following theorem:
-          P,G \<turnstile> Q        G \<turnstile>[x'::=f(x)]D(Q)
-        ------------------------------------dInv
-              P \<turnstile> [x' = f(x) & G]Q
+(* Observation *)
+value "0 = 1 / (0::real)"
+lemma "0 = a / (0::real)"
+by(auto)
+thm has_field_derivative_iff_has_vector_derivative
+thm derivative_eq_intros(37)
+thm derivative_eq_intros(25)
 
-   I have thought of two solutions and a wishful-solution:
-    1. Define inductive datatypes that allow me to define my operation on them. Then use them to
-    prove the rule, and later on add syntax theorems so that the user does not experience the 
-    datatype.
-    2. Prove the dInv rule for each one of the possible cases. Then make a general case that 
-    invoques all of these rules.
-    3. (Wishful) Magically, some Isabelle command/theorem lets me do what I want easily, for example 
-    typedef or function, which reduces my problem to just proving properties...
+datatype trms = Const real | Var string | Mns trms | Inv trms | Sum trms trms | Mult trms trms
+(* Const real | Var string | Inv trms | Sum trms trms | Mult trms trms *)
 
-    IN THIS VERSION WE ARE GOING TO TRY THE SECOND (2) APPROACH
-*)
+primrec rval ::"trms \<Rightarrow> (real store \<Rightarrow> real)" where
+"rval (Const r) = (\<lambda> s. r)"|
+"rval (Var x) = (\<lambda> s. s x)"|
+"rval (Mns \<theta>) = (\<lambda> s. - (rval \<theta> s))"|
+"rval (Inv \<theta>) = (\<lambda> s. 1/(rval \<theta> s))"|
+"rval (Sum \<theta> \<eta>) = (\<lambda> s. rval \<theta> s + rval \<eta> s)"|
+"rval (Mult \<theta> \<eta>) = (\<lambda> s. rval \<theta> s \<cdot> rval \<eta> s)"
 
-(* UPDATE: Here's the situation...
-      · Method 3 is ruled out because of the following argument (provided by Andreas Lochbihler). 
-      Suppose that you are able to create operators "D" such that "D:(a' \<Rightarrow> bool) \<Rightarrow> (a' \<Rightarrow> bool)" 
-      depends on the inductive structure of its argument. Then you could define a D such that 
-      D(\<lambda> x. P x) = (\<lambda> x. True) and D(\<lambda> x. P x \<and> True) = (\<lambda> x. False). Notice then that by the 
-      "substitution axiom", (\<lambda> x. False) = D(\<lambda> x. True \<and> True) = D(\<lambda> x. True) = (\<lambda> x. True).
-      Picking any arbitrary "x::'a", we would have a proof of True = False within Isabelle. =/
-      · Method 2 is then the suggested approach. However, as shown in the dInvForVars-lemma (below),
-      it requires us to talk about the semantics of differential variables. This in turn requires us
-      to expand our domain of work from "string" to "string \<union> string'", or modify our definitions 
-      so that "solvesStoreIVP" has a special treatment for the subset "{d@\<alpha>| \<alpha>::string }". However,
-      doing any of these will affect "solvesStoreIVP" in a way that we won't be able to generalize
-      later to many variables with the approach: 
-        "(D[x] = f, D[x]=g with G) = (D[x]=f with G) \<inter> (D[y]=g with G)"
-      Moreover, assuming that we can use this approach in a way that it generalizes nicely to many
-      variables, we still have to learn how to define "simprocs in Isabelle/ML" so that we can
-      automate the tool enough that it competes with KeYmaera X's invariant rules.
-      · Finally, method 1 is quickly discarded by Andreas Lochbihler.
-*) 
+datatype props = Eq trms trms | Less trms trms | Neg props | And props props | Or props props
 
-term "\<lambda> (t::real). (f::real store \<Rightarrow> real) (x t)"
+primrec pval ::"props \<Rightarrow> (real store \<Rightarrow> bool)" where
+"pval (Eq \<theta> \<eta>) = (\<lambda> s. (rval \<theta>) s = (rval \<eta>) s)"|
+"pval (Less \<theta> \<eta>) = (\<lambda> s. (rval \<theta>) s < (rval \<eta>) s)"|
+"pval (Neg \<phi>) = (\<lambda> s. \<not> (pval \<phi>) s)"|
+"pval (And \<phi> \<psi>) = (\<lambda> s. (pval \<phi>) s \<and> (pval \<psi>) s)"|
+"pval (Or \<phi> \<psi>) = (\<lambda> s. (pval \<phi>) s \<or> (pval \<psi>) s)"
 
-term "\<lambda> s. s ''x'' > (0::real)"
-term "(\<lambda> (s::real store). (P::real store \<Rightarrow> string \<Rightarrow> bool) (s::real store) str)"
-definition predToPrime :: "string \<Rightarrow> (real store \<Rightarrow> string \<Rightarrow> bool) \<Rightarrow> (real store \<Rightarrow> bool)" where
-"predToPrime str Q = (\<lambda> s. Q s (''d''@str))"
-value "(\<lambda> s var. s var > s ''y'' \<or> s var \<noteq> 0) a ''x''"
-value "(predToPrime ''x'' (\<lambda> s var. s var > s ''y'' \<or> s var \<noteq> 0)) a"
+primrec rdiff ::"trms \<Rightarrow> trms" where
+"rdiff (Const r) = Const 0"|
+"rdiff (Var x) = Var (vdiff x)"|
+"rdiff (Mns \<theta>) = Mns (rdiff \<theta>)"|
+"rdiff (Inv \<theta>) = Mult (Mns (rdiff \<theta>)) (Inv (Mult \<theta> \<theta>))"|
+"rdiff (Sum \<theta> \<eta>) = Sum (rdiff \<theta>) (rdiff \<eta>)"|
+"rdiff (Mult \<theta> \<eta>) = Sum (Mult (rdiff \<theta>) \<eta>) (Mult \<theta> (rdiff \<eta>))"
 
-lemma dInvForVars: 
-assumes "\<forall> c. (a,c) \<in> ((''d''@x) ::= f) \<longrightarrow> (\<lambda> s. s (''d''@y)) c = 0"
-shows "(\<lambda> s. s y) a = 0 \<longrightarrow> (\<forall> c. (a,c) \<in> (ODEsystem [(x,f)] with (\<lambda> s. True)) \<longrightarrow> (\<lambda> s. s y) c = 0)"
+(*value "rval (Sum (Mult (Var ''x'') (Const c)) (Inv (Var ''y'')))"
+value "rval (rdiff (Sum (Mult (Var ''x'') (Const c)) (Inv (Var ''y''))))"
+value "rval (Sum (Mult (Var ''y'') (Inv (Var ''x''))) (Const c) )"
+value "rval (rdiff (Sum (Mult (Var ''y'') (Inv (Var ''x''))) (Const c) ))"*)
+
+primrec pdiff ::"props \<Rightarrow> props" where
+"pdiff (Eq \<theta> \<eta>) = Eq (rdiff \<theta>) (rdiff \<eta>)"|
+"pdiff (Less \<theta> \<eta>) = Or (Less (rdiff \<theta>) (rdiff \<eta>)) (Eq (rdiff \<theta>) (rdiff \<eta>))"|
+"pdiff (Neg \<phi>) = pdiff \<phi>"|
+"pdiff (And \<phi> \<psi>) = And (pdiff \<phi>) (pdiff \<psi>)"|
+"pdiff (Or \<phi> \<psi>) = Or (pdiff \<phi>) (pdiff \<psi>)"
+
+(*value "pval (Eq (Mult (Var ''x'') (Const c)) (Sum (Var ''y'') (Var ''z'')))"
+value "pval (pdiff (Eq (Mult (Var ''x'') (Const c)) (Sum (Var ''y'') (Var ''z''))))"
+value "(pval (Less (Var ''x'') (Var ''z''))) (\<lambda> str. if str = ''x'' then 0 else 1)"
+value "(pval (pdiff (Less (Var ''x'') (Var ''z'')))) (\<lambda> str. if str = ''d[x]'' then 2 else 1)"
+value "pval (And (Or (Less (Var ''x'') (Const c)) (Less (Const c) (Var ''x''))) 
+                (Neg (Eq (Mult (Var ''x'') (Const c)) (Sum (Inv (Var ''y'')) (Var ''z'')))))"
+value "pval (pdiff (And (Or (Less (Var ''x'') (Const c)) (Less (Const c) (Var ''x''))) 
+                (Neg (Eq (Mult (Var ''x'') (Const c)) (Sum (Inv (Var ''y'')) (Var ''z''))))) )"*)
+
+primrec subst :: "trms \<Rightarrow> string \<Rightarrow> trms \<Rightarrow> trms" where
+"subst \<xi> y (Const r) = Const r"|
+"subst \<xi> y (Var x) = (if x = y then \<xi> else Var x)"|
+"subst \<xi> y (Mns \<theta>) = Mns (subst \<xi> y \<theta>)"|
+"subst \<xi> y (Inv \<theta>) = Inv (subst \<xi> y \<theta>)"|
+"subst \<xi> y (Sum \<theta> \<eta>) = (Sum (subst \<xi> y \<theta>) (subst \<xi> y \<eta>))"|
+"subst \<xi> y (Mult \<theta> \<eta>) = (Mult (subst \<xi> y \<theta>) (subst \<xi> y \<eta>))"
+
+primrec subsp :: "trms \<Rightarrow> string \<Rightarrow> props \<Rightarrow> props" where
+"subsp \<xi> y (Eq \<theta> \<eta>) = (Eq (subst \<xi> y \<theta>) (subst \<xi> y \<eta>))"|
+"subsp \<xi> y (Less \<theta> \<eta>) = (Less (subst \<xi> y \<theta>) (subst \<xi> y \<eta>))"|
+"subsp \<xi> y (Neg \<phi>) = Neg (subsp \<xi> y \<phi>)"|
+"subsp \<xi> y (And \<phi> \<psi>) = (And (subsp \<xi> y \<phi>) (subsp \<xi> y \<psi>))"|
+"subsp \<xi> y (Or \<phi> \<psi>) = (Or (subsp \<xi> y \<phi>) (subsp \<xi> y \<psi>))"
+
+lemma preSubstLemma:"(rval (subst \<theta> x \<eta>)) a = (rval \<eta>) (a(x := (rval \<theta>) a))"
+by(induction \<eta>, simp_all)
+
+lemma substLemma:"(pval (subsp \<theta> x \<phi>)) a = (pval \<phi>) (a(x := (rval \<theta>) a))"
+apply(induction \<phi>, simp_all only: subsp.simps pval.simps)
+using preSubstLemma by auto
+
+lemma preSubstPrprty:"(pval (Eq (Var x) \<theta>)) a \<Longrightarrow> (rval (subst \<theta> x \<eta>)) a = (rval \<eta>) a"
+by(induction \<eta>, simp_all)
+
+lemma substPrprty:"(pval (Eq (Var x) \<theta>)) a \<Longrightarrow> (pval (subsp \<theta> x \<phi>)) a = (pval \<phi>) a"
+apply(induction \<phi>, simp_all only: subsp.simps pval.simps)
+using preSubstPrprty by auto
+
+lemma storeIVP_on_its_vdiffs:
+fixes F::"real \<Rightarrow> real store"
+assumes storeIVP_dvars:"\<forall> t \<ge> 0. \<forall> r \<in> {0<--<t}. 
+\<forall> xf \<in> set xfList. (F r (vdiff (\<pi>\<^sub>1 xf))) = (\<pi>\<^sub>2 xf) (F r)"
+and srtoreIVP_init_dvars:"\<forall> xf \<in>set xfList. F 0 (vdiff (\<pi>\<^sub>1 xf)) = \<pi>\<^sub>2 xf (F 0)"
+shows "\<forall> t \<ge> 0. \<forall> r \<in> {0--t}. \<forall> xf \<in> set xfList. (F r (vdiff (\<pi>\<^sub>1 xf))) = (\<pi>\<^sub>2 xf) (F r)"
 proof(clarify)
-fix c assume "a y = 0" and cHyp:"(a, c) \<in> ODEsystem [(x,f)] with (\<lambda>s. True)"
-from this obtain t::"real" and F::"real \<Rightarrow> real store" 
-where FHyp:"t\<ge>0 \<and> F 0 = a \<and> F t = c \<and> solvesStoreIVP F [(x,f)] a (\<lambda> s. True)" 
-using guarDiffEqtn_def solvesStoreIVP_def by auto
-show "c y = 0"
-  proof(cases "y=x")
+fix x f and t r::real
+assume tHyp:"0 \<le> t" and rHyp:"r \<in> {0--t}" and xfHyp:"(x, f) \<in> set xfList"
+{assume "r = 0" then have "F r (vdiff (\<pi>\<^sub>1 (x, f))) = \<pi>\<^sub>2 (x, f) (F r)" 
+  using xfHyp and srtoreIVP_init_dvars by blast}
+hence r0:"r = 0 \<longrightarrow> F r (vdiff (\<pi>\<^sub>1 (x, f))) = \<pi>\<^sub>2 (x, f) (F r)" by simp
+show "F r (vdiff (\<pi>\<^sub>1 (x, f))) = \<pi>\<^sub>2 (x, f) (F r)"
+  proof(cases "t=0")
     case True
-    then have "a x = 0" using \<open>a y = 0\<close> by blast 
-    from FHyp have "c = a ((''d''@x) := f a)" sorry (* behavior of store-solutions on primed vars. *)
-    hence "(a,c) \<in> ((''d''@x) ::= f)" by (simp add: gets_def)
-    from this and assms have "c (''d''@y) = 0" by simp
-    hence derivInC: "c (''d''@x) = 0" using \<open>y=x\<close> by simp
-    then have dIsZero:"\<forall> s \<in> {0 -- t}. f (F s) = 0" (* derivative is zero. *)
-    using FHyp and solvesStoreIVP_def sorry 
-    hence "\<forall> s \<in> {0 -- t}. F s x = a x" sorry (* Integrating *)
-    thus "c y = 0" using \<open>y=x\<close> FHyp \<open>a y = 0\<close> by fastforce
+    then have "r = 0" 
+    using rHyp by (simp add: closed_segment_eq_real_ivl)
+    then show ?thesis using r0 by simp
   next
     case False
-    from this and FHyp  have "\<forall>r\<in>{0--t}. \<forall>y. y \<noteq> x \<longrightarrow> F r y = a y" 
-    by (meson solvesStoreIVP_def)
-    then show ?thesis using \<open>y \<noteq> x\<close> \<open>a y = 0\<close> FHyp 
-    by (metis ends_in_segment(2)) 
+    then show ?thesis 
+    proof(cases "r = 0")
+      case True
+      then show ?thesis 
+      using r0 by simp
+    next
+      case False then have trHypRef:"2 \<cdot> t \<ge> 0 \<and> r \<in> {0<--<2 \<cdot> t}" 
+      using closed_segment_eq_real_ivl open_segment_eq_real_ivl rHyp tHyp by auto
+      thus ?thesis using storeIVP_dvars xfHyp by (metis fst_conv snd_conv)
+    qed
   qed
+qed
+
+lemma storeIVP_def_couldBeModified:
+fixes F::"real \<Rightarrow> real store"
+assumes storeIVP_vars:"\<forall> t \<ge> 0. \<forall> xf \<in> set xfList. ((\<lambda> t. F t (\<pi>\<^sub>1 xf)) 
+solvesTheIVP (\<lambda> t. \<lambda> r. (\<pi>\<^sub>2 xf) (F t)) withInitCond 0 \<mapsto> (a (\<pi>\<^sub>1 xf))) {0--t} UNIV"
+and storeIVP_dvars:"\<forall> t \<ge> 0. \<forall> r \<in> {0<--<t}. 
+\<forall> xf \<in> set xfList. (F r (vdiff (\<pi>\<^sub>1 xf))) = (\<pi>\<^sub>2 xf) (F r)"
+and srtoreIVP_init_dvars:"\<forall> xf \<in>set xfList. F 0 (vdiff (\<pi>\<^sub>1 xf)) = \<pi>\<^sub>2 xf (F 0)"
+shows "\<forall> t \<ge> 0. \<forall> r \<in> {0--t}. \<forall> xf \<in> set xfList. 
+((\<lambda> t. F t (\<pi>\<^sub>1 xf)) has_vector_derivative F r (vdiff (\<pi>\<^sub>1 xf))) (at r within {0--t})"
+proof(clarify)
+fix x f and t r::real
+assume rHyp:"r \<in> {0--t}" and tHyp:"0 \<le> t" and xfHyp:"(x, f) \<in> set xfList" 
+from this and storeIVP_vars have "((\<lambda> t. F t x) solvesTheIVP (\<lambda> t. \<lambda> r. f (F t)) 
+withInitCond 0 \<mapsto> (a x)) {0--t} UNIV" using tHyp by fastforce
+then have "((\<lambda> t. F t x) has_vderiv_on (\<lambda> t. f (F t))) {0--t}" 
+by (simp add: solves_ode_def solves_ivp_def)
+hence *:"((\<lambda> t. F t x) has_vector_derivative (\<lambda> t. f (F t)) r) (at r within {0--t})" 
+by (simp add: has_vderiv_on_def rHyp tHyp)
+have "\<forall> t \<ge> 0. \<forall> r \<in> {0--t}. \<forall> xf \<in> set xfList. (F r (vdiff (\<pi>\<^sub>1 xf))) = (\<pi>\<^sub>2 xf) (F r)"
+using assms storeIVP_on_its_vdiffs by blast
+from this rHyp tHyp and xfHyp have "(F r (vdiff x)) = f (F r)" by force
+then show "((\<lambda>t. F t (\<pi>\<^sub>1 (x, f))) has_vector_derivative 
+F r (vdiff (\<pi>\<^sub>1 (x, f)))) (at r within {0--t})" using * by auto
+qed
+
+lemma derivationLemma_baseCase:
+fixes F::"real \<Rightarrow> real store"
+assumes solves:"solvesStoreIVP F xfList a G"
+shows "\<forall> x \<in> (UNIV - varDiffs). \<forall> t \<ge> 0. \<forall> r \<in> {0--t}.
+((\<lambda> t. F t x) has_vector_derivative F r (vdiff x)) (at r within {0--t})"
+proof
+fix x
+assume "x \<in> UNIV - varDiffs"
+then have notVarDiff:"\<forall> z. x \<noteq> vdiff z" using varDiffs_def by fastforce
+  show "\<forall>t\<ge>0. \<forall>r\<in>{0--t}. ((\<lambda>t. F t x) has_vector_derivative F r (vdiff x)) (at r within {0--t})"
+  proof(cases "x \<in> set (map \<pi>\<^sub>1 xfList)")
+    case True
+    from this and solves have "\<forall> t \<ge> 0. \<forall> r \<in> {0--t}. \<forall> xf \<in> set xfList. 
+    ((\<lambda> t. F t (\<pi>\<^sub>1 xf)) has_vector_derivative F r (vdiff (\<pi>\<^sub>1 xf))) (at r within {0--t})"
+    apply(rule_tac a="a" in storeIVP_def_couldBeModified) using solves solves_store_ivpD by auto
+    from this show ?thesis using True by auto
+  next
+    case False
+    from this notVarDiff and solves have const:"\<forall> t \<ge> 0. F t x = a x" 
+    using solves_store_ivpD(4) by (simp add: varDiffs_def)
+    have "\<forall> t \<ge> 0. \<forall> r \<in> {0--t}.((\<lambda> t. a x) has_vector_derivative 0) (at r within {0--t})"
+    by (auto intro: derivative_eq_intros)
+    from this and const have isZero:"\<forall> t \<ge> 0. \<forall> r \<in> {0--t}.((\<lambda> t. F t x) 
+    has_vector_derivative 0) (at r within {0--t})"
+    by (metis Interval_Integral.has_vector_derivative_weaken atLeastAtMost_iff  
+      closed_segment_real has_vector_derivative_const subset_refl)
+    have "vdiff x \<in> varDiffs - (vdiff\<lbrakk>\<pi>\<^sub>1\<lbrakk>set xfList\<rbrakk>\<rbrakk>)"
+    by (metis (no_types, lifting) Diff_iff image_iff list.set_map varDiffsI vdiff_inj False) 
+    from this solves and notVarDiff have "\<forall> t \<ge> 0.\<forall> r \<in> {0--t}. F r (vdiff x) = 0"
+    using solves_store_ivpD(5) closed_segment_real by simp
+    then show ?thesis using isZero by simp
+  qed
+qed
+
+lemma has_real_vector_derivative_divide:
+fixes f::"real \<Rightarrow> real"
+assumes "f t \<noteq> 0"
+and "(f has_vector_derivative f' t) (at t within S)"
+shows "((\<lambda> s. 1/(f s)) has_vector_derivative - (f' t)/ (f t \<cdot> f t)) (at t within S)"
+proof-
+from assms have 1:"(f has_field_derivative f' t) (at t within S)" 
+using has_field_derivative_iff_has_vector_derivative by simp
+have 2:"- (f' t)/ (f t \<cdot> f t) = - (inverse (f t) \<cdot> (f' t) \<cdot> inverse (f t)) \<and> 
+(\<lambda> s. 1/(f s)) = (\<lambda>s. inverse (f s))"
+by (simp add: divide_inverse_commute)
+hence "((\<lambda> s. 1/(f s)) has_field_derivative - (f' t)/ (f t \<cdot> f t)) (at t within S)" 
+using 1 derivative_eq_intros(37) \<open>f t \<noteq> 0\<close> by force
+thus "((\<lambda>s. 1 / f s) has_vector_derivative - f' t / (f t \<cdot> f t)) (at t within S)"
+using has_field_derivative_iff_has_vector_derivative by simp
+qed
+
+primrec trmVars :: "trms \<Rightarrow> string set" where
+"trmVars (Const r) = {}"|
+"trmVars (Var x) = {x}"|
+"trmVars (Mns \<theta>) = trmVars \<theta>"|
+"trmVars (Inv \<theta>) = trmVars \<theta>"|
+"trmVars (Sum \<theta> \<eta>) = trmVars \<theta> \<union> trmVars \<eta>"|
+"trmVars (Mult \<theta> \<eta>) = trmVars \<theta> \<union> trmVars \<eta>"
+
+lemma toStar:"(op *\<^sub>R::real \<Rightarrow> real \<Rightarrow> real) = (op \<cdot>::real \<Rightarrow> real \<Rightarrow> real)"
+apply(rule ext) using scaleR_conv_of_real by auto
+
+lemma derivationLemma:
+assumes "solvesStoreIVP F xfList a G"
+and tHyp:"t \<ge> 0"
+and termVarsHyp:"\<forall> x \<in> trmVars \<eta>. x \<in> (UNIV - varDiffs)"
+shows "\<forall> r \<in> {0--t}.  ((\<lambda> s. (rval \<eta>) (F s)) 
+has_vector_derivative (rval (rdiff \<eta>)) (F r)) (at r within {0--t})"
+using termVarsHyp  proof(induction \<eta>)
+  case (Const r)
+  then show ?case by simp
+next
+  case (Var y)
+  then have yHyp:"y \<in> UNIV - varDiffs" by auto
+  from this tHyp and assms(1) show ?case
+  using derivationLemma_baseCase by auto
+next
+  case (Mns \<eta>)   
+  then show ?case 
+  apply(clarsimp)
+  by(rule derivative_intros, simp)
+next
+  case (Inv \<eta>)
+  then show ?case
+  proof(clarsimp)
+    fix r::real
+    assume rHyp:"r \<in> {0--t}"
+    and IH:"\<forall>r\<in>{0--t}. ((\<lambda>s. rval \<eta> (F s)) has_vector_derivative 
+    rval (rdiff \<eta>) (F r)) (at r within {0--t})"
+    from this have rvalRdiff:"((\<lambda>s. rval \<eta> (F s)) has_vector_derivative 
+    rval (rdiff \<eta>) (F r)) (at r within {0--t})" using tHyp by simp
+    from assms(1) have "rval \<eta> (F r) \<noteq> 0" sorry
+    then show "((\<lambda>s. 1 / rval \<eta> (F s)) has_vector_derivative 
+    - (rval (rdiff \<eta>) (F r) / (rval \<eta> (F r) \<cdot> rval \<eta> (F r)))) (at r within {0--t})" 
+    using rvalRdiff has_real_vector_derivative_divide by simp
+    qed
+next (* Adding condition for division affects the other cases... *)
+  case (Sum \<eta>1 \<eta>2)
+  then show ?case 
+  apply(clarsimp)
+  by(rule derivative_intros, simp_all)
+next
+  case (Mult \<eta>1 \<eta>2)
+  then show ?case 
+  apply(clarsimp)
+  apply(subgoal_tac "((\<lambda>s. rval \<eta>1 (F s) *\<^sub>R rval \<eta>2 (F s)) has_vector_derivative 
+  rval (rdiff \<eta>1) (F r) \<cdot> rval \<eta>2 (F r) + rval \<eta>1 (F r) \<cdot> rval (rdiff \<eta>2) (F r)) 
+  (at r within {0--t})", simp)
+  apply(rule_tac f'1="rval (rdiff \<eta>1) (F r)" and 
+    g'1="rval (rdiff \<eta>2) (F r)" in derivative_eq_intros(25))
+  by (simp_all add: has_field_derivative_iff_has_vector_derivative)
+qed
+
+lemma subst_on_compl_of_varDiffs[simp]:
+assumes "\<forall> x \<in> trmVars \<eta>. x \<in> (UNIV - varDiffs)"
+shows "subst \<theta> (vdiff a) \<eta> = \<eta>"
+using assms by(induction \<eta>, simp_all add: varDiffs_def)
+
+lemma diff_subst_prprty_4terms:
+assumes "solvesStoreIVP F xfList a G"
+and tHyp:"t \<ge> 0"
+and termVarsHyp:"\<forall> x \<in> trmVars \<eta>. x \<in> (UNIV - varDiffs)"
+shows "\<forall> r \<in> {0--t}. \<forall> xf \<in> set xfList. (\<pi>\<^sub>2 xf) = rval \<theta> \<longrightarrow>
+rval (rdiff \<eta>) (F r) = rval (subst \<theta> (vdiff (\<pi>\<^sub>1 xf)) (rdiff \<eta>)) (F r)"
+using termVarsHyp apply(induction \<eta>, simp_all)
+apply(clarify, subgoal_tac "a = x")
+proof(auto simp: vdiff_inj)
+fix x::string and r::real
+assume rHyp:"r \<in> {0--t}" and xfHyp:"(x, rval \<theta>) \<in> set xfList"
+show "F r (vdiff x) = rval \<theta> (F r)"
+  proof(cases "r=0")
+    case True
+    from this and xfHyp show ?thesis 
+    using assms(1) solves_store_ivpD(3) by fastforce
+  next
+    case False
+    from this tHyp and rHyp have "r \<in> {0<--<2\<cdot>t} \<and> 2\<cdot>t \<ge> 0"
+    using closed_segment_eq_real_ivl open_segment_eq_real_ivl by simp
+    thus ?thesis using assms(1) solves_store_ivpD(6) xfHyp by fastforce
+  qed
+qed
+
+lemma eqInVars_impl_eqInTrms:
+assumes termVarsHyp:"\<forall> x \<in> trmVars \<eta>. x \<in> (UNIV - varDiffs)"
+and initHyp:"\<forall>x. x \<notin> varDiffs \<longrightarrow> b x = a x"
+shows "(rval \<eta>) a = (rval \<eta>) b"
+using assms by(induction \<eta>, simp_all)
+
+lemma dInvForVars:
+assumes substHyp:"\<forall> st. \<forall> xf \<in> set xfList. (\<pi>\<^sub>2 xf) = rval \<theta> \<longrightarrow> 
+rval (subst \<theta> (vdiff (\<pi>\<^sub>1 xf)) (rdiff \<eta>)) st = 0 "
+and termVarsHyp:"\<forall> x \<in> trmVars \<eta>. x \<in> (UNIV - varDiffs)"
+and termFunHyp:"\<forall> xf \<in> set xfList. \<exists> \<theta>. rval \<theta> = \<pi>\<^sub>2 xf"
+shows "(rval \<eta>) a = 0 \<longrightarrow> (\<forall> c. (a,c) \<in> (ODEsystem xfList with (\<lambda> s. True)) \<longrightarrow> (rval \<eta>) c = 0)"
+proof(clarify)
+fix c assume aHyp:"(rval \<eta>) a = 0" and cHyp:"(a, c) \<in> ODEsystem xfList with (\<lambda>s. True)"
+from this obtain t::"real" and F::"real \<Rightarrow> real store" 
+where FHyp:"t\<ge>0 \<and> F t = c \<and> solvesStoreIVP F xfList a (\<lambda> s. True)" 
+using guarDiffEqtn_def by auto
+show "rval \<eta> c = 0"
+  proof(cases "t=0")
+    case True
+    from this and FHyp have "\<forall>x. x \<notin> varDiffs \<longrightarrow> F t x = a x"
+    using solves_store_ivpD(1) by blast
+    then have "rval \<eta> a = rval \<eta> (F t)"
+    using termVarsHyp eqInVars_impl_eqInTrms by blast
+    thus "rval \<eta> c = 0" using aHyp FHyp by simp
+  next
+  case False
+  from FHyp have "\<forall>r\<in>{0--t}. ((\<lambda>s. rval \<eta> (F s)) has_vector_derivative rval (rdiff \<eta>) (F r)) 
+  (at r within {0--t})" using derivationLemma termVarsHyp by blast
+  from FHyp have "\<forall> \<theta>. \<forall>r\<in>{0--t}. \<forall>xf\<in>set xfList. \<pi>\<^sub>2 xf = rval \<theta> \<longrightarrow> 
+  rval (rdiff \<eta>) (F r) = rval (subst \<theta> (vdiff (\<pi>\<^sub>1 xf)) (rdiff \<eta>)) (F r)"
+  using diff_subst_prprty_4terms termVarsHyp by blast
+  then show ?thesis sorry (* might NEED TO CHANGE subst function to consider many-valued 
+substitutions.*)
+  thm solves_store_ivpD
+  qed   
 qed
 
 lemma dInvForSums:
