@@ -1181,14 +1181,14 @@ thm has_field_derivative_iff_has_vector_derivative
 thm derivative_eq_intros(37)
 thm derivative_eq_intros(25)
 
-datatype trms = Const real | Var string | Mns trms | Inv trms | Sum trms trms | Mult trms trms
-(* Const real | Var string | Inv trms | Sum trms trms | Mult trms trms *)
+datatype trms = Const real | Var string | Mns trms | Sum trms trms | Mult trms trms
+(* Const real | Var string | Mns trms | Inv trms | Sum trms trms | Mult trms trms *)
 
 primrec rval ::"trms \<Rightarrow> (real store \<Rightarrow> real)" where
 "rval (Const r) = (\<lambda> s. r)"|
 "rval (Var x) = (\<lambda> s. s x)"|
 "rval (Mns \<theta>) = (\<lambda> s. - (rval \<theta> s))"|
-"rval (Inv \<theta>) = (\<lambda> s. 1/(rval \<theta> s))"|
+(*"rval (Inv \<theta>) = (\<lambda> s. 1/(rval \<theta> s))"|*)
 "rval (Sum \<theta> \<eta>) = (\<lambda> s. rval \<theta> s + rval \<eta> s)"|
 "rval (Mult \<theta> \<eta>) = (\<lambda> s. rval \<theta> s \<cdot> rval \<eta> s)"
 
@@ -1205,7 +1205,7 @@ primrec rdiff ::"trms \<Rightarrow> trms" where
 "rdiff (Const r) = Const 0"|
 "rdiff (Var x) = Var (vdiff x)"|
 "rdiff (Mns \<theta>) = Mns (rdiff \<theta>)"|
-"rdiff (Inv \<theta>) = Mult (Mns (rdiff \<theta>)) (Inv (Mult \<theta> \<theta>))"|
+(*"rdiff (Inv \<theta>) = Mult (Mns (rdiff \<theta>)) (Inv (Mult \<theta> \<theta>))"|*)
 "rdiff (Sum \<theta> \<eta>) = Sum (rdiff \<theta>) (rdiff \<eta>)"|
 "rdiff (Mult \<theta> \<eta>) = Sum (Mult (rdiff \<theta>) \<eta>) (Mult \<theta> (rdiff \<eta>))"
 
@@ -1230,11 +1230,11 @@ value "pval (And (Or (Less (Var ''x'') (Const c)) (Less (Const c) (Var ''x'')))
 value "pval (pdiff (And (Or (Less (Var ''x'') (Const c)) (Less (Const c) (Var ''x''))) 
                 (Neg (Eq (Mult (Var ''x'') (Const c)) (Sum (Inv (Var ''y'')) (Var ''z''))))) )"*)
 
-primrec subst :: "trms \<Rightarrow> string \<Rightarrow> trms \<Rightarrow> trms" where
+(*primrec subst :: "trms \<Rightarrow> string \<Rightarrow> trms \<Rightarrow> trms" where
 "subst \<xi> y (Const r) = Const r"|
 "subst \<xi> y (Var x) = (if x = y then \<xi> else Var x)"|
 "subst \<xi> y (Mns \<theta>) = Mns (subst \<xi> y \<theta>)"|
-"subst \<xi> y (Inv \<theta>) = Inv (subst \<xi> y \<theta>)"|
+(*"subst \<xi> y (Inv \<theta>) = Inv (subst \<xi> y \<theta>)"|*)
 "subst \<xi> y (Sum \<theta> \<eta>) = (Sum (subst \<xi> y \<theta>) (subst \<xi> y \<eta>))"|
 "subst \<xi> y (Mult \<theta> \<eta>) = (Mult (subst \<xi> y \<theta>) (subst \<xi> y \<eta>))"
 
@@ -1257,7 +1257,7 @@ by(induction \<eta>, simp_all)
 
 lemma substPrprty:"(pval (Eq (Var x) \<theta>)) a \<Longrightarrow> (pval (subsp \<theta> x \<phi>)) a = (pval \<phi>) a"
 apply(induction \<phi>, simp_all only: subsp.simps pval.simps)
-using preSubstPrprty by auto
+using preSubstPrprty by auto *)
 
 lemma storeIVP_on_its_vdiffs:
 fixes F::"real \<Rightarrow> real store"
@@ -1292,12 +1292,11 @@ show "F r (vdiff (\<pi>\<^sub>1 (x, f))) = \<pi>\<^sub>2 (x, f) (F r)"
   qed
 qed
 
-lemma storeIVP_def_couldBeModified:
+lemma solvesStoreIVP_couldBeModified:
 fixes F::"real \<Rightarrow> real store"
 assumes storeIVP_vars:"\<forall> t \<ge> 0. \<forall> xf \<in> set xfList. ((\<lambda> t. F t (\<pi>\<^sub>1 xf)) 
 solvesTheIVP (\<lambda> t. \<lambda> r. (\<pi>\<^sub>2 xf) (F t)) withInitCond 0 \<mapsto> (a (\<pi>\<^sub>1 xf))) {0--t} UNIV"
-and storeIVP_dvars:"\<forall> t \<ge> 0. \<forall> r \<in> {0<--<t}. 
-\<forall> xf \<in> set xfList. (F r (vdiff (\<pi>\<^sub>1 xf))) = (\<pi>\<^sub>2 xf) (F r)"
+and storeIVP_dvars:"\<forall> t \<ge> 0. \<forall> r \<in> {0<--<t}. \<forall>xf\<in>set xfList. (F r (vdiff (\<pi>\<^sub>1 xf))) = (\<pi>\<^sub>2 xf) (F r)"
 and srtoreIVP_init_dvars:"\<forall> xf \<in>set xfList. F 0 (vdiff (\<pi>\<^sub>1 xf)) = \<pi>\<^sub>2 xf (F 0)"
 shows "\<forall> t \<ge> 0. \<forall> r \<in> {0--t}. \<forall> xf \<in> set xfList. 
 ((\<lambda> t. F t (\<pi>\<^sub>1 xf)) has_vector_derivative F r (vdiff (\<pi>\<^sub>1 xf))) (at r within {0--t})"
@@ -1331,7 +1330,7 @@ then have notVarDiff:"\<forall> z. x \<noteq> vdiff z" using varDiffs_def by fas
     case True
     from this and solves have "\<forall> t \<ge> 0. \<forall> r \<in> {0--t}. \<forall> xf \<in> set xfList. 
     ((\<lambda> t. F t (\<pi>\<^sub>1 xf)) has_vector_derivative F r (vdiff (\<pi>\<^sub>1 xf))) (at r within {0--t})"
-    apply(rule_tac a="a" in storeIVP_def_couldBeModified) using solves solves_store_ivpD by auto
+    apply(rule_tac a="a" in solvesStoreIVP_couldBeModified) using solves solves_store_ivpD by auto
     from this show ?thesis using True by auto
   next
     case False
@@ -1351,7 +1350,7 @@ then have notVarDiff:"\<forall> z. x \<noteq> vdiff z" using varDiffs_def by fas
   qed
 qed
 
-lemma has_real_vector_derivative_divide:
+(*lemma has_real_vector_derivative_divide:
 fixes f::"real \<Rightarrow> real"
 assumes "f t \<noteq> 0"
 and "(f has_vector_derivative f' t) (at t within S)"
@@ -1366,23 +1365,36 @@ hence "((\<lambda> s. 1/(f s)) has_field_derivative - (f' t)/ (f t \<cdot> f t))
 using 1 derivative_eq_intros(37) \<open>f t \<noteq> 0\<close> by force
 thus "((\<lambda>s. 1 / f s) has_vector_derivative - f' t / (f t \<cdot> f t)) (at t within S)"
 using has_field_derivative_iff_has_vector_derivative by simp
-qed
+qed*)
 
 primrec trmVars :: "trms \<Rightarrow> string set" where
 "trmVars (Const r) = {}"|
 "trmVars (Var x) = {x}"|
 "trmVars (Mns \<theta>) = trmVars \<theta>"|
-"trmVars (Inv \<theta>) = trmVars \<theta>"|
+(*"trmVars (Inv \<theta>) = trmVars \<theta>"|*)
 "trmVars (Sum \<theta> \<eta>) = trmVars \<theta> \<union> trmVars \<eta>"|
 "trmVars (Mult \<theta> \<eta>) = trmVars \<theta> \<union> trmVars \<eta>"
 
-lemma toStar:"(op *\<^sub>R::real \<Rightarrow> real \<Rightarrow> real) = (op \<cdot>::real \<Rightarrow> real \<Rightarrow> real)"
+(*lemma toStar:"(op *\<^sub>R::real \<Rightarrow> real \<Rightarrow> real) = (op \<cdot>::real \<Rightarrow> real \<Rightarrow> real)"
 apply(rule ext) using scaleR_conv_of_real by auto
+
+primrec well_defined ::"(real store) \<Rightarrow> trms \<Rightarrow> bool" where
+"well_defined a (Const r) = True"|
+"well_defined a (Var x) = True"|
+"well_defined a (Mns \<theta>) = well_defined a \<theta>"|
+"well_defined a (Inv \<theta>) = (well_defined a \<theta> \<and> rval \<theta> a \<noteq> 0)"|
+"well_defined a (Sum \<theta> \<eta>) = (well_defined a \<theta> \<and> well_defined a \<eta>)"|
+"well_defined a (Mult \<theta> \<eta>) = (well_defined a \<theta> \<and> well_defined a \<eta>)"
+
+lemma "(rval \<theta> a = 0) \<Longrightarrow> \<not> well_defined a (Inv \<theta>)"
+by(induction \<theta>, simp_all)*)
 
 lemma derivationLemma:
 assumes "solvesStoreIVP F xfList a G"
 and tHyp:"t \<ge> 0"
 and termVarsHyp:"\<forall> x \<in> trmVars \<eta>. x \<in> (UNIV - varDiffs)"
+(*shows "\<forall> r \<in> {0--t}.  well_defined (F r) \<eta> \<longrightarrow> ((\<lambda> s. (rval \<eta>) (F s)) 
+has_vector_derivative (rval (rdiff \<eta>)) (F r)) (at r within {0--t})"*)
 shows "\<forall> r \<in> {0--t}.  ((\<lambda> s. (rval \<eta>) (F s)) 
 has_vector_derivative (rval (rdiff \<eta>)) (F r)) (at r within {0--t})"
 using termVarsHyp  proof(induction \<eta>)
@@ -1398,22 +1410,21 @@ next
   then show ?case 
   apply(clarsimp)
   by(rule derivative_intros, simp)
-next
+(*next
   case (Inv \<eta>)
   then show ?case
   proof(clarsimp)
     fix r::real
-    assume rHyp:"r \<in> {0--t}"
-    and IH:"\<forall>r\<in>{0--t}. ((\<lambda>s. rval \<eta> (F s)) has_vector_derivative 
-    rval (rdiff \<eta>) (F r)) (at r within {0--t})"
+    assume rHyp:"r \<in> {0--t}" and "well_defined (F r) \<eta>" and "rval \<eta> (F r) \<noteq> 0"
+    and IH:"\<forall>r\<in>{0--t}. well_defined (F r) \<eta> \<longrightarrow> ((\<lambda>s. rval \<eta> (F s)) 
+    has_vector_derivative rval (rdiff \<eta>) (F r)) (at r within {0--t})"
     from this have rvalRdiff:"((\<lambda>s. rval \<eta> (F s)) has_vector_derivative 
-    rval (rdiff \<eta>) (F r)) (at r within {0--t})" using tHyp by simp
-    from assms(1) have "rval \<eta> (F r) \<noteq> 0" sorry
+    rval (rdiff \<eta>) (F r)) (at r within {0--t})" by simp
     then show "((\<lambda>s. 1 / rval \<eta> (F s)) has_vector_derivative 
     - (rval (rdiff \<eta>) (F r) / (rval \<eta> (F r) \<cdot> rval \<eta> (F r)))) (at r within {0--t})" 
-    using rvalRdiff has_real_vector_derivative_divide by simp
-    qed
-next (* Adding condition for division affects the other cases... *)
+    using rvalRdiff has_real_vector_derivative_divide \<open>rval \<eta> (F r) \<noteq> 0\<close> by simp
+    qed*)
+next
   case (Sum \<eta>1 \<eta>2)
   then show ?case 
   apply(clarsimp)
@@ -1430,103 +1441,299 @@ next
   by (simp_all add: has_field_derivative_iff_has_vector_derivative)
 qed
 
-lemma subst_on_compl_of_varDiffs[simp]:
-assumes "\<forall> x \<in> trmVars \<eta>. x \<in> (UNIV - varDiffs)"
-shows "subst \<theta> (vdiff a) \<eta> = \<eta>"
-using assms by(induction \<eta>, simp_all add: varDiffs_def)
+fun substList ::"(string \<times> trms) list \<Rightarrow> trms \<Rightarrow> trms" where
+"substList xTrmList (Const r) = Const r"|
+"substList [] (Var x) = Var x"|
+"substList ((y,\<xi>) # xTrmTail) (Var x) = (if x = y then \<xi> else substList xTrmTail (Var x))"|
+"substList xTrmList (Mns \<theta>) = Mns (substList xTrmList \<theta>)"|
+(*"substList xTrmList (Inv \<theta>) = Inv (substList xTrmList \<theta>)"|*)
+"substList xTrmList (Sum \<theta> \<eta>) = (Sum (substList xTrmList \<theta>) (substList xTrmList \<eta>))"|
+"substList xTrmList (Mult \<theta> \<eta>) = (Mult (substList xTrmList \<theta>) (substList xTrmList \<eta>))"
+
+(*lemma single_substList:"substList [(x,\<theta>)] \<eta> = subst \<theta> x \<eta>"
+by(induction \<eta>, simp_all)*)
+
+lemma substList_on_compl_of_varDiffs:
+assumes "trmVars \<eta> \<subseteq> (UNIV - varDiffs)"
+assumes "set (map \<pi>\<^sub>1 xTrmList) \<subseteq> varDiffs"
+shows "substList xTrmList \<eta> = \<eta>"
+using assms apply(induction \<eta>, simp_all add: varDiffs_def)
+by(induction xTrmList, auto)
+
+lemma substList_help1:"set (map \<pi>\<^sub>1 (cross_list (map (vdiff \<circ> \<pi>\<^sub>1) xfList) uInput)) \<subseteq> varDiffs"
+apply(induction xfList uInput rule: cross_list.induct, simp_all add: varDiffs_def)
+by auto
+
+lemma substList_help2:
+assumes "trmVars \<eta> \<subseteq> (UNIV - varDiffs)"
+shows "substList (cross_list (map (vdiff \<circ> \<pi>\<^sub>1) xfList) uInput) \<eta> = \<eta>"
+using assms substList_help1 substList_on_compl_of_varDiffs by blast
+
+lemma solvesStoreIVP_couldBeModified2:
+assumes "\<forall> xf \<in> set xfList. F (0::real) (vdiff (\<pi>\<^sub>1 xf)) = \<pi>\<^sub>2 xf (F 0)"
+and "\<forall>t\<ge>(0::real). \<forall>r\<in>{0<--<t}. \<forall> xf \<in> set xfList. F r (vdiff (\<pi>\<^sub>1 xf)) = \<pi>\<^sub>2 xf (F r)"
+shows "\<forall>t\<ge>(0::real). \<forall>r\<in>{0--t}. \<forall> xf \<in> set xfList. F r (vdiff (\<pi>\<^sub>1 xf)) = \<pi>\<^sub>2 xf (F r)"
+proof(clarify)
+fix t r::real and x f
+assume tHyp:"0 \<le> t" and rHyp:"r \<in> {0--t}" and xfHyp:"(x, f) \<in> set xfList"
+show "F r (vdiff (\<pi>\<^sub>1 (x, f))) = \<pi>\<^sub>2 (x, f) (F r)"
+  proof(cases "r = 0")
+    case True
+    then show ?thesis 
+    using assms(1) rHyp tHyp and xfHyp by auto
+  next
+  case False
+    from this rHyp and tHyp have "r \<in> {0<--<2\<cdot>t} \<and> 2\<cdot>t \<ge> 0"
+    using closed_segment_eq_real_ivl open_segment_eq_real_ivl by simp
+    then show ?thesis using assms(2) and xfHyp by fastforce
+  qed
+qed
+
+lemma solvesStoreIVP_couldBeModified3:
+assumes "\<forall>t\<ge>(0::real). \<forall>r\<in>{0--t}. \<forall> xf \<in> set xfList. F r (vdiff (\<pi>\<^sub>1 xf)) = \<pi>\<^sub>2 xf (F r)"
+shows "\<forall> xf \<in> set xfList. F (0::real) (vdiff (\<pi>\<^sub>1 xf)) = \<pi>\<^sub>2 xf (F 0)"
+and "\<forall>t\<ge>(0::real). \<forall>r\<in>{0<--<t}. \<forall> xf \<in> set xfList. F r (vdiff (\<pi>\<^sub>1 xf)) = \<pi>\<^sub>2 xf (F r)"
+using assms proof(auto simp: open_segment_eq_real_ivl closed_segment_eq_real_ivl)
+fix x f
+have "(0::real) \<in> {0..0}" by(simp add: atLeast_def)
+assume "(x, f) \<in> set xfList"
+from this and assms(1) have "\<forall>r\<in>{0..0}. F r (vdiff (\<pi>\<^sub>1 (x, f))) = \<pi>\<^sub>2 (x, f) (F r)"
+using closed_segment_eq_real_ivl atLeastAtMost_iff by blast 
+thus "F 0 (vdiff x) = f (F 0)" by auto
+qed
+
+lemma substList_cross_vdiff_on_non_ocurring_var:
+assumes "x \<notin> set list1"
+shows "substList (cross_list (map vdiff list1) list2) (Var (vdiff x))
+  = Var (vdiff x)"
+using assms apply(induction list1 list2 rule: cross_list.induct, simp, simp, clarsimp)
+by(simp add: vdiff_inj)
 
 lemma diff_subst_prprty_4terms:
-assumes "solvesStoreIVP F xfList a G"
+assumes solves:"\<forall>t\<ge>0. \<forall>r\<in>{0--t}. \<forall> xf \<in> set xfList. F r (vdiff (\<pi>\<^sub>1 xf)) = \<pi>\<^sub>2 xf (F r)"
 and tHyp:"t \<ge> 0"
-and termVarsHyp:"\<forall> x \<in> trmVars \<eta>. x \<in> (UNIV - varDiffs)"
-shows "\<forall> r \<in> {0--t}. \<forall> xf \<in> set xfList. (\<pi>\<^sub>2 xf) = rval \<theta> \<longrightarrow>
-rval (rdiff \<eta>) (F r) = rval (subst \<theta> (vdiff (\<pi>\<^sub>1 xf)) (rdiff \<eta>)) (F r)"
-using termVarsHyp apply(induction \<eta>, simp_all)
-apply(clarify, subgoal_tac "a = x")
-proof(auto simp: vdiff_inj)
-fix x::string and r::real
-assume rHyp:"r \<in> {0--t}" and xfHyp:"(x, rval \<theta>) \<in> set xfList"
-show "F r (vdiff x) = rval \<theta> (F r)"
-  proof(cases "r=0")
+and rHyp:"r \<in> {0--t}"
+and listsHyp:"map \<pi>\<^sub>2 xfList = map rval uInput"
+and termVarsHyp:"trmVars \<eta> \<subseteq> (UNIV - varDiffs)"
+shows "rval (rdiff \<eta>) (F r) = 
+rval (substList (cross_list (map (vdiff \<circ> \<pi>\<^sub>1) xfList) uInput) (rdiff \<eta>)) (F r)"
+using termVarsHyp apply(induction \<eta>) apply(simp_all add: substList_help2)
+using listsHyp and solves apply(induction xfList uInput rule: cross_list.induct, simp, simp)
+proof(clarify, rename_tac y g xfTail \<theta> trmTail x)
+fix x y::string and \<theta>::trms and g and xfTail::"((string \<times> (real store \<Rightarrow> real)) list)" and trmTail
+assume IH:"\<And>x. x \<notin> varDiffs \<Longrightarrow> map \<pi>\<^sub>2 xfTail = map rval trmTail \<Longrightarrow>
+\<forall>t\<ge>0. \<forall>r\<in>{0--t}. \<forall>xf\<in>set xfTail. F r (vdiff (\<pi>\<^sub>1 xf)) = \<pi>\<^sub>2 xf (F r) \<Longrightarrow>
+F r (vdiff x) = rval (substList (cross_list (map (vdiff \<circ> \<pi>\<^sub>1) xfTail) trmTail) (Var (vdiff x))) (F r)"
+and 1:"x \<notin> varDiffs" and 2:"map \<pi>\<^sub>2 ((y, g) # xfTail) = map rval (\<theta> # trmTail)" 
+and 3:"\<forall>t\<ge>0. \<forall>r\<in>{0--t}. \<forall>xf\<in>set ((y, g) # xfTail). F r (vdiff (\<pi>\<^sub>1 xf)) = \<pi>\<^sub>2 xf (F r)"
+hence *:"rval (substList (cross_list (map (vdiff \<circ> \<pi>\<^sub>1) xfTail) trmTail) (Var (vdiff x))) (F r) = 
+F r (vdiff x)" using rHyp tHyp by auto
+show "F r (vdiff x) =
+rval (substList (cross_list (map (vdiff \<circ> \<pi>\<^sub>1) ((y, g) # xfTail)) (\<theta> # trmTail)) (Var (vdiff x))) (F r)"
+  proof(cases "x \<in> set ( map \<pi>\<^sub>1 ((y, g) # xfTail))")
     case True
-    from this and xfHyp show ?thesis 
-    using assms(1) solves_store_ivpD(3) by fastforce
+    then have "x = y \<or> (x \<noteq> y \<and> x \<in> set (map \<pi>\<^sub>1 xfTail))" by auto
+    moreover
+    {assume "x = y"
+      from this have "substList (cross_list (map (vdiff \<circ> \<pi>\<^sub>1) ((y, g) # xfTail)) (\<theta> # trmTail)) 
+      (Var (vdiff x)) = \<theta>" by simp
+      also from 3 tHyp and rHyp have "F r (vdiff y) = g (F r)" by simp
+      moreover from 2 have "rval \<theta> (F r) = g (F r)" by simp
+      ultimately have ?thesis by (simp add: \<open>x = y\<close>)}
+    moreover
+    {assume "x \<noteq> y \<and> x \<in> set (map \<pi>\<^sub>1 xfTail)"
+      then have "vdiff x \<noteq> vdiff y" using vdiff_inj by auto
+      from this have "substList (cross_list (map (vdiff \<circ> \<pi>\<^sub>1) ((y, g) # xfTail)) (\<theta> # trmTail)) 
+      (Var (vdiff x)) = substList (cross_list (map (vdiff \<circ> \<pi>\<^sub>1) xfTail) trmTail) (Var (vdiff x))"
+      by simp
+      hence ?thesis using * by simp}
+    ultimately show ?thesis by blast
   next
     case False
-    from this tHyp and rHyp have "r \<in> {0<--<2\<cdot>t} \<and> 2\<cdot>t \<ge> 0"
-    using closed_segment_eq_real_ivl open_segment_eq_real_ivl by simp
-    thus ?thesis using assms(1) solves_store_ivpD(6) xfHyp by fastforce
+    then have "substList (cross_list (map (vdiff \<circ> \<pi>\<^sub>1) ((y, g) # xfTail)) (\<theta> # trmTail)) (Var (vdiff x))
+    = Var (vdiff x)" using substList_cross_vdiff_on_non_ocurring_var
+    by (metis (no_types, lifting) List.map.compositionality)
+    thus ?thesis by simp
   qed
 qed
 
 lemma eqInVars_impl_eqInTrms:
-assumes termVarsHyp:"\<forall> x \<in> trmVars \<eta>. x \<in> (UNIV - varDiffs)"
+assumes termVarsHyp:"trmVars \<eta> \<subseteq> (UNIV - varDiffs)"
 and initHyp:"\<forall>x. x \<notin> varDiffs \<longrightarrow> b x = a x"
 shows "(rval \<eta>) a = (rval \<eta>) b"
 using assms by(induction \<eta>, simp_all)
 
-lemma dInvForVars:
-assumes substHyp:"\<forall> st. \<forall> xf \<in> set xfList. (\<pi>\<^sub>2 xf) = rval \<theta> \<longrightarrow> 
-rval (subst \<theta> (vdiff (\<pi>\<^sub>1 xf)) (rdiff \<eta>)) st = 0 "
-and termVarsHyp:"\<forall> x \<in> trmVars \<eta>. x \<in> (UNIV - varDiffs)"
-and termFunHyp:"\<forall> xf \<in> set xfList. \<exists> \<theta>. rval \<theta> = \<pi>\<^sub>2 xf"
-shows "(rval \<eta>) a = 0 \<longrightarrow> (\<forall> c. (a,c) \<in> (ODEsystem xfList with (\<lambda> s. True)) \<longrightarrow> (rval \<eta>) c = 0)"
+lemma non_empty_funList_implies_non_empty_trmList:
+shows "\<forall> list. (x,f) \<in> set list \<and> map \<pi>\<^sub>2 list = map rval tList \<longrightarrow> 
+(\<exists> \<theta>. rval \<theta> = f \<and> \<theta> \<in> set tList)"
+by(induction tList, auto)
+
+lemma dInvForTrms_prelim:
+assumes substHyp:
+"\<forall> st. (\<forall> str \<in> varDiffs - (vdiff\<lbrakk>\<pi>\<^sub>1\<lbrakk>set xfList\<rbrakk>\<rbrakk>). st str = 0) \<longrightarrow>
+rval (substList (cross_list (map (vdiff \<circ> \<pi>\<^sub>1) xfList) uInput) (rdiff \<eta>)) st = 0"
+and termVarsHyp:"trmVars \<eta> \<subseteq> (UNIV - varDiffs)"
+and listsHyp:"map \<pi>\<^sub>2 xfList = map rval uInput"
+shows "(rval \<eta>) a = 0 \<longrightarrow> (\<forall> c. (a,c) \<in> (ODEsystem xfList with G) \<longrightarrow> (rval \<eta>) c = 0)"
 proof(clarify)
-fix c assume aHyp:"(rval \<eta>) a = 0" and cHyp:"(a, c) \<in> ODEsystem xfList with (\<lambda>s. True)"
+fix c assume aHyp:"(rval \<eta>) a = 0" and cHyp:"(a, c) \<in> ODEsystem xfList with G"
 from this obtain t::"real" and F::"real \<Rightarrow> real store" 
-where FHyp:"t\<ge>0 \<and> F t = c \<and> solvesStoreIVP F xfList a (\<lambda> s. True)" 
+where tcHyp:"t\<ge>0 \<and> F t = c \<and> solvesStoreIVP F xfList a G" 
 using guarDiffEqtn_def by auto
-show "rval \<eta> c = 0"
-  proof(cases "t=0")
-    case True
-    from this and FHyp have "\<forall>x. x \<notin> varDiffs \<longrightarrow> F t x = a x"
-    using solves_store_ivpD(1) by blast
-    then have "rval \<eta> a = rval \<eta> (F t)"
-    using termVarsHyp eqInVars_impl_eqInTrms by blast
-    thus "rval \<eta> c = 0" using aHyp FHyp by simp
-  next
-  case False
-  from FHyp have "\<forall>r\<in>{0--t}. ((\<lambda>s. rval \<eta> (F s)) has_vector_derivative rval (rdiff \<eta>) (F r)) 
-  (at r within {0--t})" using derivationLemma termVarsHyp by blast
-  from FHyp have "\<forall> \<theta>. \<forall>r\<in>{0--t}. \<forall>xf\<in>set xfList. \<pi>\<^sub>2 xf = rval \<theta> \<longrightarrow> 
-  rval (rdiff \<eta>) (F r) = rval (subst \<theta> (vdiff (\<pi>\<^sub>1 xf)) (rdiff \<eta>)) (F r)"
-  using diff_subst_prprty_4terms termVarsHyp by blast
-  then show ?thesis sorry (* might NEED TO CHANGE subst function to consider many-valued 
-substitutions.*)
-  thm solves_store_ivpD
-  qed   
+then have "\<forall>x. x \<notin> varDiffs \<longrightarrow> F 0 x = a x" using solves_store_ivpD(1) by blast
+from this have "rval \<eta> a = rval \<eta> (F 0)" using termVarsHyp eqInVars_impl_eqInTrms by blast
+hence obs1:"rval \<eta> (F 0) = 0" using aHyp tcHyp by simp
+(*from FHyp have deriv:"\<forall>r\<in>{0--t}. well_defined (F r) \<eta> \<longrightarrow> ((\<lambda>s. rval \<eta> (F s)) 
+has_vector_derivative rval (rdiff \<eta>) (F r)) (at r within {0--t})"*)
+from tcHyp have obs2:"\<forall>r\<in>{0--t}. ((\<lambda>s. rval \<eta> (F s)) has_vector_derivative 
+rval (rdiff \<eta>) (F r)) (at r within {0--t})" using derivationLemma termVarsHyp by blast
+have "(\<forall>xf\<in>set xfList. F 0 (vdiff (\<pi>\<^sub>1 xf)) = \<pi>\<^sub>2 xf (F 0)) \<and> 
+(\<forall>t\<ge>0. \<forall>r\<in>{0<--<t}. \<forall> xf \<in> set xfList. F r (vdiff (\<pi>\<^sub>1 xf)) = \<pi>\<^sub>2 xf (F r))"
+using tcHyp solves_store_ivpD(3) solves_store_ivpD(6) by blast
+then have "\<forall>t\<ge>0. \<forall>r\<in>{0--t}. \<forall> xf \<in> set xfList. F r (vdiff (\<pi>\<^sub>1 xf)) = \<pi>\<^sub>2 xf (F r)"
+using solvesStoreIVP_couldBeModified2 by blast
+from this and tcHyp have "\<forall> \<theta>. \<forall>r\<in>{0--t}. rval (rdiff \<eta>) (F r) =
+rval (substList (cross_list (map (vdiff \<circ> \<pi>\<^sub>1) xfList) uInput) (rdiff \<eta>)) (F r)"
+using diff_subst_prprty_4terms termVarsHyp listsHyp by blast
+also from substHyp have "\<forall>r\<in>{0--t}. 
+rval (substList (cross_list (map (vdiff \<circ> \<pi>\<^sub>1) xfList) uInput) (rdiff \<eta>)) (F r) = 0" 
+using solves_store_ivpD(5) tcHyp using closed_segment_eq_real_ivl by auto 
+(*ultimately have "\<forall>r\<in>{0--t}. well_defined (F r) \<eta> \<longrightarrow> ((\<lambda>s. rval \<eta> (F s)) 
+has_vector_derivative 0) (at r within {0--t})" using deriv by auto*)
+ultimately have "\<forall>r\<in>{0--t}. ((\<lambda>s. rval \<eta> (F s)) 
+has_vector_derivative 0) (at r within {0--t})" using obs2 by auto
+from this and tcHyp have "\<forall>s\<in>{0..t}. ((\<lambda>x. rval \<eta> (F x)) has_derivative (\<lambda>x. x *\<^sub>R 0)) 
+(at s within {0..t})" by (metis has_vector_derivative_def closed_segment_eq_real_ivl)
+hence "rval \<eta> (F t) - rval \<eta> (F 0) = (\<lambda>x. x *\<^sub>R 0) (t - 0)" 
+using mvt_very_simple and tcHyp by fastforce 
+then show "rval \<eta> c = 0" using obs1 tcHyp by auto 
 qed
 
-lemma dInvForSums:
-assumes "\<forall> c. (a,c) \<in> ((''d''@x) ::= f) \<longrightarrow> (\<lambda> s. f s + g s) c = 0"
-shows "(\<lambda> s. f s + g s) a = 0 \<longrightarrow> (\<forall> c. (a,c) \<in> (ODEsystem [(x,f)] with (\<lambda> s. True)) \<longrightarrow> (\<lambda> s. f s + g s) c = 0)"
-sorry
+theorem dInvForTrms:
+assumes "\<forall> st. (\<forall> str \<in> varDiffs - (vdiff\<lbrakk>\<pi>\<^sub>1\<lbrakk>set xfList\<rbrakk>\<rbrakk>). st str = 0) \<longrightarrow>
+rval (substList (cross_list (map (vdiff \<circ> \<pi>\<^sub>1) xfList) uInput) (rdiff \<eta>)) st = 0"
+and termVarsHyp:"trmVars \<eta> \<subseteq> (UNIV - varDiffs)"
+and listsHyp:"map \<pi>\<^sub>2 xfList = map rval uInput"
+and eta_f:"(\<lambda> s. f s) = (\<lambda> s. rval \<eta> s)"
+shows " PRE (\<lambda> s. f s = 0) (ODEsystem xfList with G) POST (\<lambda> s. f s = 0)"
+using eta_f proof(clarsimp)
+fix a b
+assume "(a, b) \<in> \<lceil>\<lambda>s. rval \<eta> s = 0\<rceil>" and "f = rval \<eta>"
+from this have aHyp:"a = b \<and> rval \<eta> a = 0" by (metis (full_types) d_p2r rdom_p2r_contents)
+have "(rval \<eta>) a = 0 \<longrightarrow> (\<forall> c. (a,c) \<in> (ODEsystem xfList with G) \<longrightarrow> (rval \<eta>) c = 0)"
+using assms dInvForTrms_prelim by metis 
+from this and aHyp have "\<forall> c. (a,c) \<in> (ODEsystem xfList with G) \<longrightarrow> (rval \<eta>) c = 0" by blast
+thus "(a, b) \<in> wp (ODEsystem xfList with G ) \<lceil>\<lambda>s. rval \<eta> s = 0\<rceil>"
+using aHyp by (simp add: boxProgrPred_chrctrztn) 
+qed
 
-lemma 
-fixes g::"real store \<Rightarrow> real"
-assumes "\<forall> c. (a,c) \<in> ((''d''@x) ::= f) \<longrightarrow> g c = 0"
-shows "g a = 0 \<longrightarrow> (\<forall> c. (a,c) \<in> (ODEsystem [(x,f)] with (\<lambda> s. s = s)) \<longrightarrow> g c = 0)"
-sorry
+lemma "PRE (\<lambda> s. (s ''s'') \<cdot> (s ''s'') + (s ''c'') \<cdot> (s ''c'') - (s ''r'') \<cdot> (s ''r'') = 0)  
+      (ODEsystem [(''s'',(\<lambda> s. s ''c'')),(''c'',(\<lambda> s. - s ''s''))] with (\<lambda> s. True))
+      POST (\<lambda> s. (s ''s'') \<cdot> (s ''s'') + (s ''c'') \<cdot> (s ''c'') - (s ''r'') \<cdot> (s ''r'') = 0)"
+apply(rule_tac \<eta>="Sum (Sum (Mult (Var ''s'') (Var ''s'')) (Mult (Var ''c'') (Var ''c'')))
+(Mns (Mult (Var ''r'') (Var ''r'')))" and uInput="[Var ''c'', Mns (Var ''s'')]"in dInvForTrms)
+by(simp_all add: varDiffs_def vdiff_def)
 
-lemma pelim_dInv:
-assumes "\<lceil>G\<rceil> \<subseteq> \<lceil>Q\<rceil>"
-shows "PRE Q (ODEsystem [(x,f)] with G) POST Q"
-sorry
+primrec propVars :: "props \<Rightarrow> string set" where
+"propVars (Eq \<theta> \<eta>) = trmVars \<theta> \<union> trmVars \<eta>"|
+"propVars (Less \<theta> \<eta>) = trmVars \<theta> \<union> trmVars \<eta>"|
+"propVars (Neg \<phi>) = propVars \<phi>"|
+"propVars (And \<phi> \<psi>) = propVars \<phi> \<union> propVars \<psi>"|
+"propVars (Or \<phi> \<psi>) = propVars \<phi> \<union> propVars \<psi>"
+
+primrec subspList :: "(string \<times> trms) list \<Rightarrow> props \<Rightarrow> props" where
+"subspList xTrmList (Eq \<theta> \<eta>) = (Eq (substList xTrmList \<theta>) (substList xTrmList \<eta>))"|
+"subspList xTrmList (Less \<theta> \<eta>) = (Less (substList xTrmList \<theta>) (substList xTrmList \<eta>))"|
+"subspList xTrmList (Neg \<phi>) = Neg (subspList xTrmList \<phi>)"|
+"subspList xTrmList (And \<phi> \<psi>) = (And (subspList xTrmList \<phi>) (subspList xTrmList \<psi>))"|
+"subspList xTrmList (Or \<phi> \<psi>) = (Or (subspList xTrmList \<phi>) (subspList xTrmList \<psi>))"
+
+lemma diff_subst_prprty_4props:
+assumes solves:"\<forall>t\<ge>0. \<forall>r\<in>{0--t}. \<forall> xf \<in> set xfList. F r (vdiff (\<pi>\<^sub>1 xf)) = \<pi>\<^sub>2 xf (F r)"
+and tHyp:"t \<ge> 0"
+and rHyp:"r \<in> {0--t}"
+and listsHyp:"map \<pi>\<^sub>2 xfList = map rval uInput"
+and propVarsHyp:"propVars \<phi> \<subseteq> (UNIV - varDiffs)"
+shows "pval (pdiff \<phi>) (F r) = 
+pval (subspList (cross_list (map (vdiff \<circ> \<pi>\<^sub>1) xfList) uInput) (pdiff \<phi>)) (F r)"
+using propVarsHyp apply(induction \<phi>, simp_all)
+using assms diff_subst_prprty_4terms apply fastforce
+using assms diff_subst_prprty_4terms by fastforce
+
+thm pval.simps
+lemma dInv_prelim:
+assumes substHyp:"\<forall> st. G st \<longrightarrow> 
+pval (subspList (cross_list (map (vdiff \<circ> \<pi>\<^sub>1) xfList) uInput) (pdiff \<phi>)) st"
+and propVarsHyp:"propVars \<phi> \<subseteq> (UNIV - varDiffs)"
+and listsHyp:"map \<pi>\<^sub>2 xfList = map rval uInput"
+shows "(pval \<phi>) a \<longrightarrow> (\<forall> c. (a,c) \<in> (ODEsystem xfList with G) \<longrightarrow> (pval \<phi>) c)"
+proof(clarify)
+fix c assume aHyp:"pval \<phi> a" and cHyp:"(a, c) \<in> ODEsystem xfList with G"
+from this obtain t::"real" and F::"real \<Rightarrow> real store" 
+where tcHyp:"t\<ge>0 \<and> F t = c \<and> solvesStoreIVP F xfList a G" 
+using guarDiffEqtn_def by auto
+have "(\<forall>xf\<in>set xfList. F 0 (vdiff (\<pi>\<^sub>1 xf)) = \<pi>\<^sub>2 xf (F 0)) \<and> 
+(\<forall>t\<ge>0. \<forall>r\<in>{0<--<t}. \<forall> xf \<in> set xfList. F r (vdiff (\<pi>\<^sub>1 xf)) = \<pi>\<^sub>2 xf (F r))"
+using tcHyp solves_store_ivpD(3) solves_store_ivpD(6) by blast
+then have *:"\<forall>t\<ge>0. \<forall>r\<in>{0--t}. \<forall> xf \<in> set xfList. F r (vdiff (\<pi>\<^sub>1 xf)) = \<pi>\<^sub>2 xf (F r)"
+using solvesStoreIVP_couldBeModified2 by blast
+from tcHyp and substHyp have "\<forall>r\<in>{0--t}. 
+pval (subspList (cross_list (map (vdiff \<circ> \<pi>\<^sub>1) xfList) uInput) (pdiff \<phi>)) (F r)" 
+using solves_store_ivpD(2) using closed_segment_eq_real_ivl by fastforce 
+from this aHyp and propVarsHyp show "pval \<phi> c"
+proof(induction \<phi>)
+case (Eq \<theta> \<eta>)
+hence hyp:"pval (Eq \<theta> \<eta>) a \<and> propVars (Eq \<theta> \<eta>) \<subseteq> UNIV - varDiffs \<and> (\<forall>r\<in>{0--t}. 
+pval (subspList (cross_list (map (vdiff \<circ> \<pi>\<^sub>1) xfList) uInput) (pdiff (Eq \<theta> \<eta>))) (F r))" by blast
+then have "trmVars \<theta> \<subseteq> UNIV - varDiffs \<and> trmVars \<eta> \<subseteq> UNIV - varDiffs" by simp
+also have "\<forall>r\<in>{0--t}. rval (substList (cross_list (map (vdiff \<circ> \<pi>\<^sub>1) xfList) uInput) (rdiff \<theta>)) (F r) = 
+rval (substList (cross_list (map (vdiff \<circ> \<pi>\<^sub>1) xfList) uInput) (rdiff \<eta>)) (F r)"
+by (metis Eq.prems(1) pdiff.simps(1) pval.simps(1) subspList.simps(1))
+ultimately have "\<forall>r\<in>{0--t}. rval (rdiff \<theta>) (F r) = rval (rdiff \<eta>) (F r)"
+by (metis diff_subst_prprty_4terms * tcHyp listsHyp)
+thm pdiff.simps
+thm pval.simps
+thm rval.simps
+thm rdiff.simps
+thm dInvForTrms
+thm dInvForTrms_prelim
+thm diff_subst_prprty_4terms
+(* checar si ayuda: diff_subst_prprty_4props *)
+hence "\<forall>r\<in>{0--t}. rval (Sum (rdiff \<theta>) (Mns (rdiff \<eta>))) (F r) = 0" by simp
+from hyp have "rval (Sum \<theta> (Mns \<eta>)) a = 0" by simp
+have "pval (Eq \<theta> \<eta>) c = (rval \<theta> (F t) = rval \<eta> (F t))" using tcHyp by simp
+thus ?case using closed_segment_eq_real_ivl   sorry
+next
+case (Less \<theta> \<eta>)
+then show ?case sorry
+next
+case (Neg \<phi>)
+then show ?case sorry
+next
+case (And \<phi>1 \<phi>2)
+then show ?case sorry
+next
+case (Or \<phi>1 \<phi>2)
+then show ?case sorry
+qed
+qed
 
 theorem dInv:
-assumes "\<forall> st. P st \<longrightarrow> G st \<longrightarrow> Q st x" (* Notice that the conjunction below is not valid. *)
-assumes "PRE G ((''d''@x) ::= f) POST (\<lambda> s. Q s (''d''@x))"
-shows " PRE P (ODEsystem [(x,f)] with G) POST (\<lambda> s. Q s x)"
-proof(clarify)
-fix a b assume "(a, b) \<in> rdom \<lceil>P\<rceil>"
-from this have "a = b \<and> P a" by (metis rdom_p2r_contents)
-have "\<forall> c. (a,c) \<in> (ODEsystem [(x,f)] with G) \<longrightarrow> Q c x"
-proof(clarify)
-fix c assume "(a, c) \<in> ODEsystem [(x,f)] with G"
-show "Q c x"
-sorry
-qed
-thus "(a, b) \<in> wp (ODEsystem [(x,f)] with G ) \<lceil>\<lambda>s. Q s x\<rceil>" sorry
+assumes "\<forall> st. (\<forall> str \<in> varDiffs - (vdiff\<lbrakk>\<pi>\<^sub>1\<lbrakk>set xfList\<rbrakk>\<rbrakk>). st str = 0) \<longrightarrow>
+pval (subspList (cross_list (map (vdiff \<circ> \<pi>\<^sub>1) xfList) uInput) (pdiff \<phi>)) st"
+and termVarsHyp:"propVars \<phi> \<subseteq> (UNIV - varDiffs)"
+and listsHyp:"map \<pi>\<^sub>2 xfList = map rval uInput"
+and phi_p:"P = pval \<phi>"
+shows " PRE P (ODEsystem xfList with G) POST P"
+proof(clarsimp)
+fix a b
+assume "(a, b) \<in> \<lceil>P\<rceil>"
+from this have aHyp:"a = b \<and> P a" by (metis (full_types) d_p2r rdom_p2r_contents)
+have "P a \<longrightarrow> (\<forall> c. (a,c) \<in> (ODEsystem xfList with G) \<longrightarrow> P c)"
+using assms dInv_prelim by metis 
+from this and aHyp have "\<forall> c. (a,c) \<in> (ODEsystem xfList with G) \<longrightarrow> P c" by blast
+thus "(a, b) \<in> wp (ODEsystem xfList with G ) \<lceil>P\<rceil>"
+using aHyp by (simp add: boxProgrPred_chrctrztn) 
 qed
 
 theorem dInv2:

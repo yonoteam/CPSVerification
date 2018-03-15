@@ -1,0 +1,177 @@
+\documentclass[english,letterpaper,12pt]{article} %Idioma, papel, 12 puntos, clase.
+
+%------------------------------------------------------------------------------
+%	PAQUETES Y CONFIGURACION DEL DOCUMENTO
+%------------------------------------------------------------------------------
+
+	% Paquetes
+		\usepackage[english, spanish]{babel} 	% Predispone el último idioma de la lista. 
+									% Usar \selectlanguage{} para cambiarlo.
+		\usepackage[T1]{fontenc} %Permite copypastear cosas con acentos tras crear el pdf.
+		\usepackage[utf8]{inputenc} %Permite escribir acentos y ?'s directamente aquí y no por código.
+		\usepackage[margin=2.5cm]{geometry} % Afecta los márgenes de manera fácil de entender.
+		\usepackage{titlesec} % Allows customization of titles
+		\usepackage{setspace} % Spacing between paragraphs
+		\usepackage{fancyhdr}%para poner encabezados
+	
+		\usepackage{graphicx} % Importar imágenes.
+		\usepackage{multicol} % Permite cambiar el número de columnas
+		\usepackage{booktabs} %Para hacer tablas más fácilmente
+		\usepackage{array} % Necesario para usar paquete tabularx
+		\usepackage{tabularx} %Hacer tablas con ancho de columna específico
+		\usepackage{enumerate} % Permite usar enumerate
+		\usepackage{color} % Permite cambiar color
+		\usepackage{cite} % Permite hacer referencias y citas
+	
+		\usepackage{amsmath} %American Mathematical Society
+		\usepackage{mathtools} %Mejora amsmath y latex para usar cosas de matemáticas
+		\usepackage{amssymb} % Agrega símbolos útiles como \Cap y \Cup
+		\usepackage{amsthm} % Permit usar los comandos teoremas de la AMS
+		\usepackage{stmaryrd} % Permite usar dobles paréntesis y corchetes [[ ]]
+		\usepackage{centernot, cancel} %Para hacer relaciones y símbolos tachados adecuadamente
+		\usepackage{mathrsfs} % Permite usar las fonts \mathscr
+	
+		%\usepackage{tikz} % Hacer gráficos mediante latex. Hay un libro entero al respecto.
+		%\usepackage{diagrams} %Permite hacer diagramas de categorías fácilmente.
+		%\usepackage{extarrows} %Permite agregar flechas a los diagramas de categorías.
+	
+		\usepackage{blindtext} % Para hacer LoremIpsum latinum stuff!!!
+		\usepackage{hyperref} % For hyperlinks in the PDF (asegurarse de que está al final)
+	
+	% Colores
+		\definecolor{DB}{RGB}{23,20,119}
+		\definecolor{DG}{RGB}{2,101,15}
+		\definecolor{DR}{RGB}{120,10,10}
+	
+	% Theorem Environment
+		\newtheoremstyle{JnthnThm}	% name
+					{10pt}		% Space above
+					{10pt}		% Space below
+					{}			% Body font (\itshape es italica para secciones)
+					{}			% Indent amount
+					{\bfseries\color{DR}}	% Theorem head font (\bfseries es bold para secciones)
+					{\\}			% Punctuation after theorem head
+					{.5em}		% Space after theorem head
+					{}			% Theorem head spec (can be left empty, meaning ‘normal’)
+					
+		\theoremstyle{JnthnThm}		% Todo los teoremas definidos después tendrán este estilo
+			\newtheorem{thm}{Teorema}[section]
+			\newtheorem{defn}{Definición}[section]
+			\newtheorem{lem}[thm]{Lema}
+			\newtheorem{cor}[thm]{Corolario}
+			\newtheorem{prprty}[thm]{Propiedades}
+			\newtheorem{prop}[thm]{Proposición}
+	
+		\newtheoremstyle{JnthnExmp}	% name
+					{10pt}		% Space above
+					{10pt}		% Space below
+					{\color{DB}}	% Body font (\itshape es italica para secciones)
+					{}			% Indent amount
+					{\bfseries\color{DR}}	% Theorem head font (\bfseries es bold para secciones)
+					{}			% Punctuation after theorem head
+					{.5em}		% Space after theorem head
+					{}			% Theorem head spec (can be left empty, meaning ‘normal’)
+	
+		\theoremstyle{JnthnExmp}		% Todo los teoremas definidos después tendrán este estilo
+			\newtheorem{exmp}{Ejemplo}[section]
+			\newtheorem{cntrexmp}[exmp]{Contraejemplo}
+	
+		\makeatletter % Hacer @ leible por latex
+		\renewenvironment{proof}[1][\textbf{\proofname}]{\par\pushQED{\qed}
+		\normalfont\color{DB} \topsep3\p@\@plus3\p@\relax\trivlist\item\relax
+		{\itshape#1\@addpunct{.}}\hspace\labelsep\ignorespaces}{%\itshape (junto a ignoerspaces)
+		\popQED\endtrivlist\@endpefalse}
+		\makeatother % Regresar @ a su estado normal
+	
+		\makeatletter % Hacer @ leible por latex
+		\newenvironment{sketch}[1][\textbf{Idea de Prueba}]{\par\pushQED{\qed}
+		\normalfont\color{DB} \topsep3\p@\@plus3\p@\relax\trivlist\item\relax
+		{\itshape#1\@addpunct{.}}\hspace\labelsep\ignorespaces}{%\itshape (junto a ignoerspaces)
+		\popQED\endtrivlist\@endpefalse}
+		\makeatother % Regresar @ a su estado normal
+		
+	% New Commands and environments
+		\renewcommand{\qedsymbol}{$\blacksquare$}
+		\newcommand{\wff}{\emph{wff}} % Usar \wff\ cuando se quiera espacio después de ``wff''
+		\newcommand{\wffs}{\emph{wffs}}
+		\newcommand{\impl}{\Rightarrow}
+		\renewcommand{\iff}{\Leftrightarrow}
+		\DeclareMathOperator{\Dom}{Dom}
+		\DeclareMathOperator{\Cod}{Cod}
+		\DeclareMathOperator{\Ran}{Ran}
+		%\newarrow{Equals}=====
+	
+	% Diseño del encabezado
+		\pagestyle{fancyplain}
+		\fancyhf{} % delete current setting for header and footer
+		\fancyhead[LE,RO]{Jonathan Julián Huerta y Munive}
+		\fancyhead[RE,LO]{Notas 0002}
+		\fancyfoot[LE,RO]{\thepage}
+		\renewcommand{\headrulewidth}{0.5pt}
+		\renewcommand{\footrulewidth}{0.4pt}
+		\addtolength{\headheight}{0pt} % make space for the rule
+		\fancypagestyle{plain}{%
+		\fancyhead{} % get rid of headers on plain pages
+		\renewcommand{\headrulewidth}{0pt} % and the line
+		\cfoot{\thepage} }
+		
+	\begin{document}
+		Make private
+		\section{Hybrid Systems Verification with Modal Kleene Algebra}
+		% Modal Kleene Algebra for Hybrid Systems Verification
+		% Towards the verification of hybrid systems with modal kleene algebra
+		\section{Abstract}
+		Georg\\
+
+		\section{Introduction}
+		Georg\\
+
+		2 pages
+		\section{MKA} % (In Isabelle?)
+		Georg\\
+		1 page\\
+		Relation with Dynamic Logic (Axioms $\sim$ Equations)
+
+		\section{(Isabelle Verification Components)}
+		Georg\\
+		1 page
+		\section{Integrating a Hybrid Store} % Differential Dynamic Logic
+		\section{Verification Condition Generation}%Deriving rules of a differential dynamic algebra
+		\section{Examples}
+		% Case Studies
+		\section{Conclusion}
+		Georg\\
+		Half a page (with references: 2 pages)
+		\section{Appendices}
+		\subsection{Background on Differential Equations}
+		\subsection{Axioms of Modal Kleene Algebra}
+		Georg\\
+		\subsection{Differential Dynamic Logic Rule System (Algebraic version)}
+		\subsection{Isabelle Theory Hierarchy}
+
+	\end{document}
+
+%Para hacer relaciones y símbolos tachados adecuadamente
+%Para hacer relaciones y símbolos tachados adecuadamente
+%Para hacer relaciones y símbolos tachados adecuadamente
+%Para hacer relaciones y símbolos tachados adecuadamente
+%Para hacer relaciones y símbolos tachados adecuadamente
+%Para hacer relaciones y símbolos tachados adecuadamente
+%Para hacer relaciones y símbolos tachados adecuadamente
+%Para hacer relaciones y símbolos tachados adecuadamente
+%Para hacer relaciones y símbolos tachados adecuadamente
+%Para hacer relaciones y símbolos tachados adecuadamente
+%Para hacer relaciones y símbolos tachados adecuadamente
+%Para hacer relaciones y símbolos tachados adecuadamente
+%Para hacer relaciones y símbolos tachados adecuadamente
+%Para hacer relaciones y símbolos tachados adecuadamente
+%Para hacer relaciones y símbolos tachados adecuadamente
+%Para hacer relaciones y símbolos tachados adecuadamente
+%Para hacer relaciones y símbolos tachados adecuadamente
+%Para hacer relaciones y símbolos tachados adecuadamente
+%Para hacer relaciones y símbolos tachados adecuadamente
+%Para hacer relaciones y símbolos tachados adecuadamente
+%Para hacer relaciones y símbolos tachados adecuadamente
+%Para hacer relaciones y símbolos tachados adecuadamente
+%Para hacer relaciones y símbolos tachados adecuadamente
+%Para hacer relaciones y símbolos tachados adecuadamente
