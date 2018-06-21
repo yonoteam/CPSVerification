@@ -307,8 +307,8 @@ using postCondHyp guardHyp postCondHyp by simp
 (* As before, we keep refining the rule dSolve. This time we find the necessary restrictions 
 to attain uniqueness. *)
 
-lemma conds4UniqSol:
-fixes f::"real store \<Rightarrow> real"
+lemma conds4UniqSol:(* Can it still be refined??? *) 
+fixes f::"real store \<Rightarrow> real" (* YES? Should correct formulation be (\<lambda>t r. f (\<phi>\<^sub>s r)) ? *)
 assumes tHyp:"t \<ge> 0"
 and contHyp:"continuous_on ({0..t} \<times> UNIV) (\<lambda>(t, (r::real)). f (\<phi>\<^sub>s t))"
 shows "unique_on_bounded_closed 0 {0..t} \<tau> (\<lambda>t r. f (\<phi>\<^sub>s t)) UNIV (if t = 0 then 1 else 1/(t+1))"
@@ -327,7 +327,7 @@ apply(rule ext, subgoal_tac "x \<notin> varDiffs \<longrightarrow> \<phi>\<^sub>
 subgoal by (simp add: override_on_def)
 using assms and solves_store_ivpD(7) by simp
 
-lemma ubcStoreUniqueSol:(* Can it still be refined??? *)
+lemma ubcStoreUniqueSol:
 assumes tHyp:"t \<ge> 0"
 assumes contHyp:"\<forall> xf \<in> set xfList. continuous_on ({0..t} \<times> UNIV) 
 (\<lambda>(t, (r::real)). (\<pi>\<^sub>2 xf) (sol s[xfList\<leftarrow>uInput] t))"
