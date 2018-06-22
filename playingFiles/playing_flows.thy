@@ -3,6 +3,7 @@ imports
   "Abstract_HL"
   "Ordinary_Differential_Equations.IVP/Initial_Value_Problem"
   "HOL-Library.FSet" (* Finite sets. *)
+  "HOL-Analysis.Cartesian_Euclidean_Space"
 
 begin
 
@@ -17,6 +18,11 @@ have "\<lfloor>wp R \<lceil>P\<rceil>\<rfloor> = \<lfloor>\<lceil>\<lambda> x. \
 thus "wp R \<lceil>P\<rceil> = \<lceil>\<lambda> x. \<forall> y. (x,y) \<in> R \<longrightarrow> P y\<rceil>" 
   by (metis (no_types, lifting) wp_simp d_p2r pointfree_idE prp) 
 qed
+
+lemma p2r_IdD:"\<lceil>P\<rceil> = Id \<Longrightarrow> (\<And> s. P s)"
+by (metis Id_O_R VC_KAD.p2r_neg_hom d_p2r empty_iff p2r_eq_prop p2r_subid 
+rel_antidomain_kleene_algebra.a_one rel_antidomain_kleene_algebra.addual.bbox_def 
+rel_antidomain_kleene_algebra.am1 rel_antidomain_kleene_algebra.fbox_one rpr wp_trafo)
 
 named_theorems ubc_definitions "definitions used in the locale unique_on_bounded_closed"
 
@@ -216,6 +222,10 @@ unfolding orbit_def f2r_def by (subst wp_rel, auto)
 
 end
 
+(* MISSING PROOF HERE *)
+lemma "local_flow \<phi> f S Y x0 \<Longrightarrow> X \<subseteq> Y \<Longrightarrow> local_flow \<phi> f S X x0"
+unfolding local_flow_def oops
+
 lemma constant_is_ubc:"0 \<le> t \<Longrightarrow> unique_on_bounded_closed 0 {0..t} s (\<lambda>t s. c) UNIV (1 / (t + 1))"
 unfolding ubc_definitions apply(simp add: nonempty_set_def lipschitz_def, safe)
 using continuous_on_const by (blast, auto)
@@ -241,10 +251,42 @@ abbreviation "orbit \<phi> T \<equiv> \<lambda> s. local_flow.orbit \<phi> T s"
 
 corollary DS:
 assumes "0 \<le> t"
-shows " wp (\<R>(orbit (\<lambda> \<tau> x. x + \<tau> *\<^sub>R c) {0..t})) \<lceil>Q\<rceil> = \<lceil>\<lambda> x. \<forall> \<tau> \<in> {0..t}. Q (x + \<tau> *\<^sub>R c)\<rceil>"
+shows " wp (\<R>(\<lambda> s. local_flow.orbit (\<lambda> \<tau> x. x + \<tau> *\<^sub>R c) {0..t} s)) \<lceil>Q\<rceil> = \<lceil>\<lambda> x. \<forall> \<tau> \<in> {0..t}. Q (x + \<tau> *\<^sub>R c)\<rceil>"
 apply(rule local_flow.wp_orbit[of "\<lambda> \<tau> x. x + \<tau> *\<^sub>R c" "\<lambda> s. c" UNIV "{0..t}" "1/(t + 1)"])
 using assms line_is_local_flow by blast
 
+abbreviation "g_orbit \<phi> T G \<equiv> \<lambda> s. {\<phi> t s |t. G (\<phi> t s)} \<inter> (local_flow.orbit \<phi> T s)"
+
+theorem wp_orbit:
+assumes "local_flow \<phi> f S T x"
+shows "wp (\<R> (g_orbit \<phi> T G)) \<lceil>Q\<rceil> = \<lceil>\<lambda> s. \<forall> t \<in> T. G (\<phi> t s) \<longrightarrow> Q (\<phi> t s)\<rceil>"
+unfolding f2r_def apply(subst wp_rel)
+using assms by(auto simp: local_flow.orbit_def)
+
+corollary g_orbit_IdD: 
+assumes "local_flow \<phi> f S T x"
+shows "wp (\<R> (g_orbit \<phi> T G)) \<lceil>Q\<rceil> = Id \<Longrightarrow> \<forall> t \<in> T. G (\<phi> t s) \<longrightarrow> Q (\<phi> t s)"
+apply(subst (asm) wp_orbit) 
+using assms apply(simp)
+by(rule_tac s="s" in p2r_IdD, simp)
+
+theorem DW: 
+assumes "local_flow \<phi> f S T x"
+shows "wp (\<R> (g_orbit \<phi> T G)) \<lceil>P\<rceil> = wp (\<R> (orbit \<phi> T)) \<lceil>\<lambda> s. G s \<longrightarrow> P s\<rceil>"
+apply(subst wp_orbit) using assms apply simp
+apply(subst local_flow.wp_orbit) using assms by simp_all
+
+theorem DC:
+assumes "local_flow \<phi> f S T L" 
+    and "wp (\<R>(g_orbit \<phi> T G)) \<lceil>C\<rceil> = Id"
+shows "wp (\<R>(g_orbit \<phi> T G)) \<lceil>Q\<rceil> = wp (\<R>(g_orbit \<phi> T (\<lambda> s. G s \<and> C s))) \<lceil>Q\<rceil>"
+apply(subst wp_orbit) using assms(1) apply simp
+apply(subst wp_orbit) using assms(1) apply simp
+apply(clarsimp) using assms g_orbit_IdD by blast
+
+term "x::'a^'b^'c"
+term "x::real^'a"
+(*
 locale guarded_flow = local_flow +
 fixes G::"'a pred"
 
@@ -307,6 +349,7 @@ shows "wp (\<R>(orbit (\<lambda> \<tau> x. x + \<tau> *\<^sub>R c) {0..t})) \<lc
 apply(subst Platzer_GenDS[of "\<lambda> t x. x + t *\<^sub>R c" "\<lambda> s. c" UNIV "{0..t}" "1/(t + 1)" G])
 using tHyp and line_is_local_flow apply blast
 using assms(1) by simp_all
+*)
 
 term "x::real^('a::finite)"
 term "(\<R>(\<lambda> s. local_flow.orbit (\<lambda> t x. x + t *\<^sub>R (c::real^'a)) {-t .. t} s))"
@@ -332,18 +375,18 @@ term "\<R>(i ::= r)"
 lemma "y \<in> (i ::= r) x  \<Longrightarrow> op $ y = (op $ x)(i := r)"
 by auto
 
-typedef vars ="{''x'',''v'',''a''}" (*morphisms var str*)
+typedef vars ="{''x'',''v'',''a'',''c''}" (*morphisms var str*)
 apply(rule_tac x="''x''" in exI)
 by simp
 
-lemma card_of_vars:"card {''x'',''v'',''a''} = 3"
+lemma card_of_vars:"card {''x'',''v'',''a'',''c''} = 4"
 by auto
 
-lemma CARD_of_vars:"CARD(vars) = 3"
+lemma CARD_of_vars:"CARD(vars) = 4"
 using type_definition.card type_definition_vars by fastforce 
 
 instance vars::finite
-apply(standard, subst bij_betw_finite[of Rep_vars UNIV "{''x'',''v'',''a''}"])
+apply(standard, subst bij_betw_finite[of Rep_vars UNIV "{''x'',''v'',''a'',''c''}"])
 apply(rule bij_betwI')
 apply (simp add: Rep_vars_inject)
 using Rep_vars apply blast
@@ -353,9 +396,34 @@ by simp
 abbreviation ith :: "(real, vars) vec \<Rightarrow> string \<Rightarrow> real" (infixl "\<downharpoonleft>" 90) where
 "s \<downharpoonleft> x \<equiv> s $ Abs_vars x"
 
+term "(\<chi> i::vars. x \<downharpoonleft> ''v'')"
+thm DS
+
+corollary(* cannot apply the subst rule because \<chi> i. x \<downharpoonleft> ''v'' depends on the function input x. *)
+assumes "0 \<le> t"
+shows " wp (\<R>(orbit (\<lambda> \<tau> x. x + \<tau> *\<^sub>R (\<chi> i. x \<downharpoonleft> ''v'')) {0..t})) \<lceil>Q\<rceil> = \<lceil>\<lambda> x. \<forall> \<tau> \<in> {0..t}. Q (x + \<tau> *\<^sub>R (\<chi> i. x \<downharpoonleft> ''v''))\<rceil>"
+apply(subst DS[of "(\<chi> i. x \<downharpoonleft> ''v'')"])
+
+
 lemma
-"PRE (\<lambda> s. s \<downharpoonleft> ''x'' = 0 \<and> s \<downharpoonleft> ''a'' > 0)
-((\<R>((Abs_vars ''a'') ::= s \<downharpoonleft> ''a''));(\<R>(orbit (\<lambda> \<tau> x. x + \<tau> *\<^sub>R (\<chi> i. x \<downharpoonleft> ''v'')) {0..t})))\<^sup>*
+"PRE (\<lambda> s. s \<downharpoonleft> ''x'' = 0 \<and> s \<downharpoonleft> ''v'' > 0)
+(\<R>(orbit (\<lambda> \<tau> x. x + \<tau> *\<^sub>R (\<chi> i. x \<downharpoonleft> ''v'')) {0..t}))
+POST (\<lambda> s. s \<downharpoonleft> ''x'' \<ge> 0)"
+apply(clarsimp)
+apply(subst DS)
+oops
+
+lemma
+"PRE (\<lambda> s. s \<downharpoonleft> ''x'' = 0 \<and> s \<downharpoonleft> ''v'' > 0)
+((\<R>((Abs_vars ''a'') ::= s \<downharpoonleft> ''c''));(\<R>(orbit (\<lambda> \<tau> x. x + \<tau> *\<^sub>R (\<chi> i. x \<downharpoonleft> ''v'')) {0..t})))
+POST (\<lambda> s. s \<downharpoonleft> ''x'' \<ge> 0)"
+apply(simp)
+apply(subst wp_assign)
+oops
+
+lemma
+"PRE (\<lambda> s. s \<downharpoonleft> ''x'' = 0 \<and> s \<downharpoonleft> ''c'' > 0)
+((\<R>((Abs_vars ''a'') ::= s \<downharpoonleft> ''c''));(\<R>(orbit (\<lambda> \<tau> x. x + \<tau> *\<^sub>R (\<chi> i. x \<downharpoonleft> ''v'')) {0..t})))\<^sup>*
 POST (\<lambda> s. s \<downharpoonleft> ''x'' \<ge> 0)"
 oops
 
@@ -367,7 +435,7 @@ VECTORS: (\<lbrakk>v1\<rbrakk>,\<lbrakk>v2\<rbrakk>,\<lbrakk>v3\<rbrakk>,...,\<l
 
 term "x::('a::finite_UNIV)"
 lemma (in type_definition) "UNIV > 0"
-oops
+oops*)
 
 thm bij_betw_same_card bij_betwI
 term "of_real"    (* real \<Rightarrow> 'a *)
@@ -390,5 +458,7 @@ apply simp
 unfolding Pi_def apply(clarsimp, safe)
 
 oops
+
+datatype num_set :: 
 
 end
