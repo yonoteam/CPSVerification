@@ -224,7 +224,8 @@ end
 
 (* MISSING PROOF HERE *)
 lemma "local_flow \<phi> f S Y x0 \<Longrightarrow> X \<subseteq> Y \<Longrightarrow> local_flow \<phi> f S X x0"
-unfolding local_flow_def oops
+unfolding local_flow_def ubc_definitions apply clarsimp
+oops
 
 lemma constant_is_ubc:"0 \<le> t \<Longrightarrow> unique_on_bounded_closed 0 {0..t} s (\<lambda>t s. c) UNIV (1 / (t + 1))"
 unfolding ubc_definitions apply(simp add: nonempty_set_def lipschitz_def, safe)
@@ -249,7 +250,7 @@ by simp_all.
 
 abbreviation "orbit \<phi> T \<equiv> \<lambda> s. local_flow.orbit \<phi> T s"
 
-corollary DS:
+corollary line_DS:
 assumes "0 \<le> t"
 shows " wp (\<R>(\<lambda> s. local_flow.orbit (\<lambda> \<tau> x. x + \<tau> *\<^sub>R c) {0..t} s)) \<lceil>Q\<rceil> = \<lceil>\<lambda> x. \<forall> \<tau> \<in> {0..t}. Q (x + \<tau> *\<^sub>R c)\<rceil>"
 apply(rule local_flow.wp_orbit[of "\<lambda> \<tau> x. x + \<tau> *\<^sub>R c" "\<lambda> s. c" UNIV "{0..t}" "1/(t + 1)"])
@@ -257,7 +258,7 @@ using assms line_is_local_flow by blast
 
 abbreviation "g_orbit \<phi> T G \<equiv> \<lambda> s. {\<phi> t s |t. G (\<phi> t s)} \<inter> (local_flow.orbit \<phi> T s)"
 
-theorem wp_orbit:
+theorem wp_g_orbit:
 assumes "local_flow \<phi> f S T x"
 shows "wp (\<R> (g_orbit \<phi> T G)) \<lceil>Q\<rceil> = \<lceil>\<lambda> s. \<forall> t \<in> T. G (\<phi> t s) \<longrightarrow> Q (\<phi> t s)\<rceil>"
 unfolding f2r_def apply(subst wp_rel)
@@ -266,90 +267,26 @@ using assms by(auto simp: local_flow.orbit_def)
 corollary g_orbit_IdD: 
 assumes "local_flow \<phi> f S T x"
 shows "wp (\<R> (g_orbit \<phi> T G)) \<lceil>Q\<rceil> = Id \<Longrightarrow> \<forall> t \<in> T. G (\<phi> t s) \<longrightarrow> Q (\<phi> t s)"
-apply(subst (asm) wp_orbit) 
+apply(subst (asm) wp_g_orbit) 
 using assms apply(simp)
 by(rule_tac s="s" in p2r_IdD, simp)
 
 theorem DW: 
 assumes "local_flow \<phi> f S T x"
 shows "wp (\<R> (g_orbit \<phi> T G)) \<lceil>P\<rceil> = wp (\<R> (orbit \<phi> T)) \<lceil>\<lambda> s. G s \<longrightarrow> P s\<rceil>"
-apply(subst wp_orbit) using assms apply simp
+apply(subst wp_g_orbit) using assms apply simp
 apply(subst local_flow.wp_orbit) using assms by simp_all
 
 theorem DC:
 assumes "local_flow \<phi> f S T L" 
     and "wp (\<R>(g_orbit \<phi> T G)) \<lceil>C\<rceil> = Id"
 shows "wp (\<R>(g_orbit \<phi> T G)) \<lceil>Q\<rceil> = wp (\<R>(g_orbit \<phi> T (\<lambda> s. G s \<and> C s))) \<lceil>Q\<rceil>"
-apply(subst wp_orbit) using assms(1) apply simp
-apply(subst wp_orbit) using assms(1) apply simp
+apply(subst wp_g_orbit) using assms(1) apply simp
+apply(subst wp_g_orbit) using assms(1) apply simp
 apply(clarsimp) using assms g_orbit_IdD by blast
 
-term "x::'a^'b^'c"
-term "x::real^'a"
-(*
-locale guarded_flow = local_flow +
-fixes G::"'a pred"
-
-begin
-
-definition "gorbit s = {\<phi> t s |t. t \<in> T \<and> G (\<phi> t s)}"
-
-lemma ok:"\<lceil>P\<rceil> = Id \<Longrightarrow> \<forall> s. P s"
-by (metis Id_O_R VC_KAD.p2r_neg_hom d_p2r empty_iff p2r_eq_prop p2r_subid rel_antidomain_kleene_algebra.a_one rel_antidomain_kleene_algebra.addual.bbox_def rel_antidomain_kleene_algebra.am1 rel_antidomain_kleene_algebra.fbox_one rpr wp_trafo)
-
-theorem wp_orbit:"wp (\<R> (\<lambda> s. gorbit s)) \<lceil>Q\<rceil> = \<lceil>\<lambda> s. \<forall> t \<in> T. G (\<phi> t s) \<longrightarrow> Q (\<phi> t s)\<rceil>"
-unfolding gorbit_def f2r_def by(subst wp_rel, auto)
-
-corollary ok2: "wp (\<R> (\<lambda> s. gorbit s)) \<lceil>Q\<rceil> = Id \<Longrightarrow> \<forall> s. \<forall> t \<in> T. G (\<phi> t s) \<longrightarrow> Q (\<phi> t s)"
-apply(subst (asm) wp_orbit)
-apply(clarsimp)
-using ok by auto
-
-end
-
-theorem New_GenDS:
-assumes "guarded_flow \<phi> f S T L"
-shows "wp (\<R>(\<lambda> s. guarded_flow.gorbit \<phi> T G s)) \<lceil>Q\<rceil> = \<lceil>\<lambda> s. \<forall> t \<in> T. G (\<phi> t s) \<longrightarrow> Q (\<phi> t s)\<rceil>"
-apply(subst guarded_flow.wp_orbit[of \<phi> f S T L])
-using assms(1) by simp_all
-
-corollary New_DW:
-assumes tHyp:"t \<ge> 0"
-shows "wp (\<R>(\<lambda> s. guarded_flow.gorbit (\<lambda> \<tau> x. x + \<tau> *\<^sub>R c) {0..t} G s)) \<lceil>Q\<rceil> = 
-  \<lceil>\<lambda> s. \<forall> \<tau> \<in> {0..t}. G (s + \<tau> *\<^sub>R c) \<longrightarrow> Q (s + \<tau> *\<^sub>R c)\<rceil>"
-apply(subst New_GenDS[of "\<lambda> \<tau> x. x + \<tau> *\<^sub>R c" "\<lambda>t. c" UNIV "{0..t}" "1/(t + 1)"])
-unfolding guarded_flow_def using tHyp and line_is_local_flow apply blast
-by simp
-
-lemma New_DC:
-assumes "wp (\<R>(\<lambda> s. guarded_flow.gorbit \<phi> T G s)) \<lceil>C\<rceil> = Id"
-  and "guarded_flow \<phi> f S T L"
-shows "wp (\<R>(\<lambda> s. guarded_flow.gorbit \<phi> T G s)) \<lceil>Q\<rceil> = 
-wp (\<R>(\<lambda> s. guarded_flow.gorbit \<phi> T (\<lambda> s. G s \<and> C s) s)) \<lceil>Q\<rceil>"
-apply(subst guarded_flow.wp_orbit) defer
-apply(subst guarded_flow.wp_orbit) defer
-apply(clarsimp) using assms guarded_flow.ok2 apply blast
-using assms by simp_all
-
-theorem Platzer_GenDS:(* The guard should only be valid for the flow applied to initial state. *)
-assumes "local_flow \<phi> f S T L"
-    and "\<And> s t. t \<in> T \<Longrightarrow> s \<in> S \<Longrightarrow> G (\<phi> t s)"
-shows "wp (\<R>(\<lambda> s. local_flow.orbit \<phi> T s)) \<lceil>Q\<rceil> = \<lceil>\<lambda> x. \<forall> t \<in> T. (\<forall> s \<in> S. G (\<phi> t s)) \<longrightarrow> Q (\<phi> t x)\<rceil>"
-apply(subst local_flow.wp_orbit[of \<phi> f S T L])
-subgoal using assms(1) by simp
-apply(auto)
-apply(erule_tac x="t" in ballE)
-using assms(2) by simp_all
-
-corollary Platzer_DS:
-assumes "\<And> s \<tau>. \<tau> \<in> {-t .. t} \<Longrightarrow> G (s + \<tau> *\<^sub>R c)"
-    and tHyp:"t \<ge> 0"
-shows "wp (\<R>(orbit (\<lambda> \<tau> x. x + \<tau> *\<^sub>R c) {0..t})) \<lceil>Q\<rceil> = 
-  \<lceil>\<lambda> x. \<forall> \<tau> \<in> {0..t}. (\<forall> s. G (s + \<tau> *\<^sub>R c)) \<longrightarrow> Q (x + \<tau> *\<^sub>R c)\<rceil>"
-apply(subst Platzer_GenDS[of "\<lambda> t x. x + t *\<^sub>R c" "\<lambda> s. c" UNIV "{0..t}" "1/(t + 1)" G])
-using tHyp and line_is_local_flow apply blast
-using assms(1) by simp_all
-*)
+term "x ** x"
+term "linear x"
 
 term "x::real^('a::finite)"
 term "(\<R>(\<lambda> s. local_flow.orbit (\<lambda> t x. x + t *\<^sub>R (c::real^'a)) {-t .. t} s))"
@@ -397,28 +334,13 @@ abbreviation ith :: "(real, vars) vec \<Rightarrow> string \<Rightarrow> real" (
 "s \<downharpoonleft> x \<equiv> s $ Abs_vars x"
 
 term "(\<chi> i::vars. x \<downharpoonleft> ''v'')"
-thm DS
+thm line_DS
 
 corollary(* cannot apply the subst rule because \<chi> i. x \<downharpoonleft> ''v'' depends on the function input x. *)
 assumes "0 \<le> t"
-shows " wp (\<R>(orbit (\<lambda> \<tau> x. x + \<tau> *\<^sub>R (\<chi> i. x \<downharpoonleft> ''v'')) {0..t})) \<lceil>Q\<rceil> = \<lceil>\<lambda> x. \<forall> \<tau> \<in> {0..t}. Q (x + \<tau> *\<^sub>R (\<chi> i. x \<downharpoonleft> ''v''))\<rceil>"
-apply(subst DS[of "(\<chi> i. x \<downharpoonleft> ''v'')"])
-
-
-lemma
-"PRE (\<lambda> s. s \<downharpoonleft> ''x'' = 0 \<and> s \<downharpoonleft> ''v'' > 0)
-(\<R>(orbit (\<lambda> \<tau> x. x + \<tau> *\<^sub>R (\<chi> i. x \<downharpoonleft> ''v'')) {0..t}))
-POST (\<lambda> s. s \<downharpoonleft> ''x'' \<ge> 0)"
-apply(clarsimp)
-apply(subst DS)
-oops
-
-lemma
-"PRE (\<lambda> s. s \<downharpoonleft> ''x'' = 0 \<and> s \<downharpoonleft> ''v'' > 0)
-((\<R>((Abs_vars ''a'') ::= s \<downharpoonleft> ''c''));(\<R>(orbit (\<lambda> \<tau> x. x + \<tau> *\<^sub>R (\<chi> i. x \<downharpoonleft> ''v'')) {0..t})))
-POST (\<lambda> s. s \<downharpoonleft> ''x'' \<ge> 0)"
-apply(simp)
-apply(subst wp_assign)
+shows " wp (\<R>(orbit (\<lambda> \<tau> x. x + \<tau> *\<^sub>R (\<chi> i. x \<downharpoonleft> ''v'')) {0..t})) \<lceil>Q\<rceil> = 
+\<lceil>\<lambda> x. \<forall> \<tau> \<in> {0..t}. Q (x + \<tau> *\<^sub>R (\<chi> i. x \<downharpoonleft> ''v''))\<rceil>"
+apply(subst line_DS[of "(\<chi> i. x \<downharpoonleft> ''v'')"])
 oops
 
 lemma
@@ -435,7 +357,7 @@ VECTORS: (\<lbrakk>v1\<rbrakk>,\<lbrakk>v2\<rbrakk>,\<lbrakk>v3\<rbrakk>,...,\<l
 
 term "x::('a::finite_UNIV)"
 lemma (in type_definition) "UNIV > 0"
-oops*)
+oops(**)
 
 thm bij_betw_same_card bij_betwI
 term "of_real"    (* real \<Rightarrow> 'a *)
@@ -456,9 +378,6 @@ apply(subst bij_betw_same_card[of "\<lambda> n. of_nat n" "{m|m. m < n}" ?x])
 apply(rule bij_betwI[of real "{m |m. m < n}" ?x "\<lambda> x. if (\<exists> n. real n = x) then n else 0"])
 apply simp
 unfolding Pi_def apply(clarsimp, safe)
-
 oops
-
-datatype num_set :: 
 
 end
