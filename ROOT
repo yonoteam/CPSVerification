@@ -9,5 +9,5 @@ session "CPSVerification" = "Ordinary_Differential_Equations" +
     "VC_diffKAD"
     "VC_diffKAD_auxiliarities"
     "VC_diffKAD_examples"
-  document_files
-    "root.tex"
+  (*document_files
+    "root.tex"*)
