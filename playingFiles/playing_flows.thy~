@@ -285,6 +285,9 @@ apply(subst wp_g_orbit) using assms(1) apply simp
 apply(subst wp_g_orbit) using assms(1) apply simp
 apply(clarsimp) using assms g_orbit_IdD by blast
 
+term "x ** x"
+term "linear x"
+
 term "x::real^('a::finite)"
 term "(\<R>(\<lambda> s. local_flow.orbit (\<lambda> t x. x + t *\<^sub>R (c::real^'a)) {-t .. t} s))"
 term "(op $ (x::real^'a))"

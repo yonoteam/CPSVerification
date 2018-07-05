@@ -38,7 +38,7 @@ declare unique_on_bounded_closed_def [ubc_definitions]
     and global_lipschitz_def [ubc_definitions]
     and interval_def [ubc_definitions]
 
-locale local_flow = 
+locale local_flow = (* T depends on s, but we can always choose a minimal interval*)
 fixes \<phi> :: "real \<Rightarrow> ('a::banach) \<Rightarrow> 'a" and f::"'a \<Rightarrow> 'a" and S::"'a set" and T::"real set" and L::real
 assumes flow_ubc:"\<And> s. s \<in> S \<Longrightarrow> unique_on_bounded_closed 0 T s (\<lambda> t. f) S L"
     and flow_def:"\<And> x s t. t \<in> T \<Longrightarrow> (x solves_ode (\<lambda> t. f))T S \<Longrightarrow> x 0 = s \<Longrightarrow> \<phi> t s = x t"
