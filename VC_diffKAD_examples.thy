@@ -11,7 +11,7 @@ lemma motion_with_constant_velocity:
       (ODEsystem [(''x'',(\<lambda> s. s ''v''))] with (\<lambda> s. True))
       POST (\<lambda> s. (s ''y'' < s ''x''))"
 apply(rule_tac uInput="[\<lambda> t s. s ''v'' \<cdot> t + s ''x'']" in dSolve_toSolveUBC)
-prefer 10 subgoal by(simp add: wp_trafo vdiff_def add_strict_increasing2)
+prefer 9 subgoal by(simp add: wp_trafo vdiff_def add_strict_increasing2)
 apply(simp_all add: vdiff_def varDiffs_def)
 prefer 2 apply(clarify, rule continuous_intros)
 prefer 2 apply(simp add: solvesStoreIVP_def vdiff_def varDiffs_def)

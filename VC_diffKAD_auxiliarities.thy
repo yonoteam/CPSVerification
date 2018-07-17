@@ -84,6 +84,18 @@ proposition boxProgrPred_chrctrztn:"(x,x) \<in> wp R \<lceil>P\<rceil> = (\<fora
 by(metis boxProgrPred_IsProp rel_ad_rule1 rel_ad_rule2 rel_ad_rule3 
 rel_ad_rule4 d_p2r wp_simp wp_trafo)
 
+lemma (in antidomain_kleene_algebra) fbox_starI: 
+assumes "d p \<le> d i" and "d i \<le> |x] i" and "d i \<le> d q"
+shows "d p \<le> |x\<^sup>\<star>] q"
+proof-
+from \<open>d i \<le> |x] i\<close> have "d i \<le> |x] (d i)"
+  using local.fbox_simp by auto 
+hence "|1] p \<le> |x\<^sup>\<star>] i" using \<open>d p \<le> d i\<close> by (metis (no_types) 
+  local.dual_order.trans local.fbox_one local.fbox_simp local.fbox_star_induct_var)
+thus ?thesis using \<open>d i \<le> d q\<close> by (metis (full_types)
+  local.fbox_mult local.fbox_one local.fbox_seq_var local.fbox_simp)
+qed
+
 proposition cons_eq_zipE:
 "(x, y) # tail = xList \<otimes> yList \<Longrightarrow> \<exists>xTail yTail. x # xTail = xList \<and> y # yTail = yList"
 by(induction xList, simp_all, induction yList, simp_all)
@@ -468,5 +480,7 @@ primrec subspList :: "(string \<times> trms) list \<Rightarrow> props \<Rightarr
 "xtList\<restriction>\<theta> \<preceq> \<eta>\<restriction> = ((xtList\<langle>\<theta>\<rangle>) \<preceq> (xtList\<langle>\<eta>\<rangle>))"|
 "xtList\<restriction>\<phi> \<sqinter> \<psi>\<restriction> = ((xtList\<restriction>\<phi>\<restriction>) \<sqinter> (xtList\<restriction>\<psi>\<restriction>))"|
 "xtList\<restriction>\<phi> \<squnion> \<psi>\<restriction> = ((xtList\<restriction>\<phi>\<restriction>) \<squnion> (xtList\<restriction>\<psi>\<restriction>))"
+
+
 
 end
