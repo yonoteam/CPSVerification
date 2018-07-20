@@ -76,6 +76,26 @@ apply(rule_tac C = "\<lambda> s.  s ''x'' >  s ''y''" in dCut)
 apply(rule_tac \<phi> = "(t\<^sub>V ''y'') \<prec> (t\<^sub>V ''x'')" and uInput="[t\<^sub>V ''v'', t\<^sub>V ''a'']"in dInvFinal)
 apply(simp_all add: varDiffs_def vdiff_def, clarify, erule_tac x="''y''" in allE, simp)
 using dWeakening by simp
+
+-- "Example of a hybrid system with two modes."
+lemma single_hoop_ball:
+      "PRE (\<lambda> s. 0 \<le> s ''x'' \<and> s ''x'' = H \<and> s ''v'' = 0 \<and> s ''g'' > 0 \<and> 1 \<ge> c \<and> c \<ge> 0)  
+      (((ODEsystem [(''x'', \<lambda> s. s ''v''),(''v'',\<lambda> s. - s ''g'')] with (\<lambda> s. 0 \<le> s ''x'')));
+      (IF (\<lambda> s. s ''x'' = 0) THEN (''v'' ::= (\<lambda> s. - c \<cdot> s ''v'')) ELSE (''v'' ::= (\<lambda> s. s ''v'')) FI))
+      POST (\<lambda> s. 0 \<le> s ''x'' \<and> s ''x'' \<le> H)"
+      apply(simp add: d_p2r, subgoal_tac "rdom \<lceil>\<lambda>s. 0 \<le> s ''x'' \<and> s ''x'' = H \<and> s ''v'' = 0 \<and> 0 < s ''g'' \<and> c \<le> 1 \<and> 0 \<le> c\<rceil>
+    \<subseteq> wp (ODEsystem [(''x'', \<lambda>s. s ''v''), (''v'', \<lambda>s. - s ''g'')] with (\<lambda>s. 0 \<le> s ''x'') )
+        \<lceil>inf (sup (- (\<lambda>s. s ''x'' = 0)) (\<lambda>s. 0 \<le> s ''x'' \<and> s ''x'' \<le> H)) (sup (\<lambda>s. s ''x'' = 0) (\<lambda>s. 0 \<le> s ''x'' \<and> s ''x'' \<le> H))\<rceil>") 
+      apply(simp add: d_p2r, rule_tac C = "\<lambda> s.  s ''g'' > 0" in dCut)
+      apply(rule_tac \<phi> = "(t\<^sub>C 0) \<prec> (t\<^sub>V ''g'')" and uInput="[t\<^sub>V ''v'', \<ominus> t\<^sub>V ''g'']"in dInvFinal)
+      apply(simp_all add: vdiff_def varDiffs_def, clarify, erule_tac x="''g''" in allE, simp)
+      apply(rule_tac C ="\<lambda> s.  s ''v'' \<le> 0" in dCut)
+      apply(rule_tac \<phi> = "(t\<^sub>V ''v'') \<preceq> (t\<^sub>C 0)" and uInput="[t\<^sub>V ''v'', \<ominus> t\<^sub>V ''g'']" in dInvFinal)
+      apply(simp_all add: vdiff_def varDiffs_def)
+      apply(rule_tac C = "\<lambda> s.  s ''x'' \<le>  H" in dCut)
+      apply(rule_tac \<phi> = "(t\<^sub>V ''x'') \<preceq> (t\<^sub>C H)" and uInput="[t\<^sub>V ''v'', \<ominus> t\<^sub>V ''g'']"in dInvFinal)
+      apply(simp_all add: varDiffs_def vdiff_def)
+      using dWeakening by simp
 declare d_p2r [simp]
 
 end

@@ -108,16 +108,9 @@ shows "PRE P (ODEsystem xfList with G) POST Q"
 using assms and wlp_evol_guard by (metis (no_types, hide_lams) d_p2r 
 order_trans p2r_subid rel_antidomain_kleene_algebra.fbox_iso)
 
-lemma dW1:"wp (ODEsystem xfList with G) \<lceil>Q\<rceil> \<subseteq> wp (ODEsystem xfList with G) \<lceil>\<lambda>s. G s \<longrightarrow> Q s\<rceil>"
-unfolding rel_antidomain_kleene_algebra.fbox_def rel_ad_def guarDiffEqtn_def
-by (simp add: p2r_def relcomp.simps, blast)
-
-lemma dW2:"wp (ODEsystem xfList with G) \<lceil>\<lambda>s. G s \<longrightarrow> Q s\<rceil> \<subseteq> wp (ODEsystem xfList with G) \<lceil>Q\<rceil>"
+theorem dW: "wp (ODEsystem xfList with G) \<lceil>Q\<rceil> = wp (ODEsystem xfList with G) \<lceil>\<lambda>s. G s \<longrightarrow> Q s\<rceil>"
 unfolding rel_antidomain_kleene_algebra.fbox_def rel_ad_def guarDiffEqtn_def
 by(simp add: relcomp.simps p2r_def, fastforce)
-
-theorem dW: "wp (ODEsystem xfList with G) \<lceil>Q\<rceil> = wp (ODEsystem xfList with G) \<lceil>\<lambda>s. G s \<longrightarrow> Q s\<rceil>"
-using dW1 and dW2 by blast
 
 subsubsection{*"Differential Cut"*}
 
@@ -178,7 +171,6 @@ next
   then show "(a, b) \<in> ODEsystem xfList with G"
   unfolding guarDiffEqtn_def by(clarsimp, rule_tac x="t" in exI, rule_tac x="\<phi>\<^sub>S" in exI, simp)
 qed
-
 
 subsubsection{*"Solve Differential Equation"*}
 lemma prelim_dSolve:

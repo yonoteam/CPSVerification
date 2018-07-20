@@ -1,7 +1,7 @@
 theory FirstAttempt
   imports 
 Main
-"../afp/thys/Polynomials/Polynomials"
+"Polynomials.Polynomials"
 "HOL.Real"
 
 begin

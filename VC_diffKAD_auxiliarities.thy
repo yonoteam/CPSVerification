@@ -23,7 +23,7 @@ notation p2r ("\<lceil>_\<rceil>")
      and List.zip (infixl "\<otimes>" 63)
      and rel_ad ("\<Delta>\<^sup>c\<^sub>1")
 
-text {* This and more notation is explained by the following lemma. *}
+text {* This and more notation is explained by the following lemmata. *}
 lemma shows "\<lceil>P\<rceil> = {(s, s) |s. P s}"
     and "\<lfloor>R\<rfloor> = (\<lambda>x. x \<in> r2s R)"
     and "r2s R = {x |x. \<exists> y. (x,y) \<in> R}"
@@ -447,7 +447,7 @@ fun substList ::"(string \<times> trms) list \<Rightarrow> trms \<Rightarrow> tr
 
 proposition substList_on_compl_of_varDiffs:
 assumes "trmVars \<eta> \<subseteq> (UNIV - varDiffs)"
-assumes "set (map \<pi>\<^sub>1 xtList) \<subseteq> varDiffs"
+and "set (map \<pi>\<^sub>1 xtList) \<subseteq> varDiffs"
 shows "xtList\<langle>\<eta>\<rangle> = \<eta>"
 using assms apply(induction \<eta>, simp_all add: varDiffs_def)
 by(induction xtList, auto)
@@ -481,6 +481,98 @@ primrec subspList :: "(string \<times> trms) list \<Rightarrow> props \<Rightarr
 "xtList\<restriction>\<phi> \<sqinter> \<psi>\<restriction> = ((xtList\<restriction>\<phi>\<restriction>) \<sqinter> (xtList\<restriction>\<psi>\<restriction>))"|
 "xtList\<restriction>\<phi> \<squnion> \<psi>\<restriction> = ((xtList\<restriction>\<phi>\<restriction>) \<squnion> (xtList\<restriction>\<psi>\<restriction>))"
 
+subsubsection{* ODE Extras *}
 
+text{* We compile some concrete derivatives used commonly in classical mechanics. 
+A more general approach should be taken that generates this theorems as instantiations. *}
+
+named_theorems poly_deriv "temporal compilation of derivatives representing galilean transformations"
+named_theorems galilean_transform "temporal compilation of vderivs representing galilean transformations"
+named_theorems galilean_transform_eq "the equational version of galilean-transform"
+
+lemma vector_derivative_line_at_origin:"(op \<cdot> a has_vector_derivative a) (at x within T)"
+by (auto intro: derivative_eq_intros)
+
+lemma [poly_deriv]:"(op \<cdot> a has_derivative (\<lambda>x. x *\<^sub>R a)) (at x within T)"
+using vector_derivative_line_at_origin unfolding has_vector_derivative_def by simp
+
+lemma quadratic_monomial_derivative:
+"((\<lambda>t::real. a \<cdot> t\<^sup>2) has_derivative (\<lambda>t. a \<cdot> (2 \<cdot> x \<cdot> t))) (at x within T)"
+apply(rule_tac g'1="\<lambda> t. 2 \<cdot> x \<cdot> t" in derivative_eq_intros(6))
+apply(rule_tac f'1="\<lambda> t. t" in derivative_eq_intros(15))
+by (auto intro: derivative_eq_intros) 
+
+lemma quadratic_monomial_derivative2:
+"((\<lambda>t::real. a \<cdot> t\<^sup>2 / 2) has_derivative (\<lambda>t. a \<cdot> x \<cdot> t)) (at x within T)"
+apply(rule_tac f'1="\<lambda>t. a \<cdot> (2 \<cdot> x \<cdot> t)" and g'1="\<lambda> x. 0" in derivative_eq_intros(18))
+using quadratic_monomial_derivative by auto
+
+lemma quadratic_monomial_vderiv[poly_deriv]:"((\<lambda>t. a \<cdot> t\<^sup>2 / 2) has_vderiv_on op \<cdot> a) T"
+apply(simp add: has_vderiv_on_def has_vector_derivative_def, clarify)
+using quadratic_monomial_derivative2 by (simp add: mult_commute_abs)
+
+lemma galilean_position[galilean_transform]:
+"((\<lambda>t. a \<cdot> t\<^sup>2 / 2 + v \<cdot> t + x) has_vderiv_on (\<lambda>t. a \<cdot> t + v)) T"
+apply(rule_tac f'1="\<lambda> x. a \<cdot> x + v" and g'1="\<lambda> x. 0" in derivative_intros(173))
+apply(rule_tac f'1="\<lambda> x. a \<cdot> x" and g'1="\<lambda> x. v" in derivative_intros(173))
+using poly_deriv(2) by(auto intro: derivative_intros)
+
+lemma [poly_deriv]:
+"t \<in> T \<Longrightarrow> ((\<lambda>\<tau>. a \<cdot> \<tau>\<^sup>2 / 2 + v \<cdot> \<tau> + x) has_derivative (\<lambda>x. x *\<^sub>R (a \<cdot> t + v))) (at t within T)"
+using galilean_position unfolding has_vderiv_on_def has_vector_derivative_def by simp
+
+lemma [galilean_transform_eq]:
+"t > 0 \<Longrightarrow> vderiv_of (\<lambda>t. a \<cdot> t^2 / 2 + v \<cdot> t + x) {0<..<2 \<cdot> t} t = a \<cdot> t + v"
+proof-
+let ?f = "vderiv_of (\<lambda>t. a \<cdot> t^2 / 2 + v \<cdot> t + x) {0<..<2 \<cdot> t}" 
+assume "t > 0" hence "t \<in> {0<..<2 \<cdot> t}" by auto
+have "\<exists> f. ((\<lambda>t. a \<cdot> t\<^sup>2 / 2 + v \<cdot> t + x) has_vderiv_on f) {0<..<2 \<cdot> t}"
+using galilean_position by blast
+hence "((\<lambda>t. a \<cdot> t^2 / 2 + v \<cdot> t + x) has_vderiv_on ?f) {0<..<2 \<cdot> t}"
+unfolding vderiv_of_def  by (metis (mono_tags, lifting) someI_ex)
+also have "((\<lambda>t. a \<cdot> t\<^sup>2 / 2 + v \<cdot> t + x) has_vderiv_on (\<lambda>t. a \<cdot> t + v)) {0<..<2 \<cdot> t}"
+using galilean_position by simp
+ultimately show "(vderiv_of (\<lambda>t. a \<cdot> t^2 / 2 + v \<cdot> t + x) {0<..<2 \<cdot> t}) t = a \<cdot> t + v"
+apply(rule_tac f'="?f" and \<tau>="t" and t="2\<cdot>t" in vderiv_unique_within_open_interval)
+using \<open>t \<in> {0<..<2 \<cdot> t}\<close> by auto
+qed
+
+lemma galilean_velocity[galilean_transform]:"((\<lambda>r. a \<cdot> r + v) has_vderiv_on (\<lambda>t. a)) T"
+apply(rule_tac f'1="\<lambda> x. a" and g'1="\<lambda> x. 0" in derivative_intros(173))
+unfolding has_vderiv_on_def by(auto intro: derivative_eq_intros)
+
+lemma [galilean_transform_eq]:
+"t > 0 \<Longrightarrow> vderiv_of (\<lambda>r. a \<cdot> r + v) {0<..<2 \<cdot> t} t = a"
+proof-
+let ?f = "vderiv_of (\<lambda>r. a \<cdot> r + v) {0<..<2 \<cdot> t}" 
+assume "t > 0" hence "t \<in> {0<..<2 \<cdot> t}" by auto
+have "\<exists> f. ((\<lambda>r. a \<cdot> r + v) has_vderiv_on f) {0<..<2 \<cdot> t}"
+using galilean_velocity by blast
+hence "((\<lambda>r. a \<cdot> r + v) has_vderiv_on ?f) {0<..<2 \<cdot> t}"
+unfolding vderiv_of_def  by (metis (mono_tags, lifting) someI_ex)
+also have "((\<lambda>r. a \<cdot> r + v) has_vderiv_on (\<lambda>t. a)) {0<..<2 \<cdot> t}"
+using galilean_velocity by simp
+ultimately show "(vderiv_of (\<lambda>r. a \<cdot> r + v) {0<..<2 \<cdot> t}) t = a"
+apply(rule_tac f'="?f" and \<tau>="t" and t="2\<cdot>t" in vderiv_unique_within_open_interval)
+using \<open>t \<in> {0<..<2 \<cdot> t}\<close> by auto
+qed
+
+lemma [galilean_transform]:
+"((\<lambda>t. v \<cdot> t - a \<cdot> t\<^sup>2 / 2 + x) has_vderiv_on (\<lambda>x. v - a \<cdot> x)) {0..t}"
+apply(subgoal_tac "((\<lambda>t. - a \<cdot> t\<^sup>2 / 2 + v \<cdot> t  +x) has_vderiv_on (\<lambda>x. - a \<cdot> x + v)) {0..t}", simp)
+by(rule galilean_transform)
+
+lemma [galilean_transform_eq]:"t > 0 \<Longrightarrow> vderiv_of (\<lambda>t. v \<cdot> t - a \<cdot> t^2 / 2 + x) {0<..<2 \<cdot> t} t = v - a \<cdot> t"
+apply(subgoal_tac "vderiv_of (\<lambda>t. - a \<cdot> t\<^sup>2 / 2 + v \<cdot> t + x) {0<..<2 \<cdot> t} t = - a \<cdot> t + v", simp)
+by(rule galilean_transform_eq)
+
+lemma [galilean_transform]:
+"((\<lambda>t. v - a \<cdot> t) has_vderiv_on (\<lambda>x. - a)) {0..t}"
+apply(subgoal_tac "((\<lambda>t. - a \<cdot> t + v) has_vderiv_on (\<lambda>x. - a)) {0..t}", simp)
+by(rule galilean_transform)
+
+lemma [galilean_transform_eq]:"t > 0 \<Longrightarrow> vderiv_of (\<lambda>r. v - a \<cdot> r) {0<..<2 \<cdot> t} t = - a"
+apply(subgoal_tac "vderiv_of (\<lambda>t. - a \<cdot> t + v) {0<..<2 \<cdot> t} t = - a", simp)
+by(rule galilean_transform_eq)
 
 end
