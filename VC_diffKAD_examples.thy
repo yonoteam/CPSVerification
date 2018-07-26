@@ -5,7 +5,7 @@ begin
 subsection{* Rules Testing *}
 text{* In this section we test the recently developed rules with simple dynamical systems. *}
 
--- "Example of hybrid program verified with the rule dSolve."
+-- "Example of hybrid program verified with the rule dSolve and a single differential equation: $x'=v$."
 lemma motion_with_constant_velocity:
       "PRE (\<lambda> s. s ''y'' < s ''x''  \<and> s ''v'' > 0)  
       (ODEsystem [(''x'',(\<lambda> s. s ''v''))] with (\<lambda> s. True))
@@ -18,6 +18,106 @@ prefer 2 apply(simp add: solvesStoreIVP_def vdiff_def varDiffs_def)
 apply(clarify, rule_tac f'1="\<lambda> x. s ''v''" and g'1="\<lambda> x. 0" in derivative_intros(173))
 apply(rule_tac f'1="\<lambda> x.0" and g'1="\<lambda> x.1" in derivative_intros(176))
 by(auto intro: derivative_intros)
+
+text{*Same hybrid program verified with dSolve and the system of ODEs: $x'=v, v'= a$. The uniqueness
+part of the proof requires a preliminary lemma.*}
+lemma flow_vel_is_galilean_vel:
+assumes solHyp:"\<phi>\<^sub>s solvesTheStoreIVP [(x, \<lambda>s. s v), (v, \<lambda>s. s a)] withInitState s"
+    and tHyp:"r \<le> t" and rHyp:"0 \<le> r" and distinct:"x \<noteq> v \<and> v \<noteq> a \<and> x \<noteq> a \<and> a \<notin> varDiffs"
+shows "\<phi>\<^sub>s r v = s a \<cdot> r + s v"
+proof-
+from assms have 1:"((\<lambda>t. \<phi>\<^sub>s t v) solves_ode (\<lambda>t r. \<phi>\<^sub>s t a)) {0..t} UNIV \<and> \<phi>\<^sub>s 0 v = s v" 
+  by (simp add: solvesStoreIVP_def)
+from assms have obs:"\<forall> r \<in> {0..t}. \<phi>\<^sub>s r a = s a"
+  by(auto simp: solvesStoreIVP_def varDiffs_def)
+have 2:"((\<lambda>t. s a \<cdot> t + s v) solves_ode (\<lambda>t r. \<phi>\<^sub>s t a)) {0..t} UNIV"
+  unfolding solves_ode_def apply(subgoal_tac "((\<lambda>x. s a \<cdot> x + s v) has_vderiv_on (\<lambda>x. s a)) {0..t}")
+  using obs apply (simp add: has_vderiv_on_def) by(rule galilean_transform)
+have 3:"unique_on_bounded_closed 0 {0..t} (s v) (\<lambda>t r. \<phi>\<^sub>s t a) UNIV (if t = 0 then 1 else 1/(t+1))"
+   apply(simp add: ubc_definitions del: comp_apply, rule conjI)
+   using rHyp tHyp obs apply(simp_all del: comp_apply)
+   apply(clarify, rule continuous_intros) prefer 3 apply safe
+   apply(rule continuous_intros)
+   apply(auto intro: continuous_intros)
+   by (metis continuous_on_const continuous_on_eq)
+thus "\<phi>\<^sub>s r v = s a \<cdot> r + s v"
+   apply(rule_tac unique_on_bounded_closed.unique_solution[of 0 "{0..t}" "s v" 
+   "(\<lambda>t r. \<phi>\<^sub>s t a)" UNIV "(if t = 0 then 1 else 1 / (t + 1))" "(\<lambda>t. \<phi>\<^sub>s t v)"])
+   using rHyp tHyp 1 2 and 3 by auto
+qed
+
+lemma motion_with_constant_acceleration:
+      "PRE (\<lambda> s. s ''y'' < s ''x''  \<and> s ''v'' \<ge> 0 \<and> s ''a'' > 0)  
+      (ODEsystem [(''x'',(\<lambda> s. s ''v'')),(''v'',(\<lambda> s. s ''a''))] with (\<lambda> s. True))
+      POST (\<lambda> s. (s ''y'' < s ''x''))"
+apply(rule_tac uInput="[\<lambda> t s. s ''a'' \<cdot> t ^ 2/2 + s ''v'' \<cdot> t + s ''x'', 
+  \<lambda> t s. s ''a'' \<cdot> t + s ''v'']" in dSolve_toSolveUBC)
+prefer 9 subgoal by(simp add: wp_trafo vdiff_def add_strict_increasing2)
+prefer 6 subgoal (* DERIVATIVES *)
+    apply(simp add: vdiff_def, clarify, rule conjI)
+    by(rule galilean_transform)+
+prefer 6 subgoal (* CONTINUITY *)
+    apply(simp add: vdiff_def, safe)
+    apply(rule continuous_intros)
+    by(auto intro: continuous_intros)
+prefer 6 subgoal (* UNIQUENESS *)
+    apply(simp add: vdiff_def, safe)
+    subgoal for s "\<phi>\<^sub>s" t r apply(rule flow_vel_is_galilean_vel[of "\<phi>\<^sub>s" "''x''" _ _ _ _ t])
+      by(simp_all add: varDiffs_def vdiff_def)
+    apply(simp add: solvesStoreIVP_def vdiff_def varDiffs_def) done
+by(auto simp: varDiffs_def vdiff_def)
+
+text{* Example of a hybrid system with two modes verified with the equality dS. 
+We also need to provide a previous (similar) lemma.*}
+lemma flow_vel_is_galilean_vel2:
+assumes solHyp:"\<phi>\<^sub>s solvesTheStoreIVP [(x, \<lambda>s. s v), (v, \<lambda>s. - s a)] withInitState s"
+    and tHyp:"r \<le> t" and rHyp:"0 \<le> r" and distinct:"x \<noteq> v \<and> v \<noteq> a \<and> x \<noteq> a \<and> a \<notin> varDiffs"
+shows "\<phi>\<^sub>s r v = s v - s a \<cdot> r"
+proof-
+from assms have 1:"((\<lambda>t. \<phi>\<^sub>s t v) solves_ode (\<lambda>t r. - \<phi>\<^sub>s t a)) {0..t} UNIV \<and> \<phi>\<^sub>s 0 v = s v" 
+  by (simp add: solvesStoreIVP_def)
+from assms have obs:"\<forall> r \<in> {0..t}. \<phi>\<^sub>s r a = s a"
+  by(auto simp: solvesStoreIVP_def varDiffs_def)
+have 2:"((\<lambda>t. - s a \<cdot> t + s v) solves_ode (\<lambda>t r. - \<phi>\<^sub>s t a)) {0..t} UNIV"
+  unfolding solves_ode_def apply(subgoal_tac "((\<lambda>x. - s a \<cdot> x + s v) has_vderiv_on (\<lambda>x. - s a)) {0..t}")
+  using obs apply (simp add: has_vderiv_on_def) by(rule galilean_transform)
+have 3:"unique_on_bounded_closed 0 {0..t} (s v) (\<lambda>t r. - \<phi>\<^sub>s t a) UNIV (if t = 0 then 1 else 1/(t+1))"
+   apply(simp add: ubc_definitions del: comp_apply, rule conjI)
+   using rHyp tHyp obs apply(simp_all del: comp_apply)
+   apply(clarify, rule continuous_intros) prefer 3 apply safe
+   apply(rule continuous_intros)
+   apply(auto intro: continuous_intros)
+   by (metis continuous_on_const continuous_on_eq) (* More than 8 seconds.*)
+thus "\<phi>\<^sub>s r v = s v - s a \<cdot> r"
+   apply(rule_tac unique_on_bounded_closed.unique_solution[of 0 "{0..t}" "s v" 
+   "(\<lambda>t r. - \<phi>\<^sub>s t a)" UNIV "(if t = 0 then 1 else 1 / (t + 1))" "(\<lambda>t. \<phi>\<^sub>s t v)"])
+   using rHyp tHyp 1 2 and 3 by auto
+qed
+  
+lemma single_hop_ball:
+      "PRE (\<lambda> s. 0 \<le> s ''x'' \<and> s ''x'' = H \<and> s ''v'' = 0 \<and> s ''g'' > 0 \<and> 1 \<ge> c \<and> c \<ge> 0)  
+      (((ODEsystem [(''x'', \<lambda> s. s ''v''),(''v'',\<lambda> s. - s ''g'')] with (\<lambda> s. 0 \<le> s ''x'')));
+      (IF (\<lambda> s. s ''x'' = 0) THEN (''v'' ::= (\<lambda> s. - c \<cdot> s ''v'')) ELSE (''v'' ::= (\<lambda> s. s ''v'')) FI))
+      POST (\<lambda> s. 0 \<le> s ''x'' \<and> s ''x'' \<le> H)"
+      apply(simp, subst dS[of "[\<lambda> t s. - s ''g'' \<cdot> t ^ 2/2 + s ''v'' \<cdot> t + s ''x'', \<lambda> t s. - s ''g'' \<cdot> t + s ''v'']"])
+      --"Given solution is actually a solution."
+      apply(simp add: vdiff_def varDiffs_def solvesStoreIVP_def solves_ode_def has_vderiv_on_singleton, safe)
+      apply(rule galilean_transform_eq, simp)+
+      apply(rule galilean_transform)+
+      --"Uniqueness of the flow."
+      apply(rule ubcStoreUniqueSol, simp)
+      apply(simp add: vdiff_def del: comp_apply)
+      apply(auto intro: continuous_intros del: comp_apply)[1]
+      apply(rule continuous_intros)+
+      apply(simp add: vdiff_def, safe)
+      apply(clarsimp) subgoal for s X t "\<tau>"
+      apply(rule flow_vel_is_galilean_vel2[of X "''x''"])
+      by(simp_all add: varDiffs_def vdiff_def)
+      apply(simp add: vdiff_def varDiffs_def solvesStoreIVP_def)
+      apply(simp add: vdiff_def varDiffs_def solvesStoreIVP_def solves_ode_def 
+        has_vderiv_on_singleton galilean_transform_eq galilean_transform)
+      --"Relation Between the guard and the postcondition. "
+      by(auto simp: vdiff_def p2r_def)
 
 -- "Example of hybrid program verified with differential weakening."
 lemma system_where_the_guard_implies_the_postcondition:
@@ -77,8 +177,8 @@ apply(rule_tac \<phi> = "(t\<^sub>V ''y'') \<prec> (t\<^sub>V ''x'')" and uInput
 apply(simp_all add: varDiffs_def vdiff_def, clarify, erule_tac x="''y''" in allE, simp)
 using dWeakening by simp
 
--- "Example of a hybrid system with two modes."
-lemma single_hoop_ball:
+-- "We revisit the two modes example from before, and prove it with invariants."
+lemma single_hop_ball_and_invariants:
       "PRE (\<lambda> s. 0 \<le> s ''x'' \<and> s ''x'' = H \<and> s ''v'' = 0 \<and> s ''g'' > 0 \<and> 1 \<ge> c \<and> c \<ge> 0)  
       (((ODEsystem [(''x'', \<lambda> s. s ''v''),(''v'',\<lambda> s. - s ''g'')] with (\<lambda> s. 0 \<le> s ''x'')));
       (IF (\<lambda> s. s ''x'' = 0) THEN (''v'' ::= (\<lambda> s. - c \<cdot> s ''v'')) ELSE (''v'' ::= (\<lambda> s. s ''v'')) FI))

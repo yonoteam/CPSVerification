@@ -3,7 +3,7 @@ imports "VC_diffKAD_auxiliarities"
 
 begin
 subsection{* Phase Space Relational Semantics *}
-
+(* add paper abreviation predicates... *)
 definition solvesStoreIVP :: "(real \<Rightarrow> real store) \<Rightarrow> (string \<times> (real store \<Rightarrow> real)) list \<Rightarrow> 
 real store \<Rightarrow> bool" 
 ("(_ solvesTheStoreIVP _ withInitState _ )" [70, 70, 70] 68) where
@@ -171,6 +171,7 @@ next
   then show "(a, b) \<in> ODEsystem xfList with G"
   unfolding guarDiffEqtn_def by(clarsimp, rule_tac x="t" in exI, rule_tac x="\<phi>\<^sub>S" in exI, simp)
 qed
+
 
 subsubsection{*"Solve Differential Equation"*}
 lemma prelim_dSolve:

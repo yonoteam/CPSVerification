@@ -483,8 +483,24 @@ primrec subspList :: "(string \<times> trms) list \<Rightarrow> props \<Rightarr
 
 subsubsection{* ODE Extras *}
 
-text{* We compile some concrete derivatives used commonly in classical mechanics. 
-A more general approach should be taken that generates this theorems as instantiations. *}
+text{* For exemplification purposes, we compile some concrete derivatives used commonly in classical
+mechanics. A more general approach should be taken that generates this theorems as instantiations. *}
+
+named_theorems ubc_definitions "definitions used in the locale unique_on_bounded_closed"
+
+declare unique_on_bounded_closed_def [ubc_definitions]
+    and unique_on_bounded_closed_axioms_def [ubc_definitions]
+    and unique_on_closed_def [ubc_definitions]
+    and compact_interval_def [ubc_definitions]
+    and compact_interval_axioms_def [ubc_definitions]
+    and self_mapping_def [ubc_definitions]
+    and self_mapping_axioms_def [ubc_definitions]
+    and continuous_rhs_def [ubc_definitions]
+    and closed_domain_def [ubc_definitions]
+    and global_lipschitz_def [ubc_definitions]
+    and interval_def [ubc_definitions]
+    and nonempty_set_def [ubc_definitions]
+    and lipschitz_def [ubc_definitions]
 
 named_theorems poly_deriv "temporal compilation of derivatives representing galilean transformations"
 named_theorems galilean_transform "temporal compilation of vderivs representing galilean transformations"
@@ -537,6 +553,16 @@ apply(rule_tac f'="?f" and \<tau>="t" and t="2\<cdot>t" in vderiv_unique_within_
 using \<open>t \<in> {0<..<2 \<cdot> t}\<close> by auto
 qed
 
+(* A remainder of how not to prove the above theorem... *)
+lemma "t > 0 \<Longrightarrow> vderiv_of (\<lambda>t. a \<cdot> t^2 / 2 + v \<cdot> t + x) {0<..<2 \<cdot> t} t = a \<cdot> t + v"
+unfolding vderiv_of_def apply(subst some1_equality[of _ "(\<lambda>t. a \<cdot> t + v)"]) 
+apply(rule_tac a="\<lambda>t. a \<cdot> t + v" in ex1I)
+apply(simp_all add: galilean_position)
+apply(rule ext, rename_tac f \<tau>)
+apply(rule_tac f="\<lambda>t. a \<cdot> t\<^sup>2 / 2 + v \<cdot> t + x" and t="2 \<cdot> t" and f'="f" in vderiv_unique_within_open_interval)
+apply(simp_all add: galilean_position)
+oops
+
 lemma galilean_velocity[galilean_transform]:"((\<lambda>r. a \<cdot> r + v) has_vderiv_on (\<lambda>t. a)) T"
 apply(rule_tac f'1="\<lambda> x. a" and g'1="\<lambda> x. 0" in derivative_intros(173))
 unfolding has_vderiv_on_def by(auto intro: derivative_eq_intros)
@@ -574,5 +600,8 @@ by(rule galilean_transform)
 lemma [galilean_transform_eq]:"t > 0 \<Longrightarrow> vderiv_of (\<lambda>r. v - a \<cdot> r) {0<..<2 \<cdot> t} t = - a"
 apply(subgoal_tac "vderiv_of (\<lambda>t. - a \<cdot> t + v) {0<..<2 \<cdot> t} t = - a", simp)
 by(rule galilean_transform_eq)
+
+lemma [simp]:"(\<lambda>x. case x of (t, x) \<Rightarrow> f t) = (\<lambda> x. (f \<circ> \<pi>\<^sub>1) x)"
+by auto
 
 end
