@@ -196,6 +196,47 @@ lemma single_hop_ball_and_invariants:
       apply(rule_tac \<phi> = "(t\<^sub>V ''x'') \<preceq> (t\<^sub>C H)" and uInput="[t\<^sub>V ''v'', \<ominus> t\<^sub>V ''g'']"in dInvFinal)
       apply(simp_all add: varDiffs_def vdiff_def)
       using dWeakening by simp
+
+-- "Finally, we add a well known example in the hybrid systems community, the bouncing ball."
+lemma bouncing_ball_invariant:"0 \<le> x \<Longrightarrow> 0 < g \<Longrightarrow> 2 \<cdot> g \<cdot> x = 2 \<cdot> g \<cdot> H - v \<cdot> v \<Longrightarrow> (x::real) \<le> H"
+proof-
+assume "0 \<le> x" and "0 < g" and "2 \<cdot> g \<cdot> x = 2 \<cdot> g \<cdot> H - v \<cdot> v"
+then have "v \<cdot> v = 2 \<cdot> g \<cdot> H - 2 \<cdot> g \<cdot> x \<and> 0 < g" by auto
+hence *:"v \<cdot> v = 2 \<cdot> g \<cdot> (H - x) \<and> 0 < g \<and> v \<cdot> v \<ge> 0" 
+  using left_diff_distrib mult.commute by (metis zero_le_square) 
+from this have "(v \<cdot> v)/(2 \<cdot> g) = (H - x)" by auto 
+also from * have "(v \<cdot> v)/(2 \<cdot> g) \<ge> 0"
+by (meson divide_nonneg_pos linordered_field_class.sign_simps(44) zero_less_numeral) 
+ultimately have "H - x \<ge> 0" by linarith
+thus ?thesis by auto
+qed
+
+lemma bouncing_ball:
+"PRE (\<lambda> s. 0 \<le> s ''x'' \<and> s ''x'' = H \<and> s ''v'' = 0 \<and> s ''g'' > 0)  
+((((ODEsystem [(''x'', \<lambda> s. s ''v''),(''v'',\<lambda> s. - s ''g'')] with (\<lambda> s. 0 \<le> s ''x'')));
+(IF (\<lambda> s. s ''x'' = 0) THEN (''v'' ::= (\<lambda> s. - s ''v'')) ELSE (Id) FI))\<^sup>*)
+POST (\<lambda> s. 0 \<le> s ''x'' \<and> s ''x'' \<le> H)"
+apply(rule rel_antidomain_kleene_algebra.fbox_starI[of _ "\<lceil>\<lambda>s. 0 \<le> s ''x'' \<and> 0 < s ''g'' \<and> 
+2 \<cdot> s ''g'' \<cdot> s ''x'' = 2 \<cdot> s ''g'' \<cdot> H - (s ''v'' \<cdot> s ''v'')\<rceil>"])
+apply(simp, simp add: d_p2r)
+apply(subgoal_tac 
+  "rdom \<lceil>\<lambda>s. 0 \<le> s ''x'' \<and> 0 < s ''g'' \<and> 2 \<cdot> s ''g'' \<cdot> s ''x'' = 2 \<cdot> s ''g'' \<cdot> H - s ''v'' \<cdot> s ''v''\<rceil>
+  \<subseteq> wp (ODEsystem [(''x'', \<lambda>s. s ''v''), (''v'', \<lambda>s. - s ''g'')] with (\<lambda>s. 0 \<le> s ''x'') )
+  \<lceil>inf  (sup (- (\<lambda>s. s ''x'' = 0)) (\<lambda>s. 0 \<le> s ''x'' \<and> 0 < s ''g'' \<and> 2 \<cdot> s ''g'' \<cdot> s ''x'' = 
+          2 \<cdot> s ''g'' \<cdot> H - s ''v'' \<cdot> s ''v''))
+        (sup (\<lambda>s. s ''x'' = 0) (\<lambda>s. 0 \<le> s ''x'' \<and> 0 < s ''g'' \<and> 2 \<cdot> s ''g'' \<cdot> s ''x'' = 
+          2 \<cdot> s ''g'' \<cdot> H - s ''v'' \<cdot> s ''v''))\<rceil>")
+apply(simp add: d_p2r)
+apply(rule_tac C = "\<lambda> s.  s ''g'' > 0" in dCut)
+apply(rule_tac \<phi> = "((t\<^sub>C 0) \<prec> (t\<^sub>V ''g''))" and uInput="[t\<^sub>V ''v'', \<ominus> t\<^sub>V ''g'']"in dInvFinal)
+apply(simp_all add: vdiff_def varDiffs_def, clarify, erule_tac x="''g''" in allE, simp)
+apply(rule_tac C = "\<lambda> s. 2 \<cdot> s ''g'' \<cdot> s ''x'' = 2 \<cdot> s ''g'' \<cdot> H - s ''v'' \<cdot> s ''v''" in dCut)
+apply(rule_tac \<phi> = "(t\<^sub>C 2) \<odot> (t\<^sub>V ''g'') \<odot> (t\<^sub>C H) \<oplus> (\<ominus> ((t\<^sub>V ''v'') \<odot> (t\<^sub>V ''v''))) 
+  \<doteq> (t\<^sub>C 2) \<odot> (t\<^sub>V ''g'') \<odot> (t\<^sub>V ''x'')" and uInput="[t\<^sub>V ''v'', \<ominus> t\<^sub>V ''g'']"in dInvFinal)
+apply(simp_all add: vdiff_def varDiffs_def, clarify, erule_tac x="''g''" in allE, simp)
+apply(rule dWeakening, clarsimp)
+using bouncing_ball_invariant by auto
+
 declare d_p2r [simp]
 
 end
