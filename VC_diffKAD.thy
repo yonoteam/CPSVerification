@@ -3,17 +3,17 @@ imports "VC_diffKAD_auxiliarities"
 
 begin
 subsection{* Phase Space Relational Semantics *}
-(* add paper abreviation predicates... *)
+
 definition solvesStoreIVP :: "(real \<Rightarrow> real store) \<Rightarrow> (string \<times> (real store \<Rightarrow> real)) list \<Rightarrow> 
 real store \<Rightarrow> bool" 
 ("(_ solvesTheStoreIVP _ withInitState _ )" [70, 70, 70] 68) where
 "solvesStoreIVP \<phi>\<^sub>S xfList s \<equiv> 
-(* F sends vdiffs-in-list to derivs. *)
+\<comment> \<open>F sends vdiffs-in-list to derivs.\<close>
 (\<forall> t \<ge> 0. (\<forall> xf \<in> set xfList. \<phi>\<^sub>S t (\<partial> (\<pi>\<^sub>1 xf)) = \<pi>\<^sub>2 xf (\<phi>\<^sub>S t)) \<and> 
-(* F preserves the rest of the variables and F sends derivs of constants to 0. *)
+\<comment> \<open>F preserves the rest of the variables and F sends derivs of constants to 0.\<close>
 (\<forall> y. (y \<notin> (\<pi>\<^sub>1\<lparr>set xfList\<rparr>) \<union> varDiffs \<longrightarrow> \<phi>\<^sub>S t y = s y) \<and> 
       (y \<notin> (\<pi>\<^sub>1\<lparr>set xfList\<rparr>) \<longrightarrow> \<phi>\<^sub>S t (\<partial> y) = 0)) \<and> 
-(* F solves the induced IVP. *)
+\<comment> \<open>F solves the induced IVP.\<close>
 (\<forall> xf \<in> set xfList. ((\<lambda> t. \<phi>\<^sub>S t (\<pi>\<^sub>1 xf)) solves_ode (\<lambda> t.\<lambda> r.(\<pi>\<^sub>2 xf) (\<phi>\<^sub>S t))) {0..t} UNIV \<and>
 \<phi>\<^sub>S 0 (\<pi>\<^sub>1 xf) = s(\<pi>\<^sub>1 xf)))"
   
@@ -217,8 +217,9 @@ apply(rule_tac uInput="uInput" in prelim_dSolve)
 apply(simp add: solHyp, simp add: uniqHyp)
 by (metis (no_types, lifting) diffAssgn)
 
--- "We proceed to refine the previous rule by finding the necessary restrictions on 
-varFunList and uInput so that the solution to the store-IVP is guaranteed."
+\<comment> \<open>We proceed to refine the previous rule by finding the necessary restrictions on 
+varFunList and uInput so that the solution to the store-IVP is guaranteed.\<close>
+(* THIS SECTION SHOULD BE DONE WITH A LOCALE... CLEARLY IT CAN BE IMPROVED. *)
 lemma conds4vdiffs_prelim:
 assumes funcsHyp:"\<forall>s g. \<forall>xf\<in>set xfList. \<pi>\<^sub>2 xf (override_on s g varDiffs) = \<pi>\<^sub>2 xf s"
 and distinctHyp:"distinct (map \<pi>\<^sub>1 xfList)" 
@@ -325,18 +326,15 @@ subgoal using assms and conds4storeIVP_on_toSol by simp
 subgoal by (simp add: uniqHyp)
 using postCondHyp postCondHyp by simp
 
--- "As before, we keep refining the rule dSolve. This time we find the necessary restrictions 
-to attain uniqueness."
+\<comment> \<open>As before, we keep refining the rule dSolve. This time we find the necessary restrictions 
+to attain uniqueness.\<close>
 
 lemma conds4UniqSol:
 fixes f::"real store \<Rightarrow> real"
 assumes tHyp:"t \<ge> 0"
 and contHyp:"continuous_on ({0..t} \<times> UNIV) (\<lambda>(t, (r::real)). f (\<phi>\<^sub>s t))"
 shows "unique_on_bounded_closed 0 {0..t} \<tau> (\<lambda>t r. f (\<phi>\<^sub>s t)) UNIV (if t = 0 then 1 else 1/(t+1))"
-apply(simp add: unique_on_bounded_closed_def unique_on_bounded_closed_axioms_def 
-unique_on_closed_def compact_interval_def compact_interval_axioms_def nonempty_set_def 
-interval_def self_mapping_def self_mapping_axioms_def closed_domain_def global_lipschitz_def 
-lipschitz_def, rule conjI)
+apply(simp add: ubc_definitions, rule conjI)
 subgoal using contHyp continuous_rhs_def by fastforce 
 subgoal using assms continuous_rhs_def by fastforce 
 done
@@ -505,7 +503,7 @@ then have notVarDiff:"\<forall> z. x \<noteq> \<partial> z" using varDiffs_def b
       moreover have "\<And>s. s \<in> {0..t} \<Longrightarrow> (\<lambda> r. F r x) s = (\<lambda> r. a x) s" 
       using const by (simp add: \<open>0 \<le> t\<close>)
       ultimately have "((\<lambda> s. F s x) has_vector_derivative 0) (at r within {0..t})"
-      using has_vector_derivative_imp by (metis \<open>r \<in> {0..t}\<close>)}
+      using has_vector_derivative_transform by (metis \<open>r \<in> {0..t}\<close>)}
     hence isZero:"\<forall>t\<ge>0.\<forall>r\<in>{0..t}.((\<lambda> t. F t x)has_vector_derivative 0)(at r within {0..t})"by blast
     from False solves and notVarDiff have "\<forall> t \<ge> 0. F t (\<partial> x) = 0"
     using solves_store_ivpD(2) by simp
@@ -517,7 +515,7 @@ lemma derivationLemma:
 assumes "solvesStoreIVP F xfList a"
 and tHyp:"t \<ge> 0"
 and termVarsHyp:"\<forall> x \<in> trmVars \<eta>. x \<in> (UNIV - varDiffs)"
-shows "\<forall>r\<in>{0..t}. ((\<lambda> s. (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) (F s))has_vector_derivative (\<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t) (F r)) (at r within {0..t})"
+shows "\<forall>r\<in>{0..t}. ((\<lambda> s. \<lbrakk>\<eta>\<rbrakk>\<^sub>t (F s))has_vector_derivative \<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t (F r)) (at r within {0..t})"
 using termVarsHyp  proof(induction \<eta>)
   case (Const r)
   then show ?case by simp
@@ -540,9 +538,9 @@ next
   case (Mult \<eta>1 \<eta>2)
   then show ?case 
   apply(clarsimp)
-  apply(subgoal_tac "((\<lambda>s. (\<lbrakk>\<eta>1\<rbrakk>\<^sub>t) (F s) *\<^sub>R (\<lbrakk>\<eta>2\<rbrakk>\<^sub>t) (F s)) has_vector_derivative 
-  (\<lbrakk>\<partial>\<^sub>t \<eta>1\<rbrakk>\<^sub>t) (F r) \<cdot> (\<lbrakk>\<eta>2\<rbrakk>\<^sub>t) (F r) + (\<lbrakk>\<eta>1\<rbrakk>\<^sub>t) (F r) \<cdot> (\<lbrakk>\<partial>\<^sub>t \<eta>2\<rbrakk>\<^sub>t) (F r)) (at r within {0..t})",simp)
-  apply(rule_tac f'1="(\<lbrakk>\<partial>\<^sub>t \<eta>1\<rbrakk>\<^sub>t) (F r)" and g'1="(\<lbrakk>\<partial>\<^sub>t \<eta>2\<rbrakk>\<^sub>t) (F r)" in derivative_eq_intros(25))
+  apply(subgoal_tac "((\<lambda>s. \<lbrakk>\<eta>1\<rbrakk>\<^sub>t (F s) *\<^sub>R \<lbrakk>\<eta>2\<rbrakk>\<^sub>t (F s)) has_vector_derivative 
+  \<lbrakk>\<partial>\<^sub>t \<eta>1\<rbrakk>\<^sub>t (F r) \<cdot> \<lbrakk>\<eta>2\<rbrakk>\<^sub>t (F r) + \<lbrakk>\<eta>1\<rbrakk>\<^sub>t (F r) \<cdot> \<lbrakk>\<partial>\<^sub>t \<eta>2\<rbrakk>\<^sub>t (F r)) (at r within {0..t})",simp)
+  apply(rule_tac f'1="\<lbrakk>\<partial>\<^sub>t \<eta>1\<rbrakk>\<^sub>t (F r)" and g'1="\<lbrakk>\<partial>\<^sub>t \<eta>2\<rbrakk>\<^sub>t (F r)" in derivative_eq_intros(25))
   by (simp_all add: has_field_derivative_iff_has_vector_derivative)
 qed
 
@@ -551,18 +549,18 @@ assumes solves:"\<forall> xf \<in> set xfList. F t (\<partial> (\<pi>\<^sub>1 xf
 and tHyp:"(t::real) \<ge> 0"
 and listsHyp:"map \<pi>\<^sub>2 xfList = map tval uInput"
 and termVarsHyp:"trmVars \<eta> \<subseteq> (UNIV - varDiffs)"
-shows "(\<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t) (F t) = (\<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput)\<langle>\<partial>\<^sub>t \<eta>\<rangle>\<rbrakk>\<^sub>t) (F t)"
+shows "\<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t (F t) = \<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput)\<langle>\<partial>\<^sub>t \<eta>\<rangle>\<rbrakk>\<^sub>t (F t)"
 using termVarsHyp apply(induction \<eta>) apply(simp_all add: substList_help2)
 using listsHyp and solves apply(induct xfList uInput rule: list_induct2', simp, simp, simp)
 proof(clarify, rename_tac y g xfTail \<theta> trmTail x)
 fix x y::string and \<theta>::trms and g and xfTail::"((string \<times> (real store \<Rightarrow> real)) list)" and trmTail
 assume IH:"\<And>x. x \<notin> varDiffs \<Longrightarrow> map \<pi>\<^sub>2 xfTail = map tval trmTail \<Longrightarrow>
 \<forall>xf\<in>set xfTail. F t (\<partial> (\<pi>\<^sub>1 xf)) = \<pi>\<^sub>2 xf (F t) \<Longrightarrow>
-F t (\<partial> x) = (\<lbrakk>(map (vdiff \<circ> \<pi>\<^sub>1) xfTail \<otimes> trmTail)\<langle>t\<^sub>V (\<partial> x)\<rangle>\<rbrakk>\<^sub>t) (F t)"
+F t (\<partial> x) = \<lbrakk>(map (vdiff \<circ> \<pi>\<^sub>1) xfTail \<otimes> trmTail)\<langle>t\<^sub>V (\<partial> x)\<rangle>\<rbrakk>\<^sub>t (F t)"
 and 1:"x \<notin> varDiffs" and 2:"map \<pi>\<^sub>2 ((y, g) # xfTail) = map tval (\<theta> # trmTail)" 
 and 3:"\<forall>xf\<in>set ((y, g) # xfTail). F t (\<partial> (\<pi>\<^sub>1 xf)) = \<pi>\<^sub>2 xf (F t)"
-hence *:"(\<lbrakk>(map (vdiff \<circ> \<pi>\<^sub>1) xfTail \<otimes> trmTail)\<langle>Var (\<partial> x)\<rangle>\<rbrakk>\<^sub>t) (F t) = F t (\<partial> x)" using tHyp by auto
-show "F t (\<partial> x) = (\<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) ((y, g) # xfTail)) \<otimes> (\<theta> # trmTail)) \<langle>t\<^sub>V (\<partial> x)\<rangle>\<rbrakk>\<^sub>t) (F t)"
+hence *:"\<lbrakk>(map (vdiff \<circ> \<pi>\<^sub>1) xfTail \<otimes> trmTail)\<langle>Var (\<partial> x)\<rangle>\<rbrakk>\<^sub>t (F t) = F t (\<partial> x)" using tHyp by auto
+show "F t (\<partial> x) = \<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) ((y, g) # xfTail)) \<otimes> (\<theta> # trmTail)) \<langle>t\<^sub>V (\<partial> x)\<rangle>\<rbrakk>\<^sub>t (F t)"
   proof(cases "x \<in> set (map \<pi>\<^sub>1 ((y, g) # xfTail))")
     case True
     then have "x = y \<or> (x \<noteq> y \<and> x \<in> set (map \<pi>\<^sub>1 xfTail))" by auto
@@ -570,7 +568,7 @@ show "F t (\<partial> x) = (\<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) ((y, g)
     {assume "x = y"
       from this have "((map (vdiff \<circ> \<pi>\<^sub>1) ((y, g) # xfTail)) \<otimes> (\<theta> # trmTail))\<langle>t\<^sub>V (\<partial> x)\<rangle> = \<theta>" by simp
       also from 3 tHyp have "F t (\<partial> y) = g (F t)" by simp
-      moreover from 2 have "(\<lbrakk>\<theta>\<rbrakk>\<^sub>t) (F t) = g (F t)" by simp
+      moreover from 2 have "\<lbrakk>\<theta>\<rbrakk>\<^sub>t (F t) = g (F t)" by simp
       ultimately have ?thesis by (simp add: \<open>x = y\<close>)}
     moreover
     {assume "x \<noteq> y \<and> x \<in> set (map \<pi>\<^sub>1 xfTail)"
@@ -590,60 +588,60 @@ qed
 lemma eqInVars_impl_eqInTrms:
 assumes termVarsHyp:"trmVars \<eta> \<subseteq> (UNIV - varDiffs)"
 and initHyp:"\<forall>x. x \<notin> varDiffs \<longrightarrow> b x = a x"
-shows "(\<lbrakk>\<eta>\<rbrakk>\<^sub>t) a = (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) b"
+shows "\<lbrakk>\<eta>\<rbrakk>\<^sub>t a = \<lbrakk>\<eta>\<rbrakk>\<^sub>t b"
 using assms by(induction \<eta>, simp_all)
 
 lemma non_empty_funList_implies_non_empty_trmList:
-shows "\<forall> list.(x,f) \<in> set list \<and> map \<pi>\<^sub>2 list = map tval tList \<longrightarrow> (\<exists> \<theta>.(\<lbrakk>\<theta>\<rbrakk>\<^sub>t) = f \<and> \<theta> \<in> set tList)"
+shows "\<forall> list.(x,f) \<in> set list \<and> map \<pi>\<^sub>2 list = map tval tList \<longrightarrow> (\<exists> \<theta>.\<lbrakk>\<theta>\<rbrakk>\<^sub>t = f \<and> \<theta> \<in> set tList)"
 by(induction tList, auto)
 
 lemma dInvForTrms_prelim:
 assumes substHyp:
 "\<forall> st. G st \<longrightarrow> (\<forall>str. str \<notin> (\<pi>\<^sub>1\<lparr>set xfList\<rparr>) \<longrightarrow> st (\<partial> str) = 0) \<longrightarrow>
-(\<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput) \<langle>\<partial>\<^sub>t \<eta>\<rangle>\<rbrakk>\<^sub>t) st = 0"
+\<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput) \<langle>\<partial>\<^sub>t \<eta>\<rangle>\<rbrakk>\<^sub>t st = 0"
 and termVarsHyp:"trmVars \<eta> \<subseteq> (UNIV - varDiffs)"
 and listsHyp:"map \<pi>\<^sub>2 xfList = map tval uInput"
-shows "(\<lbrakk>\<eta>\<rbrakk>\<^sub>t) a = 0 \<longrightarrow> (\<forall> c. (a,c) \<in> (ODEsystem xfList with G) \<longrightarrow> (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) c = 0)"
+shows "\<lbrakk>\<eta>\<rbrakk>\<^sub>t a = 0 \<longrightarrow> (\<forall> c. (a,c) \<in> (ODEsystem xfList with G) \<longrightarrow> \<lbrakk>\<eta>\<rbrakk>\<^sub>t c = 0)"
 proof(clarify)
-fix c assume aHyp:"(\<lbrakk>\<eta>\<rbrakk>\<^sub>t) a = 0" and cHyp:"(a, c) \<in> ODEsystem xfList with G"
+fix c assume aHyp:"\<lbrakk>\<eta>\<rbrakk>\<^sub>t a = 0" and cHyp:"(a, c) \<in> ODEsystem xfList with G"
 from this obtain t::"real" and F::"real \<Rightarrow> real store" 
 where tcHyp:"t\<ge>0 \<and> F t = c \<and> solvesStoreIVP F xfList a \<and> (\<forall>r\<in>{0..t}. G (F r))" 
 using guarDiffEqtn_def by auto
 then have "\<forall>x. x \<notin> varDiffs \<longrightarrow> F 0 x = a x" using solves_store_ivpD(6) by blast
-from this have "(\<lbrakk>\<eta>\<rbrakk>\<^sub>t) a = (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) (F 0)" using termVarsHyp eqInVars_impl_eqInTrms by blast
-hence obs1:"(\<lbrakk>\<eta>\<rbrakk>\<^sub>t) (F 0) = 0" using aHyp tcHyp by simp
-from tcHyp have obs2:"\<forall>r\<in>{0..t}. ((\<lambda>s. (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) (F s)) has_vector_derivative 
-(\<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t) (F r)) (at r within {0..t})" using derivationLemma termVarsHyp by blast
+from this have "\<lbrakk>\<eta>\<rbrakk>\<^sub>t a = \<lbrakk>\<eta>\<rbrakk>\<^sub>t (F 0)" using termVarsHyp eqInVars_impl_eqInTrms by blast
+hence obs1:"\<lbrakk>\<eta>\<rbrakk>\<^sub>t (F 0) = 0" using aHyp by simp
+from tcHyp have obs2:"\<forall>r\<in>{0..t}. ((\<lambda>s. \<lbrakk>\<eta>\<rbrakk>\<^sub>t (F s)) has_vector_derivative 
+\<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t (F r)) (at r within {0..t})" using derivationLemma termVarsHyp by blast
 have "\<forall>r\<in>{0..t}. \<forall> xf \<in> set xfList. F r (\<partial> (\<pi>\<^sub>1 xf)) = \<pi>\<^sub>2 xf (F r)" 
 using tcHyp solves_store_ivpD(3) by fastforce
-hence "\<forall>r\<in>{0..t}. (\<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t) (F r) = (\<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput) \<langle>\<partial>\<^sub>t \<eta>\<rangle>\<rbrakk>\<^sub>t) (F r)"
+hence "\<forall>r\<in>{0..t}. \<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t (F r) = \<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput) \<langle>\<partial>\<^sub>t \<eta>\<rangle>\<rbrakk>\<^sub>t (F r)"
 using tcHyp diff_subst_prprty_4terms termVarsHyp listsHyp by fastforce
-also from substHyp have "\<forall>r\<in>{0..t}. (\<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput)\<langle>\<partial>\<^sub>t \<eta>\<rangle>\<rbrakk>\<^sub>t) (F r) = 0" 
+also from substHyp have "\<forall>r\<in>{0..t}. \<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput)\<langle>\<partial>\<^sub>t \<eta>\<rangle>\<rbrakk>\<^sub>t (F r) = 0" 
 using solves_store_ivpD(2) tcHyp by fastforce
-ultimately have "\<forall>r\<in>{0..t}. ((\<lambda>s. (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) (F s)) has_vector_derivative 0) (at r within {0..t})" 
+ultimately have "\<forall>r\<in>{0..t}. ((\<lambda>s. \<lbrakk>\<eta>\<rbrakk>\<^sub>t (F s)) has_vector_derivative 0) (at r within {0..t})" 
 using obs2 by auto
-from this and tcHyp have "\<forall>s\<in>{0..t}. ((\<lambda>x. (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) (F x)) has_derivative (\<lambda>x. x *\<^sub>R 0)) 
+from this and tcHyp have "\<forall>s\<in>{0..t}. ((\<lambda>x. \<lbrakk>\<eta>\<rbrakk>\<^sub>t (F x)) has_derivative (\<lambda>x. x *\<^sub>R 0)) 
 (at s within {0..t})" by (metis has_vector_derivative_def)
-hence "(\<lbrakk>\<eta>\<rbrakk>\<^sub>t) (F t) - (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) (F 0) = (\<lambda>x. x *\<^sub>R 0) (t - 0)" 
+hence "\<lbrakk>\<eta>\<rbrakk>\<^sub>t (F t) - \<lbrakk>\<eta>\<rbrakk>\<^sub>t (F 0) = (\<lambda>x. x *\<^sub>R 0) (t - 0)" 
 using mvt_very_simple and tcHyp by fastforce 
-then show "(\<lbrakk>\<eta>\<rbrakk>\<^sub>t) c = 0" using obs1 tcHyp by auto 
+then show "\<lbrakk>\<eta>\<rbrakk>\<^sub>t c = 0" using obs1 tcHyp by auto 
 qed
 
 theorem dInvForTrms:
 assumes "\<forall> st. G st \<longrightarrow> (\<forall>str. str \<notin> (\<pi>\<^sub>1\<lparr>set xfList\<rparr>) \<longrightarrow> st (\<partial> str) = 0) \<longrightarrow>
-(\<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput) \<langle>\<partial>\<^sub>t \<eta>\<rangle>\<rbrakk>\<^sub>t) st = 0"
+\<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput) \<langle>\<partial>\<^sub>t \<eta>\<rangle>\<rbrakk>\<^sub>t st = 0"
 and termVarsHyp:"trmVars \<eta> \<subseteq> (UNIV - varDiffs)"
 and listsHyp:"map \<pi>\<^sub>2 xfList = map tval uInput"
-and eta_f:"f = (\<lbrakk>\<eta>\<rbrakk>\<^sub>t)"
+and eta_f:"f = \<lbrakk>\<eta>\<rbrakk>\<^sub>t"
 shows " PRE (\<lambda> s. f s = 0) (ODEsystem xfList with G) POST (\<lambda> s. f s = 0)"
 using eta_f proof(clarsimp)
 fix a b
-assume "(a, b) \<in> \<lceil>\<lambda>s. (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) s = 0\<rceil>" and "f = (\<lbrakk>\<eta>\<rbrakk>\<^sub>t)"
-from this have aHyp:"a = b \<and> (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) a = 0" by (metis (full_types) d_p2r rdom_p2r_contents)
-have "(\<lbrakk>\<eta>\<rbrakk>\<^sub>t) a = 0 \<longrightarrow> (\<forall> c. (a,c) \<in> (ODEsystem xfList with G) \<longrightarrow> (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) c = 0)"
+assume "(a, b) \<in> \<lceil>\<lambda>s. \<lbrakk>\<eta>\<rbrakk>\<^sub>t s = 0\<rceil>" and "f = \<lbrakk>\<eta>\<rbrakk>\<^sub>t"
+from this have aHyp:"a = b \<and> \<lbrakk>\<eta>\<rbrakk>\<^sub>t a = 0" by (metis (full_types) d_p2r rdom_p2r_contents)
+have "\<lbrakk>\<eta>\<rbrakk>\<^sub>t a = 0 \<longrightarrow> (\<forall> c. (a,c) \<in> (ODEsystem xfList with G) \<longrightarrow> \<lbrakk>\<eta>\<rbrakk>\<^sub>t c = 0)"
 using assms dInvForTrms_prelim by metis 
-from this and aHyp have "\<forall> c. (a,c) \<in> (ODEsystem xfList with G) \<longrightarrow> (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) c = 0" by blast
-thus "(a, b) \<in> wp (ODEsystem xfList with G ) \<lceil>\<lambda>s. (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) s = 0\<rceil>"
+from this and aHyp have "\<forall> c. (a,c) \<in> (ODEsystem xfList with G) \<longrightarrow> \<lbrakk>\<eta>\<rbrakk>\<^sub>t c = 0" by blast
+thus "(a, b) \<in> wp (ODEsystem xfList with G ) \<lceil>\<lambda>s. \<lbrakk>\<eta>\<rbrakk>\<^sub>t s = 0\<rceil>"
 using aHyp by (simp add: boxProgrPred_chrctrztn) 
 qed
 
@@ -652,7 +650,7 @@ assumes solves:"\<forall> xf \<in> set xfList. F t (\<partial> (\<pi>\<^sub>1 xf
 and tHyp:"t \<ge> 0"
 and listsHyp:"map \<pi>\<^sub>2 xfList = map tval uInput"
 and propVarsHyp:"propVars \<phi> \<subseteq> (UNIV - varDiffs)"
-shows "(\<lbrakk>\<partial>\<^sub>P \<phi>\<rbrakk>\<^sub>P) (F t) = (\<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput)\<restriction>\<partial>\<^sub>P \<phi>\<restriction>\<rbrakk>\<^sub>P) (F t)"
+shows "\<lbrakk>\<partial>\<^sub>P \<phi>\<rbrakk>\<^sub>P (F t) = \<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput)\<restriction>\<partial>\<^sub>P \<phi>\<restriction>\<rbrakk>\<^sub>P (F t)"
 using propVarsHyp apply(induction \<phi>, simp_all)
 using assms diff_subst_prprty_4terms apply fastforce
 using assms diff_subst_prprty_4terms apply fastforce
@@ -661,105 +659,105 @@ using assms diff_subst_prprty_4terms by fastforce
 lemma dInvForProps_prelim:
 assumes substHyp:
 "\<forall> st. G st \<longrightarrow> (\<forall>str. str \<notin> (\<pi>\<^sub>1\<lparr>set xfList\<rparr>) \<longrightarrow> st (\<partial> str) = 0) \<longrightarrow>
-(\<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput) \<langle>\<partial>\<^sub>t \<eta>\<rangle>\<rbrakk>\<^sub>t) st \<ge> 0"
+\<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput) \<langle>\<partial>\<^sub>t \<eta>\<rangle>\<rbrakk>\<^sub>t st \<ge> 0"
 and termVarsHyp:"trmVars \<eta> \<subseteq> (UNIV - varDiffs)"
 and listsHyp:"map \<pi>\<^sub>2 xfList = map tval uInput"
-shows "(\<lbrakk>\<eta>\<rbrakk>\<^sub>t) a > 0 \<longrightarrow> (\<forall> c. (a,c) \<in> (ODEsystem xfList with G) \<longrightarrow> (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) c > 0)"
-and "(\<lbrakk>\<eta>\<rbrakk>\<^sub>t) a \<ge> 0 \<longrightarrow> (\<forall> c. (a,c) \<in> (ODEsystem xfList with G) \<longrightarrow> (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) c \<ge> 0)"
+shows "\<lbrakk>\<eta>\<rbrakk>\<^sub>t a > 0 \<longrightarrow> (\<forall> c. (a,c) \<in> (ODEsystem xfList with G) \<longrightarrow> \<lbrakk>\<eta>\<rbrakk>\<^sub>t c > 0)"
+and "\<lbrakk>\<eta>\<rbrakk>\<^sub>t a \<ge> 0 \<longrightarrow> (\<forall> c. (a,c) \<in> (ODEsystem xfList with G) \<longrightarrow> \<lbrakk>\<eta>\<rbrakk>\<^sub>t c \<ge> 0)"
 proof(clarify)
-fix c assume aHyp:"(\<lbrakk>\<eta>\<rbrakk>\<^sub>t) a > 0" and cHyp:"(a, c) \<in> ODEsystem xfList with G"
+fix c assume aHyp:"\<lbrakk>\<eta>\<rbrakk>\<^sub>t a > 0" and cHyp:"(a, c) \<in> ODEsystem xfList with G"
 from this obtain t::"real" and F::"real \<Rightarrow> real store" 
 where tcHyp:"t\<ge>0 \<and> F t = c \<and> solvesStoreIVP F xfList a \<and> (\<forall>r\<in>{0..t}. G (F r))" 
 using guarDiffEqtn_def by auto
 then have "\<forall>x. x \<notin> varDiffs \<longrightarrow> F 0 x = a x" using solves_store_ivpD(6) by blast
-from this have "(\<lbrakk>\<eta>\<rbrakk>\<^sub>t) a = (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) (F 0)" using termVarsHyp eqInVars_impl_eqInTrms by blast
-hence obs1:"(\<lbrakk>\<eta>\<rbrakk>\<^sub>t) (F 0) > 0" using aHyp tcHyp by simp
-from tcHyp have obs2:"\<forall>r\<in>{0..t}. ((\<lambda>s. (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) (F s)) has_vector_derivative 
-(\<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t) (F r)) (at r within {0..t})" using derivationLemma termVarsHyp by blast
+from this have "\<lbrakk>\<eta>\<rbrakk>\<^sub>t a = \<lbrakk>\<eta>\<rbrakk>\<^sub>t (F 0)" using termVarsHyp eqInVars_impl_eqInTrms by blast
+hence obs1:"\<lbrakk>\<eta>\<rbrakk>\<^sub>t (F 0) > 0" using aHyp tcHyp by simp
+from tcHyp have obs2:"\<forall>r\<in>{0..t}. ((\<lambda>s. \<lbrakk>\<eta>\<rbrakk>\<^sub>t (F s)) has_vector_derivative 
+\<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t (F r)) (at r within {0..t})" using derivationLemma termVarsHyp by blast
 have "(\<forall>t\<ge>0. \<forall> xf \<in> set xfList. F t (\<partial> (\<pi>\<^sub>1 xf)) = \<pi>\<^sub>2 xf (F t))"
 using tcHyp solves_store_ivpD(3) by blast
-hence "\<forall>r\<in>{0..t}. (\<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t) (F r) = (\<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput) \<langle>\<partial>\<^sub>t \<eta>\<rangle>\<rbrakk>\<^sub>t) (F r)"
+hence "\<forall>r\<in>{0..t}. \<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t (F r) = \<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput) \<langle>\<partial>\<^sub>t \<eta>\<rangle>\<rbrakk>\<^sub>t (F r)"
 using diff_subst_prprty_4terms termVarsHyp tcHyp listsHyp by fastforce
-also from substHyp have "\<forall>r\<in>{0..t}. (\<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput) \<langle>\<partial>\<^sub>t \<eta>\<rangle>\<rbrakk>\<^sub>t) (F r) \<ge> 0" 
+also from substHyp have "\<forall>r\<in>{0..t}. \<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput) \<langle>\<partial>\<^sub>t \<eta>\<rangle>\<rbrakk>\<^sub>t (F r) \<ge> 0" 
 using solves_store_ivpD(2) tcHyp by (metis atLeastAtMost_iff)
-ultimately have *:"\<forall>r\<in>{0..t}. (\<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t) (F r) \<ge> 0" by (simp)
-from obs2 and tcHyp have "\<forall>r\<in>{0..t}. ((\<lambda>s. (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) (F s)) has_derivative 
-(\<lambda>x. x *\<^sub>R ((\<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t) (F r)))) (at r within {0..t})" by (simp add: has_vector_derivative_def) 
-hence "\<exists>r\<in>{0..t}. (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) (F t) - (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) (F 0) = t \<cdot> (\<lbrakk>(\<partial>\<^sub>t \<eta>)\<rbrakk>\<^sub>t) (F r)" 
+ultimately have *:"\<forall>r\<in>{0..t}. \<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t (F r) \<ge> 0" by (simp)
+from obs2 and tcHyp have "\<forall>r\<in>{0..t}. ((\<lambda>s. \<lbrakk>\<eta>\<rbrakk>\<^sub>t (F s)) has_derivative 
+(\<lambda>x. x *\<^sub>R (\<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t (F r)))) (at r within {0..t})" by (simp add: has_vector_derivative_def) 
+hence "\<exists>r\<in>{0..t}. \<lbrakk>\<eta>\<rbrakk>\<^sub>t (F t) - \<lbrakk>\<eta>\<rbrakk>\<^sub>t (F 0) = t \<cdot> (\<lbrakk>(\<partial>\<^sub>t \<eta>)\<rbrakk>\<^sub>t) (F r)" 
 using mvt_very_simple and tcHyp by fastforce
-then obtain r where "(\<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t) (F r) \<ge> 0 \<and> 0 \<le> r \<and> r \<le> t \<and> (\<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t) (F t) \<ge> 0
-\<and> (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) (F t) - (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) (F 0) = t \<cdot> ((\<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t) (F r))" 
+then obtain r where "\<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t (F r) \<ge> 0 \<and> 0 \<le> r \<and> r \<le> t \<and> \<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t (F t) \<ge> 0
+\<and> \<lbrakk>\<eta>\<rbrakk>\<^sub>t (F t) - \<lbrakk>\<eta>\<rbrakk>\<^sub>t (F 0) = t \<cdot> (\<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t (F r))" 
 using * tcHyp by (meson atLeastAtMost_iff order_refl) 
-thus "(\<lbrakk>\<eta>\<rbrakk>\<^sub>t) c > 0"
+thus "\<lbrakk>\<eta>\<rbrakk>\<^sub>t c > 0"
 using obs1 tcHyp by (metis cancel_comm_monoid_add_class.diff_cancel diff_ge_0_iff_ge 
 diff_strict_mono linorder_neqE_linordered_idom linordered_field_class.sign_simps(45) not_le) 
 next
-show "0 \<le> (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) a \<longrightarrow> (\<forall>c. (a, c) \<in> ODEsystem xfList with G  \<longrightarrow> 0 \<le> (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) c)"
+show "0 \<le> \<lbrakk>\<eta>\<rbrakk>\<^sub>t a \<longrightarrow> (\<forall>c. (a, c) \<in> ODEsystem xfList with G  \<longrightarrow> 0 \<le> \<lbrakk>\<eta>\<rbrakk>\<^sub>t c)"
 proof(clarify)
-fix c assume aHyp:"(\<lbrakk>\<eta>\<rbrakk>\<^sub>t) a \<ge> 0" and cHyp:"(a, c) \<in> ODEsystem xfList with G"
+fix c assume aHyp:"\<lbrakk>\<eta>\<rbrakk>\<^sub>t a \<ge> 0" and cHyp:"(a, c) \<in> ODEsystem xfList with G"
 from this obtain t::"real" and F::"real \<Rightarrow> real store" 
 where tcHyp:"t\<ge>0 \<and> F t = c \<and> solvesStoreIVP F xfList a \<and> (\<forall>r\<in>{0..t}. G (F r))" 
 using guarDiffEqtn_def by auto
 then have "\<forall>x. x \<notin> varDiffs \<longrightarrow> F 0 x = a x" using solves_store_ivpD(6) by blast
-from this have "(\<lbrakk>\<eta>\<rbrakk>\<^sub>t) a = (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) (F 0)" using termVarsHyp eqInVars_impl_eqInTrms by blast
-hence obs1:"(\<lbrakk>\<eta>\<rbrakk>\<^sub>t) (F 0) \<ge> 0" using aHyp tcHyp by simp
-from tcHyp have obs2:"\<forall>r\<in>{0..t}. ((\<lambda>s. (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) (F s)) has_vector_derivative 
-(\<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t) (F r)) (at r within {0..t})" using derivationLemma termVarsHyp by blast
+from this have "\<lbrakk>\<eta>\<rbrakk>\<^sub>t a = \<lbrakk>\<eta>\<rbrakk>\<^sub>t (F 0)" using termVarsHyp eqInVars_impl_eqInTrms by blast
+hence obs1:"\<lbrakk>\<eta>\<rbrakk>\<^sub>t (F 0) \<ge> 0" using aHyp tcHyp by simp
+from tcHyp have obs2:"\<forall>r\<in>{0..t}. ((\<lambda>s. \<lbrakk>\<eta>\<rbrakk>\<^sub>t (F s)) has_vector_derivative 
+\<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t (F r)) (at r within {0..t})" using derivationLemma termVarsHyp by blast
 have "(\<forall>t\<ge>0. \<forall> xf \<in> set xfList. F t (\<partial> (\<pi>\<^sub>1 xf)) = \<pi>\<^sub>2 xf (F t))"
 using tcHyp solves_store_ivpD(3) by blast
-from this and tcHyp have "\<forall>r\<in>{0..t}. (\<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t) (F r) =
-(\<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput) \<langle>\<partial>\<^sub>t \<eta>\<rangle>\<rbrakk>\<^sub>t) (F r)"
+from this and tcHyp have "\<forall>r\<in>{0..t}. \<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t (F r) =
+\<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput) \<langle>\<partial>\<^sub>t \<eta>\<rangle>\<rbrakk>\<^sub>t (F r)"
 using diff_subst_prprty_4terms termVarsHyp listsHyp by fastforce
-also from substHyp have "\<forall>r\<in>{0..t}. (\<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput) \<langle>\<partial>\<^sub>t \<eta>\<rangle>\<rbrakk>\<^sub>t) (F r) \<ge> 0" 
+also from substHyp have "\<forall>r\<in>{0..t}. \<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput) \<langle>\<partial>\<^sub>t \<eta>\<rangle>\<rbrakk>\<^sub>t (F r) \<ge> 0" 
 using solves_store_ivpD(2) tcHyp by (metis atLeastAtMost_iff)
-ultimately have *:"\<forall>r\<in>{0..t}. (\<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t) (F r) \<ge> 0" by (simp)
-from obs2 and tcHyp have "\<forall>r\<in>{0..t}. ((\<lambda>s. (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) (F s)) has_derivative 
-(\<lambda>x. x *\<^sub>R ((\<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t) (F r)))) (at r within {0..t})" by (simp add: has_vector_derivative_def) 
-hence "\<exists>r\<in>{0..t}. (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) (F t) - (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) (F 0) = t \<cdot> ((\<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t) (F r))" 
+ultimately have *:"\<forall>r\<in>{0..t}. \<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t (F r) \<ge> 0" by (simp)
+from obs2 and tcHyp have "\<forall>r\<in>{0..t}. ((\<lambda>s. \<lbrakk>\<eta>\<rbrakk>\<^sub>t (F s)) has_derivative 
+(\<lambda>x. x *\<^sub>R (\<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t (F r)))) (at r within {0..t})" by (simp add: has_vector_derivative_def) 
+hence "\<exists>r\<in>{0..t}. \<lbrakk>\<eta>\<rbrakk>\<^sub>t (F t) - \<lbrakk>\<eta>\<rbrakk>\<^sub>t (F 0) = t \<cdot> (\<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t (F r))" 
 using mvt_very_simple and tcHyp by fastforce
-then obtain r where "(\<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t) (F r) \<ge> 0 \<and> 0 \<le> r \<and> r \<le> t \<and> (\<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t) (F t) \<ge> 0
-\<and> (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) (F t) - (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) (F 0) = t \<cdot> ((\<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t) (F r))" 
+then obtain r where "\<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t (F r) \<ge> 0 \<and> 0 \<le> r \<and> r \<le> t \<and> \<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t (F t) \<ge> 0
+\<and> \<lbrakk>\<eta>\<rbrakk>\<^sub>t (F t) - \<lbrakk>\<eta>\<rbrakk>\<^sub>t (F 0) = t \<cdot> (\<lbrakk>\<partial>\<^sub>t \<eta>\<rbrakk>\<^sub>t (F r))" 
 using * tcHyp by (meson atLeastAtMost_iff order_refl) 
-thus "(\<lbrakk>\<eta>\<rbrakk>\<^sub>t) c \<ge> 0" 
+thus "\<lbrakk>\<eta>\<rbrakk>\<^sub>t c \<ge> 0" 
 using obs1 tcHyp by (metis cancel_comm_monoid_add_class.diff_cancel diff_ge_0_iff_ge 
 diff_strict_mono linorder_neqE_linordered_idom linordered_field_class.sign_simps(45) not_le)  
 qed
 qed
 
 lemma less_pval_to_tval:
-assumes "(\<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput)\<restriction>\<partial>\<^sub>P (\<theta> \<prec> \<eta>)\<restriction>\<rbrakk>\<^sub>P) st"
-shows "(\<lbrakk>((map (vdiff\<circ>\<pi>\<^sub>1) xfList) \<otimes> uInput)\<langle>\<partial>\<^sub>t (\<eta> \<oplus> (\<ominus> \<theta>))\<rangle>\<rbrakk>\<^sub>t) st \<ge> 0"
+assumes "\<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput)\<restriction>\<partial>\<^sub>P (\<theta> \<prec> \<eta>)\<restriction>\<rbrakk>\<^sub>P st"
+shows "\<lbrakk>((map (vdiff\<circ>\<pi>\<^sub>1) xfList) \<otimes> uInput)\<langle>\<partial>\<^sub>t (\<eta> \<oplus> (\<ominus> \<theta>))\<rangle>\<rbrakk>\<^sub>t st \<ge> 0"
 using assms by(auto)
 
 lemma leq_pval_to_tval:
-assumes "(\<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput)\<restriction>\<partial>\<^sub>P (\<theta> \<preceq> \<eta>)\<restriction>\<rbrakk>\<^sub>P) st"
-shows "(\<lbrakk>((map (vdiff\<circ>\<pi>\<^sub>1) xfList) \<otimes> uInput)\<langle>\<partial>\<^sub>t (\<eta> \<oplus> (\<ominus> \<theta>))\<rangle>\<rbrakk>\<^sub>t) st \<ge> 0"
+assumes "\<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput)\<restriction>\<partial>\<^sub>P (\<theta> \<preceq> \<eta>)\<restriction>\<rbrakk>\<^sub>P st"
+shows "\<lbrakk>((map (vdiff\<circ>\<pi>\<^sub>1) xfList) \<otimes> uInput)\<langle>\<partial>\<^sub>t (\<eta> \<oplus> (\<ominus> \<theta>))\<rangle>\<rbrakk>\<^sub>t st \<ge> 0"
 using assms by(auto)
 
 lemma dInv_prelim:
 assumes substHyp:"\<forall> st. G st \<longrightarrow>  (\<forall>str. str \<notin> (\<pi>\<^sub>1\<lparr>set xfList\<rparr>) \<longrightarrow> st (\<partial> str) = 0) \<longrightarrow>
-(\<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput)\<restriction>\<partial>\<^sub>P \<phi>\<restriction>\<rbrakk>\<^sub>P) st"
+\<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput)\<restriction>\<partial>\<^sub>P \<phi>\<restriction>\<rbrakk>\<^sub>P st"
 and propVarsHyp:"propVars \<phi> \<subseteq> (UNIV - varDiffs)"
 and listsHyp:"map \<pi>\<^sub>2 xfList = map tval uInput"
-shows "(\<lbrakk>\<phi>\<rbrakk>\<^sub>P) a \<longrightarrow> (\<forall> c. (a,c) \<in> (ODEsystem xfList with G) \<longrightarrow> (\<lbrakk>\<phi>\<rbrakk>\<^sub>P) c)"
+shows "\<lbrakk>\<phi>\<rbrakk>\<^sub>P a \<longrightarrow> (\<forall> c. (a,c) \<in> (ODEsystem xfList with G) \<longrightarrow> \<lbrakk>\<phi>\<rbrakk>\<^sub>P c)"
 proof(clarify)
-fix c assume aHyp:"(\<lbrakk>\<phi>\<rbrakk>\<^sub>P) a" and cHyp:"(a, c) \<in> ODEsystem xfList with G"
+fix c assume aHyp:"\<lbrakk>\<phi>\<rbrakk>\<^sub>P a" and cHyp:"(a, c) \<in> ODEsystem xfList with G"
 from this obtain t::"real" and F::"real \<Rightarrow> real store" 
 where tcHyp:"t\<ge>0 \<and> F t = c \<and> solvesStoreIVP F xfList a" using guarDiffEqtn_def by auto 
-from aHyp propVarsHyp and substHyp show "(\<lbrakk>\<phi>\<rbrakk>\<^sub>P) c"
+from aHyp propVarsHyp and substHyp show "\<lbrakk>\<phi>\<rbrakk>\<^sub>P c"
 proof(induction \<phi>)
 case (Eq \<theta> \<eta>)
 hence hyp:"\<forall>st. G st \<longrightarrow>  (\<forall>str. str \<notin> (\<pi>\<^sub>1\<lparr>set xfList\<rparr>) \<longrightarrow> st (\<partial> str) = 0) \<longrightarrow> 
-(\<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput)\<restriction>\<partial>\<^sub>P (\<theta> \<doteq> \<eta>)\<restriction>\<rbrakk>\<^sub>P) st" by blast
+\<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput)\<restriction>\<partial>\<^sub>P (\<theta> \<doteq> \<eta>)\<restriction>\<rbrakk>\<^sub>P st" by blast
 then have "\<forall>st. G st \<longrightarrow> (\<forall>str. str \<notin> (\<pi>\<^sub>1\<lparr>set xfList\<rparr>) \<longrightarrow> st (\<partial> str) = 0) \<longrightarrow> 
-(\<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput)\<langle>\<partial>\<^sub>t (\<theta> \<oplus> (\<ominus> \<eta>))\<rangle>\<rbrakk>\<^sub>t) st = 0" by simp
+\<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput)\<langle>\<partial>\<^sub>t (\<theta> \<oplus> (\<ominus> \<eta>))\<rangle>\<rbrakk>\<^sub>t st = 0" by simp
 also have "trmVars (\<theta> \<oplus> (\<ominus> \<eta>)) \<subseteq> UNIV - varDiffs" using Eq.prems(2) by simp
-moreover have "(\<lbrakk>\<theta> \<oplus> (\<ominus> \<eta>)\<rbrakk>\<^sub>t) a = 0" using Eq.prems(1) by simp
-ultimately have "(\<forall>c. (a, c) \<in> ODEsystem xfList with G  \<longrightarrow> (\<lbrakk>\<theta> \<oplus> (\<ominus> \<eta>)\<rbrakk>\<^sub>t) c = 0)"
+moreover have "\<lbrakk>\<theta> \<oplus> (\<ominus> \<eta>)\<rbrakk>\<^sub>t a = 0" using Eq.prems(1) by simp
+ultimately have "(\<forall>c. (a, c) \<in> ODEsystem xfList with G  \<longrightarrow> \<lbrakk>\<theta> \<oplus> (\<ominus> \<eta>)\<rbrakk>\<^sub>t c = 0)"
 using dInvForTrms_prelim listsHyp by blast
-hence "(\<lbrakk>\<theta> \<oplus> (\<ominus> \<eta>)\<rbrakk>\<^sub>t) (F t) = 0" using tcHyp cHyp by simp
-from this have "(\<lbrakk>\<theta>\<rbrakk>\<^sub>t) (F t) = (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) (F t)" by simp
-also have "(\<lbrakk>\<theta> \<doteq> \<eta>\<rbrakk>\<^sub>P) c = ((\<lbrakk>\<theta>\<rbrakk>\<^sub>t) (F t) = (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) (F t))" using tcHyp by simp
+hence "\<lbrakk>\<theta> \<oplus> (\<ominus> \<eta>)\<rbrakk>\<^sub>t (F t) = 0" using tcHyp cHyp by simp
+from this have "\<lbrakk>\<theta>\<rbrakk>\<^sub>t (F t) = \<lbrakk>\<eta>\<rbrakk>\<^sub>t (F t)" by simp
+also have "(\<lbrakk>\<theta> \<doteq> \<eta>\<rbrakk>\<^sub>P) c = (\<lbrakk>\<theta>\<rbrakk>\<^sub>t (F t) = \<lbrakk>\<eta>\<rbrakk>\<^sub>t (F t))" using tcHyp by simp
 ultimately show ?case by simp
 next
 case (Less \<theta> \<eta>)
@@ -767,24 +765,24 @@ hence "\<forall>st. G st \<longrightarrow> (\<forall>str. str \<notin> (\<pi>\<^
 0 \<le> (\<lbrakk>(map (vdiff \<circ> \<pi>\<^sub>1) xfList \<otimes> uInput)\<langle>\<partial>\<^sub>t (\<eta> \<oplus> (\<ominus> \<theta>))\<rangle>\<rbrakk>\<^sub>t) st" 
 using less_pval_to_tval by metis
 also from "Less.prems"(2)have "trmVars (\<eta> \<oplus> (\<ominus> \<theta>)) \<subseteq> UNIV - varDiffs" by simp
-moreover have "(\<lbrakk>\<eta> \<oplus> (\<ominus> \<theta>)\<rbrakk>\<^sub>t) a > 0" using "Less.prems"(1) by simp
-ultimately have "(\<forall>c. (a, c) \<in> ODEsystem xfList with G  \<longrightarrow> (\<lbrakk>\<eta> \<oplus> (\<ominus> \<theta>)\<rbrakk>\<^sub>t) c > 0)"
+moreover have "\<lbrakk>\<eta> \<oplus> (\<ominus> \<theta>)\<rbrakk>\<^sub>t a > 0" using "Less.prems"(1) by simp
+ultimately have "(\<forall>c. (a, c) \<in> ODEsystem xfList with G  \<longrightarrow> \<lbrakk>\<eta> \<oplus> (\<ominus> \<theta>)\<rbrakk>\<^sub>t c > 0)"
 using dInvForProps_prelim(1) listsHyp by blast
-hence "(\<lbrakk>\<eta> \<oplus> (\<ominus> \<theta>)\<rbrakk>\<^sub>t) (F t) > 0" using tcHyp cHyp by simp
-from this have "(\<lbrakk>\<eta>\<rbrakk>\<^sub>t) (F t) > (\<lbrakk>\<theta>\<rbrakk>\<^sub>t) (F t)" by simp
-also have "(\<lbrakk>\<theta> \<prec> \<eta>\<rbrakk>\<^sub>P) c = ((\<lbrakk>\<theta>\<rbrakk>\<^sub>t) (F t) < (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) (F t))" using tcHyp by simp
+hence "\<lbrakk>\<eta> \<oplus> (\<ominus> \<theta>)\<rbrakk>\<^sub>t (F t) > 0" using tcHyp cHyp by simp
+from this have "\<lbrakk>\<eta>\<rbrakk>\<^sub>t (F t) > \<lbrakk>\<theta>\<rbrakk>\<^sub>t (F t)" by simp
+also have "\<lbrakk>\<theta> \<prec> \<eta>\<rbrakk>\<^sub>P c = (\<lbrakk>\<theta>\<rbrakk>\<^sub>t (F t) < \<lbrakk>\<eta>\<rbrakk>\<^sub>t (F t))" using tcHyp by simp
 ultimately show ?case by simp
 next
 case (Leq \<theta> \<eta>)
 hence "\<forall>st. G st \<longrightarrow> (\<forall>str. str \<notin> (\<pi>\<^sub>1\<lparr>set xfList\<rparr>) \<longrightarrow> st (\<partial> str) = 0) \<longrightarrow> 
 0 \<le> (\<lbrakk>(map (vdiff \<circ> \<pi>\<^sub>1) xfList \<otimes> uInput)\<langle>\<partial>\<^sub>t (\<eta> \<oplus> (\<ominus> \<theta>))\<rangle>\<rbrakk>\<^sub>t) st" using leq_pval_to_tval by metis
 also from "Leq.prems"(2)have "trmVars (\<eta> \<oplus> (\<ominus> \<theta>)) \<subseteq> UNIV - varDiffs" by simp
-moreover have "(\<lbrakk>\<eta> \<oplus> (\<ominus> \<theta>)\<rbrakk>\<^sub>t) a \<ge> 0" using "Leq.prems"(1) by simp
-ultimately have "(\<forall>c. (a, c) \<in> ODEsystem xfList with G  \<longrightarrow> (\<lbrakk>\<eta> \<oplus> (\<ominus> \<theta>)\<rbrakk>\<^sub>t) c \<ge> 0)"
+moreover have "\<lbrakk>\<eta> \<oplus> (\<ominus> \<theta>)\<rbrakk>\<^sub>t a \<ge> 0" using "Leq.prems"(1) by simp
+ultimately have "(\<forall>c. (a, c) \<in> ODEsystem xfList with G  \<longrightarrow> \<lbrakk>\<eta> \<oplus> (\<ominus> \<theta>)\<rbrakk>\<^sub>t c \<ge> 0)"
 using dInvForProps_prelim(2) listsHyp by blast
-hence "(\<lbrakk>\<eta> \<oplus> (\<ominus> \<theta>)\<rbrakk>\<^sub>t) (F t) \<ge> 0" using tcHyp cHyp by simp
-from this have "((\<lbrakk>\<eta>\<rbrakk>\<^sub>t) (F t) \<ge> (\<lbrakk>\<theta>\<rbrakk>\<^sub>t) (F t))" by simp
-also have "(\<lbrakk>\<theta> \<preceq> \<eta>\<rbrakk>\<^sub>P) c = ((\<lbrakk>\<theta>\<rbrakk>\<^sub>t) (F t) \<le> (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) (F t))" using tcHyp by simp
+hence "\<lbrakk>\<eta> \<oplus> (\<ominus> \<theta>)\<rbrakk>\<^sub>t (F t) \<ge> 0" using tcHyp cHyp by simp
+from this have "(\<lbrakk>\<eta>\<rbrakk>\<^sub>t (F t) \<ge> \<lbrakk>\<theta>\<rbrakk>\<^sub>t (F t))" by simp
+also have "\<lbrakk>\<theta> \<preceq> \<eta>\<rbrakk>\<^sub>P c = (\<lbrakk>\<theta>\<rbrakk>\<^sub>t (F t) \<le> \<lbrakk>\<eta>\<rbrakk>\<^sub>t (F t))" using tcHyp by simp
 ultimately show ?case by simp
 next
 case (And \<phi>1 \<phi>2)
@@ -797,10 +795,10 @@ qed
 
 theorem dInv:
 assumes "\<forall> st. G st \<longrightarrow> (\<forall>str. str \<notin> (\<pi>\<^sub>1\<lparr>set xfList\<rparr>) \<longrightarrow> st (\<partial> str) = 0) \<longrightarrow>
-(\<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput)\<restriction>\<partial>\<^sub>P \<phi>\<restriction>\<rbrakk>\<^sub>P) st"
+\<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput)\<restriction>\<partial>\<^sub>P \<phi>\<restriction>\<rbrakk>\<^sub>P st"
 and termVarsHyp:"propVars \<phi> \<subseteq> (UNIV - varDiffs)"
 and listsHyp:"map \<pi>\<^sub>2 xfList = map tval uInput"
-and phi_p:"P = (\<lbrakk>\<phi>\<rbrakk>\<^sub>P)"
+and phi_p:"P = \<lbrakk>\<phi>\<rbrakk>\<^sub>P"
 shows "PRE P (ODEsystem xfList with G) POST P"
 proof(clarsimp)
 fix a b
@@ -815,13 +813,13 @@ qed
 
 theorem dInvFinal:
 assumes "\<forall> st. G st \<longrightarrow> (\<forall>str. str \<notin> (\<pi>\<^sub>1\<lparr>set xfList\<rparr>) \<longrightarrow> st (\<partial> str) = 0) \<longrightarrow>
-(\<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput)\<restriction>\<partial>\<^sub>P \<phi>\<restriction>\<rbrakk>\<^sub>P) st"
+\<lbrakk>((map (vdiff \<circ> \<pi>\<^sub>1) xfList) \<otimes> uInput)\<restriction>\<partial>\<^sub>P \<phi>\<restriction>\<rbrakk>\<^sub>P st"
 and termVarsHyp:"propVars \<phi> \<subseteq> (UNIV - varDiffs)"
 and listsHyp:"map \<pi>\<^sub>2 xfList = map tval uInput"
 and impls:"\<lceil>P\<rceil> \<subseteq> \<lceil>F\<rceil> \<and> \<lceil>F\<rceil> \<subseteq> \<lceil>Q\<rceil>"
-and phi_f:"F = (\<lbrakk>\<phi>\<rbrakk>\<^sub>P)"
+and phi_f:"F = \<lbrakk>\<phi>\<rbrakk>\<^sub>P"
 shows "PRE P (ODEsystem xfList with G) POST Q"
-apply(rule_tac C="(\<lbrakk>\<phi>\<rbrakk>\<^sub>P)" in dCut)
+apply(rule_tac C="\<lbrakk>\<phi>\<rbrakk>\<^sub>P" in dCut)
 apply(subgoal_tac "\<lceil>F\<rceil> \<subseteq> wp (ODEsystem xfList with G) \<lceil>F\<rceil>", simp)
 using impls and phi_f apply blast
 apply(subgoal_tac "PRE F (ODEsystem xfList with G) POST F", simp)

@@ -12,7 +12,7 @@ begin
 
 subsection {* Left Near Kleene Algebras *}
 
-text {* Extending the hierarchy developed in @{theory Dioid} we now
+text {* Extending the hierarchy developed in Dioid we now
 add an operation of Kleene star, finite iteration, or reflexive
 transitive closure to variants of Dioids. Since a multiplicative unit
 is needed for defining the star we only consider variants with~$1$;
@@ -68,7 +68,7 @@ lemma "x \<cdot> x\<^sup>\<star> = x\<^sup>\<star>"
 text {* Next we show that starred elements are transitive. *}
 
 lemma star_trans_eq [simp]: "x\<^sup>\<star> \<cdot> x\<^sup>\<star> = x\<^sup>\<star>"
-proof (rule antisym) -- "this splits an equation into two inequalities"
+proof (rule antisym) \<comment> \<open>this splits an equation into two inequalities\<close>
   have "x\<^sup>\<star> + x \<cdot> x\<^sup>\<star> \<le> x\<^sup>\<star>"
     by auto
   thus "x\<^sup>\<star> \<cdot> x\<^sup>\<star> \<le> x\<^sup>\<star>"
@@ -880,7 +880,7 @@ algebras.
 *}
 
 lemma dual_kleene_algebra:
-  "class.kleene_algebra (op +) (op \<odot>) 1 0 (op \<le>) (op <) star"
+  "class.kleene_algebra (+) (\<odot>) 1 0 (\<le>) (<) star"
 proof
   fix x y z :: 'a
   show "(x \<odot> y) \<odot> z = x \<odot> (y \<odot> z)"

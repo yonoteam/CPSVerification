@@ -132,7 +132,7 @@ for free. *}
 
 type_synonym 'a lan = "'a list set"
 
-interpretation lan_dioid: dioid_one_zero "op +" "op \<cdot>" "1::'a lan" "0" "op \<subseteq>" "op \<subset>" ..
+interpretation lan_dioid: dioid_one_zero "(+" "(\<cdot>" "1::'a lan" "0" "(\<subseteq>" "(\<subset>" ..
 *)
 
 subsection {* Relation Dioids *}
@@ -142,10 +142,10 @@ composition, the identity relation, the empty relation and set
 inclusion form dioids. Due to the well developed relation library of
 Isabelle this is entirely trivial. *}
 
-interpretation rel_dioid: dioid_one_zero "op \<union>" "op O" Id "{}" "op \<subseteq>" "op \<subset>"
+interpretation rel_dioid: dioid_one_zero "(\<union>)" "(O)" Id "{}" "(\<subseteq>)" "(\<subset>)"
   by (unfold_locales, auto)
 
-interpretation rel_monoid: monoid_mult Id "op O" ..
+interpretation rel_monoid: monoid_mult Id "(O)" ..
 
 
 subsection {* Trace Dioids *}
@@ -268,7 +268,7 @@ under union and the complex product based on trace fusion together
 with the empty set of traces and the set of traces of length one forms
 a dioid. *}
 
-interpretation trace_dioid: dioid_one_zero "op \<union>" t_prod t_one t_zero "op \<subseteq>" "op \<subset>"
+interpretation trace_dioid: dioid_one_zero "(\<union>)" t_prod t_one t_zero "(\<subseteq>)" "(\<subset>)"
 apply unfold_locales
 apply (auto simp add: t_prod_def t_one_def t_zero_def t_fusion_def)
 apply (metis last_append)
@@ -427,7 +427,7 @@ qed
 text {* Finally we show that sets of paths under union, the complex
 product, the unit set and the empty set form a dioid. *}
 
-interpretation path_dioid: dioid_one_zero "op \<union>" "op \<cdot>" p_one "{}" "op \<subseteq>" "op \<subset>"
+interpretation path_dioid: dioid_one_zero "(\<union>)" "(\<cdot>)" p_one "{}" "(\<subseteq>)" "(\<subset>)"
 proof
   fix x y z :: "'a path set"
   show  "x \<union> y \<union> z = x \<union> (y \<union> z)"
@@ -527,7 +527,7 @@ lemma pp_prod_iff:
   "w \<in> X\<cdot>Y \<longleftrightarrow> (\<exists>u v. w = pp_fusion u v \<and> u \<in> X \<and> v \<in> Y \<and> pp_last u = pp_first v)"
   by (unfold pp_prod_def) auto
 
-interpretation ppath_dioid: dioid_one_zero "op \<union>" "op \<cdot>" pp_one "{}" "op \<subseteq>" "op \<subset>"
+interpretation ppath_dioid: dioid_one_zero "(\<union>)" "(\<cdot>)" pp_one "{}" "(\<subseteq>)" "(\<subset>)"
 proof
   fix x y z :: "'a ppath set"
   show "x \<union> y \<union> z = x \<union> (y \<union> z)"
@@ -635,7 +635,7 @@ numbers extended by minus infinity. The operation of addition is
 maximum, the operation of multiplication is addition, the additive
 unit is minus infinity and the multiplicative unit is zero. *}
 
-datatype mreal = mreal real | MInfty  -- "minus infinity"
+datatype mreal = mreal real | MInfty  \<comment> \<open>minus infinity\<close>
 
 fun mreal_max where
   "mreal_max (mreal x) (mreal y) = mreal (max x y)"
@@ -713,7 +713,7 @@ text {* The min-plus dioid is also known as {\em tropical
 semiring}. Here we need to add a positive infinity to the real
 numbers. The procedere follows that of max-plus semirings.  *}
 
-datatype preal = preal real | PInfty  -- "plus infinity"
+datatype preal = preal real | PInfty  \<comment> \<open>plus infinity\<close>
 
 fun preal_min where
   "preal_min (preal x) (preal y) = preal (min x y)"
@@ -784,7 +784,7 @@ text {* Variants of min-plus and max-plus semirings can easily be
 obtained. Here we formalise the min-plus semiring over the natural
 numbers as an example. *}
 
-datatype pnat = pnat nat | PInfty  -- "plus infinity"
+datatype pnat = pnat nat | PInfty  \<comment> \<open>plus infinity\<close>
 
 fun pnat_min where
   "pnat_min (pnat x) (pnat y) = pnat (min x y)"

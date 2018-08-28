@@ -65,7 +65,7 @@ also have "... = ((a = b) \<and> P a)" by (simp add: p2r_def)
 ultimately show ?thesis by simp
 qed
 
-(* Should not add these "complement_rule's" to simp... *)
+\<^cancel>\<open>..."Should not add these "complement_rule's" to simp..."\<close>
 proposition rel_ad_rule1: "(x,x) \<notin> \<Delta>\<^sup>c\<^sub>1 \<lceil>P\<rceil> \<Longrightarrow> P x"
 by(auto simp: rel_ad_def p2r_subid p2r_def)
 
@@ -155,7 +155,7 @@ proposition varDiffs_to_zero_beginning[simp]: "take 2 x \<noteq> ''d['' \<Longri
 apply(simp add: varDiffs_def override_on_def vdiff_def) 
 by fastforce
 
--- "Next, for each entry of the input-list, we update the state using said entry."
+\<comment> \<open>Next, for each entry of the input-list, we update the state using said entry.\<close>
 
 definition "vderiv_of f S = (SOME f'. (f has_vderiv_on f') S)"
 
@@ -398,7 +398,7 @@ datatype trms = Const real ("t\<^sub>C _" [54] 70) | Var string ("t\<^sub>V _" [
                 Mns trms ("\<ominus> _" [54] 65) | Sum trms trms (infixl "\<oplus>" 65) | 
                 Mult trms trms (infixl "\<odot>" 68)
 
-primrec tval ::"trms \<Rightarrow> (real store \<Rightarrow> real)" ("\<lbrakk>_\<rbrakk>\<^sub>t" [55] 60) where
+primrec tval ::"trms \<Rightarrow> (real store \<Rightarrow> real)" ("(1\<lbrakk> _ \<rbrakk>\<^sub>t)") where
 "\<lbrakk>t\<^sub>C r\<rbrakk>\<^sub>t = (\<lambda> s. r)"|
 "\<lbrakk>t\<^sub>V x\<rbrakk>\<^sub>t = (\<lambda> s. s x)"|
 "\<lbrakk>\<ominus> \<theta>\<rbrakk>\<^sub>t = (\<lambda> s. - (\<lbrakk>\<theta>\<rbrakk>\<^sub>t) s)"|
@@ -409,7 +409,7 @@ datatype props = Eq trms trms (infixr "\<doteq>" 60) | Less trms trms (infixr "\
                  Leq trms trms (infixr "\<preceq>" 61) | And props props (infixl "\<sqinter>" 63) | 
                  Or props props (infixl "\<squnion>" 64)
 
-primrec pval ::"props \<Rightarrow> (real store \<Rightarrow> bool)" ("\<lbrakk>_\<rbrakk>\<^sub>P" [55] 60) where
+primrec pval ::"props \<Rightarrow> (real store \<Rightarrow> bool)" ("(1\<lbrakk>_\<rbrakk>\<^sub>P)") where
 "\<lbrakk>\<theta> \<doteq> \<eta>\<rbrakk>\<^sub>P = (\<lambda> s. (\<lbrakk>\<theta>\<rbrakk>\<^sub>t) s = (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) s)"|
 "\<lbrakk>\<theta> \<prec> \<eta>\<rbrakk>\<^sub>P = (\<lambda> s. (\<lbrakk>\<theta>\<rbrakk>\<^sub>t) s < (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) s)"|
 "\<lbrakk>\<theta> \<preceq> \<eta>\<rbrakk>\<^sub>P = (\<lambda> s. (\<lbrakk>\<theta>\<rbrakk>\<^sub>t) s \<le> (\<lbrakk>\<eta>\<rbrakk>\<^sub>t) s)"|
@@ -500,16 +500,16 @@ declare unique_on_bounded_closed_def [ubc_definitions]
     and global_lipschitz_def [ubc_definitions]
     and interval_def [ubc_definitions]
     and nonempty_set_def [ubc_definitions]
-    and lipschitz_def [ubc_definitions]
+    and lipschitz_on_def [ubc_definitions]
 
 named_theorems poly_deriv "temporal compilation of derivatives representing galilean transformations"
 named_theorems galilean_transform "temporal compilation of vderivs representing galilean transformations"
 named_theorems galilean_transform_eq "the equational version of galilean-transform"
 
-lemma vector_derivative_line_at_origin:"(op \<cdot> a has_vector_derivative a) (at x within T)"
+lemma vector_derivative_line_at_origin:"((\<cdot>) a has_vector_derivative a) (at x within T)"
 by (auto intro: derivative_eq_intros)
 
-lemma [poly_deriv]:"(op \<cdot> a has_derivative (\<lambda>x. x *\<^sub>R a)) (at x within T)"
+lemma [poly_deriv]:"((\<cdot>) a has_derivative (\<lambda>x. x *\<^sub>R a)) (at x within T)"
 using vector_derivative_line_at_origin unfolding has_vector_derivative_def by simp
 
 lemma quadratic_monomial_derivative:
@@ -523,14 +523,14 @@ lemma quadratic_monomial_derivative2:
 apply(rule_tac f'1="\<lambda>t. a \<cdot> (2 \<cdot> x \<cdot> t)" and g'1="\<lambda> x. 0" in derivative_eq_intros(18))
 using quadratic_monomial_derivative by auto
 
-lemma quadratic_monomial_vderiv[poly_deriv]:"((\<lambda>t. a \<cdot> t\<^sup>2 / 2) has_vderiv_on op \<cdot> a) T"
+lemma quadratic_monomial_vderiv[poly_deriv]:"((\<lambda>t. a \<cdot> t\<^sup>2 / 2) has_vderiv_on (\<cdot>) a) T"
 apply(simp add: has_vderiv_on_def has_vector_derivative_def, clarify)
 using quadratic_monomial_derivative2 by (simp add: mult_commute_abs)
 
 lemma galilean_position[galilean_transform]:
 "((\<lambda>t. a \<cdot> t\<^sup>2 / 2 + v \<cdot> t + x) has_vderiv_on (\<lambda>t. a \<cdot> t + v)) T"
-apply(rule_tac f'1="\<lambda> x. a \<cdot> x + v" and g'1="\<lambda> x. 0" in derivative_intros(173))
-apply(rule_tac f'1="\<lambda> x. a \<cdot> x" and g'1="\<lambda> x. v" in derivative_intros(173))
+apply(rule_tac f'="\<lambda> x. a \<cdot> x + v" and g'1="\<lambda> x. 0" in derivative_intros(190))
+apply(rule_tac f'1="\<lambda> x. a \<cdot> x" and g'1="\<lambda> x. v" in derivative_intros(190))
 using poly_deriv(2) by(auto intro: derivative_intros)
 
 lemma [poly_deriv]:
@@ -564,7 +564,7 @@ apply(simp_all add: galilean_position)
 oops
 
 lemma galilean_velocity[galilean_transform]:"((\<lambda>r. a \<cdot> r + v) has_vderiv_on (\<lambda>t. a)) T"
-apply(rule_tac f'1="\<lambda> x. a" and g'1="\<lambda> x. 0" in derivative_intros(173))
+apply(rule_tac f'1="\<lambda> x. a" and g'1="\<lambda> x. 0" in derivative_intros(190))
 unfolding has_vderiv_on_def by(auto intro: derivative_eq_intros)
 
 lemma [galilean_transform_eq]:
