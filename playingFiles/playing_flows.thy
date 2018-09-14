@@ -13,16 +13,16 @@ no_notation Archimedean_Field.ceiling ("\<lceil>_\<rceil>")
 
 lemma wp_rel:"wp R \<lceil>P\<rceil> = \<lceil>\<lambda> x. \<forall> y. (x,y) \<in> R \<longrightarrow> P y\<rceil>"
 proof-
-have "\<lfloor>wp R \<lceil>P\<rceil>\<rfloor> = \<lfloor>\<lceil>\<lambda> x. \<forall> y. (x,y) \<in> R \<longrightarrow> P y\<rceil>\<rfloor>" 
-  by (simp add: wp_trafo pointfree_idE)
-thus "wp R \<lceil>P\<rceil> = \<lceil>\<lambda> x. \<forall> y. (x,y) \<in> R \<longrightarrow> P y\<rceil>" 
-  by (metis (no_types, lifting) wp_simp d_p2r pointfree_idE prp) 
+  have "\<lfloor>wp R \<lceil>P\<rceil>\<rfloor> = \<lfloor>\<lceil>\<lambda> x. \<forall> y. (x,y) \<in> R \<longrightarrow> P y\<rceil>\<rfloor>" 
+    by (simp add: wp_trafo pointfree_idE)
+  thus "wp R \<lceil>P\<rceil> = \<lceil>\<lambda> x. \<forall> y. (x,y) \<in> R \<longrightarrow> P y\<rceil>" 
+    by (metis (no_types, lifting) wp_simp d_p2r pointfree_idE prp) 
 qed
 
-lemma p2r_IdD:"\<lceil>P\<rceil> = Id \<Longrightarrow> (\<And> s. P s)"
-by (metis Id_O_R VC_KAD.p2r_neg_hom d_p2r empty_iff p2r_eq_prop p2r_subid 
-rel_antidomain_kleene_algebra.a_one rel_antidomain_kleene_algebra.addual.bbox_def 
-rel_antidomain_kleene_algebra.am1 rel_antidomain_kleene_algebra.fbox_one rpr wp_trafo)
+lemma p2r_IdD:"\<lceil>P\<rceil> = Id \<Longrightarrow> P s"
+  by (metis Id_O_R VC_KAD.p2r_neg_hom d_p2r empty_iff p2r_eq_prop p2r_subid 
+      rel_antidomain_kleene_algebra.a_one rel_antidomain_kleene_algebra.addual.bbox_def
+      rel_antidomain_kleene_algebra.am1 rel_antidomain_kleene_algebra.fbox_one rpr wp_trafo)
 
 named_theorems ubc_definitions "definitions used in the locale unique_on_bounded_closed"
 
@@ -46,200 +46,198 @@ lemma(in continuous_rhs) continuous_currying:
   using continuous by(auto intro: continuous_intros)
 
 lemma(in unique_on_bounded_closed) unique_on_bounded_closed_on_compact_subset:
-assumes "t0 \<in> T'" and "x0 \<in> X" and "T' \<subseteq> T" and "compact_interval T'" 
-shows "unique_on_bounded_closed t0 T' x0 f X L"
-  unfolding ubc_definitions apply safe
-  using \<open>compact_interval T'\<close> unfolding ubc_definitions apply simp
-  using \<open>compact_interval T'\<close> unfolding ubc_definitions apply simp
-  using \<open>compact_interval T'\<close> unfolding ubc_definitions apply simp
-  using \<open>compact_interval T'\<close> unfolding ubc_definitions apply simp
+  assumes "t0 \<in> T'" and "x0 \<in> X" and "T' \<subseteq> T" and "compact_interval T'" 
+  shows "unique_on_bounded_closed t0 T' x0 f X L"
+  apply(unfold_locales)
+  using \<open>compact_interval T'\<close> unfolding ubc_definitions apply simp+
   using \<open>t0 \<in> T'\<close> apply simp
   using \<open>x0 \<in> X\<close> apply simp
   using \<open>T' \<subseteq> T\<close> self_mapping apply blast
   using \<open>T' \<subseteq> T\<close> continuous apply(meson Sigma_mono continuous_on_subset subsetI)
-  using closed apply simp
   using \<open>T' \<subseteq> T\<close> lipschitz apply blast
   using \<open>T' \<subseteq> T\<close> lipschitz_bound by blast
 
-locale picard_vec_field = continuous_rhs T X f + global_lipschitz T X f L 
-  for f::"real \<Rightarrow> ('a::banach) \<Rightarrow> 'a" and T::"real set" and X L +
-  assumes nonempty_time: "T \<noteq> {}"
-  and closed_domain: "closed X"
-  and interval_time: "is_interval T"
-  and compact_time: "compact T"
-  and lipschitz_bound: "\<And>s t. s \<in> T \<Longrightarrow> t \<in> T \<Longrightarrow> abs (s - t) * L < 1"
+abbreviation "orbital f T S t0 x0 \<equiv> {x t |t x. t \<in> T \<and> (x solves_ode f)T S \<and> x t0 = x0 \<and> x0 \<in> S}"
+abbreviation "g_orbital f T S t0 x0 G \<equiv> 
+  {x t |t x. t \<in> T \<and> (x solves_ode f)T S \<and> x t0 = x0 \<and> (\<forall> r \<in> {t0--t}. G (x r)) \<and> x0 \<in> S}"
+
+locale picard_ivp = continuous_rhs T S f + global_lipschitz T S f L 
+  for f::"real \<Rightarrow> ('a::banach) \<Rightarrow> 'a" and T::"real set" and S L + 
+  fixes t0::real
+  assumes init_time:"t0 \<in> T"
+    and nonempty_time: "T \<noteq> {}"
+    and interval_time: "is_interval T"
+    and compact_time: "compact T"
+    and lipschitz_bound: "\<And>s t. s \<in> T \<Longrightarrow> t \<in> T \<Longrightarrow> abs (s - t) * L < 1"
+    and closed_domain: "closed S"
+    and solution_in_domain:"\<And>x s t. t \<in> T \<Longrightarrow> x t0 = s \<Longrightarrow> x \<in> {t0--t} \<rightarrow> S \<Longrightarrow> 
+      continuous_on {t0--t} x \<Longrightarrow> x t0 + ivl_integral t0 t (\<lambda>t. f t (x t)) \<in> S"
 begin
 
+print_commands
 print_facts
 print_context
 
-lemma picard_is_ubc:
-fixes t0::real and x0
-assumes iv_defined: "t0 \<in> T" "x0 \<in> X"
-assumes self_mapping:"\<And>x t. t \<in> T \<Longrightarrow> x t0 = x0 \<Longrightarrow> x \<in> {t0 -- t} \<rightarrow> X \<Longrightarrow>
-continuous_on {t0 -- t} x \<Longrightarrow> x t0 + ivl_integral t0 t (\<lambda>t. f t (x t)) \<in> X"
-shows "unique_on_bounded_closed t0 T x0 f X L"
-unfolding ubc_definitions apply safe
-prefer 7 using self_mapping apply simp
-prefer 2 using nonempty_time apply fastforce
-by(auto simp: iv_defined compact_time interval_time 
-closed_domain lipschitz lipschitz_bound continuous)
-
-definition invariant :: "'a pred \<Rightarrow> bool" where
-"invariant P = (\<forall> x. (x solves_ode f)T X \<longrightarrow> (\<forall> t \<in> T. P (x t)))"
-
-lemma invariantI:
-assumes "\<forall> x. (x solves_ode f)T X \<longrightarrow> (\<forall> t \<in> T. P (x t))"
-shows "invariant P"
-using assms unfolding invariant_def by simp
-
-lemma 
-"invariant P \<Longrightarrow> invariant Q \<Longrightarrow> invariant (\<lambda> s. P s \<and> Q s)"
-unfolding invariant_def by auto
-
-lemma 
-"invariant (\<lambda> s. P s \<and> Q s) \<Longrightarrow> invariant P"
-unfolding invariant_def by auto
-
-lemma 
-"invariant (\<lambda> s. P s \<and> Q s) \<Longrightarrow> invariant Q"
-unfolding invariant_def by auto
-
-lemma 
-"invariant (\<lambda> s. P s \<or> Q s) \<Longrightarrow> invariant P \<or> invariant Q"
-unfolding invariant_def oops
-
-definition "cloud t0 (x0::'a) = {x t |t x. t \<in> T \<and> (x solves_ode f)T X \<and> x t0 = x0}"
-
-end
-
-lemma 
-fixes f::"real \<Rightarrow> (real^'a \<Rightarrow> real^'a)" 
-assumes "picard_vec_field f T X L"
-and "\<forall> x. \<forall> t \<in> T. (f t (x t)) $ i = 0"
-shows "picard_vec_field.invariant f T X (\<lambda> x. x $ i = 0)"
-  apply(rule picard_vec_field.invariantI)
-  using assms(1) apply simp
-  apply clarify 
-oops
-
-locale local_flow = picard_vec_field "(\<lambda> t. f)" T S L for f::"('a::banach) \<Rightarrow> 'a" and S T L +
-fixes \<phi> :: "real \<Rightarrow> 'a \<Rightarrow> 'a" and t\<^sub>0::real
-assumes init_time:"t\<^sub>0 \<in> T"
-  and self_mapping:"\<And>x s t. t \<in> T \<Longrightarrow> x t\<^sub>0 = s \<Longrightarrow> x \<in> {t\<^sub>0--t} \<rightarrow> S \<Longrightarrow> continuous_on {t\<^sub>0--t} x \<Longrightarrow> 
-    x t\<^sub>0 + ivl_integral t\<^sub>0 t (\<lambda>t. f (x t)) \<in> S"
-  and flow_def:"\<And> x s t. t \<in> T \<Longrightarrow> (x solves_ode (\<lambda> t. f))T S \<Longrightarrow> x t\<^sub>0 = s \<Longrightarrow> \<phi> t s = x t"
-begin
+sublocale compact_interval
+  using interval_time nonempty_time compact_time by(unfold_locales, auto)
 
 lemma min_max_interval:
-obtains t0 t1 where "T = {t0 .. t1}"
-apply(subgoal_tac "compact_interval T")
-using compact_interval.T_def 
-unfolding ubc_definitions(1,3,4,5,11,12) apply blast
-using compact_time interval_time nonempty_time by fastforce
-
-lemma is_ubc:
-assumes "s \<in> S"
-shows "unique_on_bounded_closed t\<^sub>0 T s (\<lambda> t. f) S L"
-using assms init_time self_mapping and picard_is_ubc by blast
-
-abbreviation "phi t s \<equiv> (apply_bcontfun (unique_on_bounded_closed.fixed_point t\<^sub>0 T s (\<lambda> t. f) S)) t"
-
-lemma fixed_point_ivp:
-assumes "s \<in> S"
-shows "((\<lambda> t. phi t s) solves_ode (\<lambda> t. f))T S"
-  and "phi t\<^sub>0 s = s "
-using assms is_ubc unique_on_bounded_closed.fixed_point_solution apply blast
-using assms is_ubc unique_on_bounded_closed.fixed_point_iv by blast
-
-lemma is_fixed_point:
-assumes "s \<in> S" and "t \<in> T"
-shows "\<phi> t s = phi t s"
-using assms fixed_point_ivp 
-  and flow_def by blast
-
-theorem solves:
-assumes "s \<in> S"
-shows "((\<lambda> t. \<phi> t s) solves_ode (\<lambda> t. f))T S"
-using assms fixed_point_ivp 
-  and is_fixed_point by auto
-
-theorem flow_on_init_time:
-assumes "s \<in> S"
-shows "\<phi> t\<^sub>0 s = s"
-using assms fixed_point_ivp is_fixed_point
-  and init_time by auto
-
-lemma is_banach_endo:
-assumes "s \<in> S" and "t \<in> T"
-shows "\<phi> t s \<in> S"
-apply(rule_tac A="T" in Pi_mem)
-using assms solves
-unfolding solves_ode_def by auto
+  obtains m M where "T = {m .. M}"
+  using T_def by blast
 
 lemma subinterval:
-assumes "t \<in> T"
-shows "{t\<^sub>0 .. t} \<subseteq> T"
-by (metis init_time assms(1) atLeastAtMost_iff atLeastatMost_subset_iff min_max_interval)
+  assumes "t \<in> T"
+  obtains t1 where  "{t .. t1} \<subseteq> T"
+  using assms interval_subset_is_interval interval_time by fastforce 
 
-definition "orbit s = {\<phi> t s |t. t \<in> T}"
+lemma subsegment:
+  assumes "t1 \<in> T" and "t2 \<in> T"
+  shows "{t1 -- t2} \<subseteq> T"
+  using assms closed_segment_subset_domain by blast
 
-lemma cloud_is_orbit:
-assumes "s \<in> S"
-shows "cloud t\<^sub>0 s = orbit s"
-unfolding cloud_def orbit_def apply(rule subset_antisym)
-using flow_def apply(clarsimp, rule_tac x="t" in exI, simp)
-apply(clarsimp, rule_tac x="t" in exI, rule_tac x="(\<lambda> t. phi t s)" in exI, simp)
-using assms is_fixed_point fixed_point_ivp by simp
+lemma is_ubc:
+  assumes "s \<in> S"
+  shows "unique_on_bounded_closed t0 T s f S L"
+  using assms unfolding ubc_definitions apply safe
+  prefer 6 using solution_in_domain apply simp
+  prefer 2 using nonempty_time apply fastforce
+  by(auto simp: compact_time interval_time init_time
+      closed_domain lipschitz lipschitz_bound continuous)
 
-lemma "\<R> (\<lambda> s. orbit s) = {(s, \<phi> t s)|s t. t \<in> T}"
-apply(safe, simp_all add: f2r_def orbit_def)
-by(rule_tac x="t" in exI, simp)
+abbreviation "phi t s \<equiv> (apply_bcontfun (unique_on_bounded_closed.fixed_point t0 T s f S)) t"
 
-theorem wp_orbit:"wp (\<R> (\<lambda> s. orbit s)) \<lceil>Q\<rceil> = \<lceil>\<lambda> s. \<forall> t \<in> T. Q (\<phi> t s)\<rceil>"
-unfolding orbit_def f2r_def by (subst wp_rel, auto)
+lemma fixed_point_solves:
+  assumes "s \<in> S"
+  shows "((\<lambda> t. phi t s) solves_ode f)T S" and "phi t0 s = s "
+  using assms is_ubc unique_on_bounded_closed.fixed_point_solution apply(metis (full_types)) 
+  using assms is_ubc unique_on_bounded_closed.fixed_point_iv by(metis (full_types)) 
+
+lemma fixed_point_usolves:
+  assumes "s \<in> S" and "(x solves_ode f)T S" and "x t0 = s" and "t \<in> T"
+  shows "x t = phi t s"
+  using unique_on_bounded_closed.unique_solution is_ubc fixed_point_solves assms by blast
+
+lemma orbital_collapses:
+  shows "orbital f T S t0 s = {phi t s| t. t \<in> T \<and> s \<in> S}"
+  apply(rule subset_antisym)
+  using fixed_point_usolves apply(clarsimp, rule_tac x="t" in exI, simp)
+  apply(clarsimp, rule_tac x="t" in exI, rule_tac x="(\<lambda> t. phi t s)" in exI, simp)
+  using fixed_point_solves by blast
+
+lemma g_orbital_collapses:
+  shows "g_orbital f T S t0 s G = {phi t s| t. t \<in> T \<and> (\<forall> r \<in> {t0--t}. G (phi r s)) \<and> s \<in> S}"
+  apply(rule subset_antisym)
+  using fixed_point_usolves apply(clarsimp, rule_tac x="t" in exI, simp)
+  apply (metis closed_segment_subset_domainI init_time)
+  apply(clarsimp, rule_tac x="t" in exI, rule_tac x="(\<lambda> t. phi t s)" in exI)
+  by(simp add: fixed_point_solves)
+
+definition invariant :: "'a pred \<Rightarrow> bool" 
+  where "invariant P = (\<forall> x. (x solves_ode f)T S \<longrightarrow> (\<forall> t \<in> T. P (x t)))"
+
+lemma invariantI:
+  assumes "\<forall> x. (x solves_ode f)T S \<longrightarrow> (\<forall> t \<in> T. P (x t))"
+  shows "invariant P"
+  using assms unfolding invariant_def by simp
 
 end
 
-lemma flow_solves_on_compact_subset:
-assumes flow_from_Y:"local_flow f S Y L \<phi> t\<^sub>0" and "X \<subseteq> Y" and "compact_interval X" and "t\<^sub>0 \<in> X"
-shows "t \<in> X \<Longrightarrow> (x solves_ode (\<lambda>t. f)) X S \<Longrightarrow> \<phi> t (x t\<^sub>0) = x t"
+lemma 
+  fixes f::"real \<Rightarrow> (real^'a \<Rightarrow> real^'a)" 
+  assumes pic:"picard_ivp f T S L t0"
+    and "\<forall> x. (x solves_ode f) T S \<longrightarrow> (\<forall> t \<in> T. (f t (x t)) $ i = 0)"
+  shows "picard_ivp.invariant f T S (\<lambda> x. x $ i = 0)"
+  using pic apply(rule picard_ivp.invariantI)
+proof(clarsimp)
+  fix t::real and x assume sol:"(x solves_ode f) T S" and "t \<in> T"
+  from this and assms(2) have "\<forall> \<tau> \<in> T. (f \<tau> (x \<tau>)) $ i = 0" by blast
+  also from pic obtain t1 where "{t .. t1} \<subseteq> T"
+    using picard_ivp.subinterval \<open>t \<in> T\<close> by blast
+  hence "\<forall> \<tau> \<in> {t .. t1}. (f \<tau> (x \<tau>)) $ i = 0"
+    using calculation by blast 
+oops
+
+locale local_flow = picard_ivp "(\<lambda> t. f)" T S L 0 for f::"('a::banach) \<Rightarrow> 'a" and S T L +
+  fixes \<phi> :: "real \<Rightarrow> 'a \<Rightarrow> 'a" 
+  assumes flow_def:"\<And> x s t. t \<in> T \<Longrightarrow> (x solves_ode (\<lambda> t. f))T S \<Longrightarrow> x 0 = s \<Longrightarrow> \<phi> t s = x t"
+begin
+
+lemma is_fixed_point:
+  assumes "s \<in> S" and "t \<in> T"
+  shows "\<phi> t s = phi t s"
+  using flow_def assms fixed_point_solves init_time by simp
+
+theorem solves:
+  assumes "s \<in> S"
+  shows "((\<lambda> t. \<phi> t s) solves_ode (\<lambda> t. f))T S"
+  using assms init_time fixed_point_solves(1) and is_fixed_point by auto
+
+theorem on_init_time:
+  assumes "s \<in> S"
+  shows "\<phi> 0 s = s"
+  using assms init_time fixed_point_solves(2) and is_fixed_point by auto
+
+lemma is_banach_endo:
+  assumes "s \<in> S" and "t \<in> T"
+  shows "\<phi> t s \<in> S"
+  apply(rule_tac A="T" in Pi_mem)
+  using assms solves
+  unfolding solves_ode_def by auto
+
+lemma solves_on_compact_subset:
+  assumes "T' \<subseteq> T" and "compact_interval T'" and "0 \<in> T'"
+  shows "t \<in> T' \<Longrightarrow> (x solves_ode (\<lambda>t. f)) T' S \<Longrightarrow> \<phi> t (x 0) = x t"
 proof-
-  fix t and x assume "t \<in> X" and x_solves:"(x solves_ode (\<lambda>t. f)) X S"
-  from this and \<open>t\<^sub>0 \<in> X\<close> have "x t\<^sub>0 \<in> S" unfolding solves_ode_def by blast
-  then have "((\<lambda> \<tau>. \<phi> \<tau> (x t\<^sub>0)) solves_ode (\<lambda> \<tau>. f))Y S"
-    using flow_from_Y and local_flow.solves by blast
-  hence flow_solves:"((\<lambda> \<tau>. \<phi> \<tau> (x t\<^sub>0)) solves_ode (\<lambda> \<tau>. f))X S" 
-    using \<open>X \<subseteq> Y\<close> solves_ode_on_subset by (metis subset_eq) 
-  have "unique_on_bounded_closed t\<^sub>0 Y (x t\<^sub>0) (\<lambda> \<tau>. f) S L"
-    using flow_from_Y local_flow.is_ubc and \<open>x t\<^sub>0 \<in> S\<close> by blast
-  then have "unique_on_bounded_closed t\<^sub>0 X (x t\<^sub>0) (\<lambda> \<tau>. f) S L" 
+  fix t and x assume "t \<in> T'" and x_solves:"(x solves_ode (\<lambda>t. f))T' S"
+  from this and \<open>0 \<in> T'\<close> have "x 0 \<in> S" unfolding solves_ode_def by blast
+  then have "((\<lambda> \<tau>. \<phi> \<tau> (x 0)) solves_ode (\<lambda> \<tau>. f))T S" using solves by blast
+  hence flow_solves:"((\<lambda> \<tau>. \<phi> \<tau> (x 0)) solves_ode (\<lambda> \<tau>. f))T' S" 
+    using \<open>T' \<subseteq> T\<close> solves_ode_on_subset by (metis subset_eq) 
+  have "unique_on_bounded_closed 0 T (x 0) (\<lambda> \<tau>. f) S L"
+    using is_ubc and \<open>x 0 \<in> S\<close> by blast
+  then have "unique_on_bounded_closed 0 T' (x 0) (\<lambda> \<tau>. f) S L" 
     using unique_on_bounded_closed.unique_on_bounded_closed_on_compact_subset
-    \<open>t\<^sub>0 \<in> X\<close> \<open>x t\<^sub>0 \<in> S\<close> \<open>X \<subseteq> Y\<close> and \<open>compact_interval X\<close> by blast
-  moreover have "\<phi> t\<^sub>0 (x t\<^sub>0) = x t\<^sub>0" 
-    using local_flow.flow_on_init_time flow_from_Y and \<open>x t\<^sub>0 \<in> S\<close> by blast
-  ultimately show "\<phi> t (x t\<^sub>0) = x t" 
-    using unique_on_bounded_closed.unique_solution flow_solves x_solves and \<open>t \<in> X\<close> by blast 
+    \<open>0 \<in> T'\<close> \<open>x 0 \<in> S\<close> \<open>T' \<subseteq> T\<close> and \<open>compact_interval T'\<close> by blast
+  moreover have "\<phi> 0 (x 0) = x 0" 
+    using on_init_time and \<open>x 0 \<in> S\<close> by blast
+  ultimately show "\<phi> t (x 0) = x t" 
+    using unique_on_bounded_closed.unique_solution flow_solves x_solves and \<open>t \<in> T'\<close> by blast 
 qed
 
+abbreviation "orbit s \<equiv> {\<phi> t s |t. t \<in> T \<and> s \<in> S}"
+abbreviation "g_orbit s G \<equiv> {\<phi> t s |t. t \<in> T \<and> (\<forall> r \<in> {0--t}. G (\<phi> r s)) \<and> s \<in> S}"
+
+lemma orbital_is_orbit:
+  shows "orbital (\<lambda> t. f) T S 0 s = orbit s"
+  by (metis (no_types, lifting) fixed_point_solves flow_def) 
+
+lemma g_orbital_is_orbit:
+  shows "g_orbital (\<lambda> t. f) T S 0 s G = g_orbit s G"
+  using is_fixed_point unfolding g_orbital_collapses
+  by (metis (mono_tags, lifting) closed_segment_subset_domainI picard_ivp.init_time picard_ivp_axioms) 
+
+lemma "\<R> (\<lambda> s. orbit s) = {(s, \<phi> t s)|s t. t \<in> T \<and> s \<in> S}"
+  apply(safe, simp_all add: f2r_def)
+  by(rule_tac x="t" in exI, simp)
+
+theorem wp_orbit:"wp (\<R> (\<lambda> s. orbit s)) \<lceil>Q\<rceil> = \<lceil>\<lambda> s. \<forall> t \<in> T. s \<in> S \<longrightarrow> Q (\<phi> t s)\<rceil>"
+  unfolding f2r_def by (subst wp_rel, auto)
+
+end
+
 lemma flow_on_compact_subset:
-  assumes flow_from_Y:"local_flow f S Y L \<phi> t\<^sub>0" and "X \<subseteq> Y" and "compact_interval X" and "t\<^sub>0 \<in> X"
-shows "local_flow f S X L \<phi> t\<^sub>0"
+  assumes flow_from_Y:"local_flow f S T' L \<phi>" and "T \<subseteq> T'" and "compact_interval T" and "0 \<in> T"
+  shows "local_flow f S T L \<phi>"
   unfolding ubc_definitions apply(unfold_locales, safe)
-  prefer 10 using assms and flow_solves_on_compact_subset apply blast
-  using assms unfolding local_flow_def picard_vec_field_def ubc_definitions 
+  prefer 10 using assms and local_flow.solves_on_compact_subset apply blast
+  using assms unfolding local_flow_def picard_ivp_def ubc_definitions 
     apply(meson Sigma_mono continuous_on_subset subsetI)
-  using assms unfolding local_flow_def picard_vec_field_def picard_vec_field_axioms_def 
+  using assms unfolding local_flow_def picard_ivp_def picard_ivp_axioms_def 
     local_flow_axioms_def ubc_definitions apply (simp_all add: subset_eq)
   by blast
 
-locale global_flow = local_flow f UNIV UNIV L \<phi> 0 for f L \<phi>
-begin
-
-lemma ubc_global_flow: "unique_on_bounded_closed 0 UNIV (\<phi> t s) (\<lambda>t. f) UNIV L"
-  apply(rule_tac T="UNIV" in unique_on_bounded_closed.unique_on_bounded_closed_on_compact_subset)
-  using is_ubc is_banach_endo apply simp_all
-  unfolding ubc_definitions using compact_time by blast 
+locale global_flow = local_flow f UNIV UNIV L \<phi> for f L \<phi>
+begin 
 
 lemma add_flow_solves:"((\<lambda>\<tau>. \<phi> (\<tau> + t) s) solves_ode (\<lambda> t. f))UNIV UNIV"
   unfolding solves_ode_def apply safe
@@ -252,208 +250,223 @@ lemma add_flow_solves:"((\<lambda>\<tau>. \<phi> (\<tau> + t) s) solves_ode (\<l
   by auto
 
 theorem flow_is_monoid_action:
-shows "\<phi> 0 s = s"
-and "\<phi> (t1 + t2) s = \<phi> t1 (\<phi> t2 s)"
+  shows "\<phi> 0 s = s"
+    and "\<phi> (t1 + t2) s = \<phi> t1 (\<phi> t2 s)"
 proof-
-show "\<phi> 0 s = s" using flow_on_init_time by simp
-have g1:"\<phi> (0 + t2) s = \<phi> t2 s" by simp
-have g2:"((\<lambda> \<tau>. \<phi> (\<tau> + t2) s) solves_ode (\<lambda> t. f))UNIV UNIV" 
-  using add_flow_solves by simp
-have h0:"\<phi> t2 s \<in> UNIV" 
-  using is_banach_endo by simp
-hence h1:"\<phi> 0 (\<phi> t2 s) = \<phi> t2 s" 
-  using flow_on_init_time by simp
-have h2:"((\<lambda> \<tau>. \<phi> \<tau> (\<phi> t2 s)) solves_ode (\<lambda> t. f))UNIV UNIV"
-  apply(rule_tac S="UNIV" and Y="UNIV" in solves_ode_on_subset)
-  using h0 solves by auto 
-from g1 g2 h1 and h2 have "\<And> t. \<phi> (t + t2) s = \<phi> t (\<phi> t2 s)"
-  using unique_on_bounded_closed.unique_solution ubc_global_flow by blast
-thus "\<phi> (t1 + t2) s = \<phi> t1 (\<phi> t2 s)" by simp
+  show "\<phi> 0 s = s" using on_init_time by simp
+  have g1:"\<phi> (0 + t2) s = \<phi> t2 s" by simp
+  have g2:"((\<lambda> \<tau>. \<phi> (\<tau> + t2) s) solves_ode (\<lambda> t. f))UNIV UNIV" 
+    using add_flow_solves by simp
+  have h0:"\<phi> t2 s \<in> UNIV" 
+    using is_banach_endo by simp
+  hence h1:"\<phi> 0 (\<phi> t2 s) = \<phi> t2 s" 
+    using on_init_time by simp
+  have h2:"((\<lambda> \<tau>. \<phi> \<tau> (\<phi> t2 s)) solves_ode (\<lambda> t. f))UNIV UNIV"
+    apply(rule_tac S="UNIV" and Y="UNIV" in solves_ode_on_subset)
+    using h0 solves by auto 
+  from g1 g2 h1 and h2 have "\<And> t. \<phi> (t + t2) s = \<phi> t (\<phi> t2 s)"
+    using unique_on_bounded_closed.unique_solution is_ubc by blast
+  thus "\<phi> (t1 + t2) s = \<phi> t1 (\<phi> t2 s)" by simp
 qed
 
 end
 
+lemma localize_global_flow:
+  assumes "global_flow f L \<phi>" and "compact_interval T" and "closed S"
+  shows "local_flow f S T L \<phi>"
+  using assms unfolding global_flow_def local_flow_def 
+    picard_ivp_def picard_ivp_axioms_def apply safe
+  unfolding ubc_definitions by simp_all
+
+abbreviation 
+g_orbit :: "(('a :: banach) \<Rightarrow> 'a) \<Rightarrow> real set \<Rightarrow> 'a set \<Rightarrow> real \<Rightarrow> 'a pred \<Rightarrow> 'a rel" ("(1{[x\<acute>=_]_ _ @ _ & _})")
+  where "{[x\<acute>=f]T S @ t0 & G} \<equiv> \<R> (\<lambda> s. g_orbital (\<lambda> t. f) T S t0 s G)"
+
+theorem wp_g_orbit:
+  assumes "local_flow f S T L \<phi>"
+  shows "wp ({[x\<acute>=f]T S @ 0 & G}) \<lceil>Q\<rceil> = \<lceil>\<lambda> s. \<forall> t \<in> T. s \<in> S \<longrightarrow> (\<forall> r \<in> {0--t}.G (\<phi> r s)) \<longrightarrow> Q (\<phi> t s)\<rceil>"
+  unfolding f2r_def apply(subst wp_rel)
+  using assms apply(subst local_flow.g_orbital_is_orbit, simp)
+  by auto
+
 lemma constant_is_ubc:"0 \<le> t \<Longrightarrow> unique_on_bounded_closed 0 {0..t} s (\<lambda>t s. c) UNIV (1 / (t + 1))"
-unfolding ubc_definitions by(simp add: nonempty_set_def lipschitz_on_def, safe, simp)
+  unfolding ubc_definitions by(simp add: nonempty_set_def lipschitz_on_def, safe, simp)
 
 lemma line_solves_constant:"((\<lambda> \<tau>. x + \<tau> *\<^sub>R c) solves_ode (\<lambda>t s. c)) {0..t} UNIV"
-unfolding solves_ode_def apply simp
-apply(rule_tac f'1="\<lambda> x. 0" and g'1="\<lambda> x. c" in derivative_intros(190))
-apply(rule derivative_intros, simp)+
-by simp_all
+  unfolding solves_ode_def apply simp
+  apply(rule_tac f'1="\<lambda> x. 0" and g'1="\<lambda> x. c" in derivative_intros(190))
+  apply(rule derivative_intros, simp)+
+  by simp_all
 
 lemma line_is_local_flow:
-"0 \<le> t \<Longrightarrow> local_flow (\<lambda> s. (c::'a::banach)) UNIV {0..t} (1/(t + 1)) (\<lambda> t x. x + t *\<^sub>R c) 0"
-  unfolding local_flow_def local_flow_axioms_def picard_vec_field_def
-    picard_vec_field_axioms_def ubc_definitions
-    apply(simp add: nonempty_set_def lipschitz_on_def del: real_scaleR_def, safe, simp)
+"0 \<le> t \<Longrightarrow> local_flow (\<lambda> s. (c::'a::banach)) UNIV {0..t} (1/(t + 1)) (\<lambda> t x. x + t *\<^sub>R c)"
+  unfolding local_flow_def local_flow_axioms_def picard_ivp_def
+    picard_ivp_axioms_def ubc_definitions
+  apply(simp add: nonempty_set_def lipschitz_on_def del: real_scaleR_def, safe, simp)
   subgoal for x \<tau>
     apply(rule unique_on_bounded_closed.unique_solution
         [of 0 "{0..t}" "x 0" "(\<lambda>t s. c)" UNIV "(1 / (t + 1))" "(\<lambda>a. x 0 + a *\<^sub>R c)"])
     using constant_is_ubc apply blast
     using line_solves_constant by(blast, simp_all).
 
-abbreviation "r_orbit \<phi> T \<equiv> \<R>(\<lambda> s. local_flow.orbit T \<phi> s)"
-
 corollary line_DS:
-assumes "0 \<le> t"
-shows " wp (r_orbit (\<lambda> \<tau> x. x + \<tau> *\<^sub>R c) {0..t}) \<lceil>Q\<rceil> = \<lceil>\<lambda> x. \<forall> \<tau> \<in> {0..t}. Q (x + \<tau> *\<^sub>R c)\<rceil>"
-apply(rule local_flow.wp_orbit[of "\<lambda> s. c" UNIV "{0..t}" "1/(t + 1)"])
-using assms line_is_local_flow by blast
+  assumes "0 \<le> t"
+  shows " wp {[x\<acute>=\<lambda>s. c]{0..t} UNIV @ 0 & G} \<lceil>Q\<rceil> = 
+    \<lceil>\<lambda> x. \<forall> \<tau> \<in> {0..t}. (\<forall>r\<in>{0--\<tau>}. G (x + r *\<^sub>R c)) \<longrightarrow> Q (x + \<tau> *\<^sub>R c)\<rceil>"
+  apply(subst wp_g_orbit[of "\<lambda> s. c" _ _ "1/(t + 1)" "(\<lambda> t x. x + t *\<^sub>R c)"])
+  using line_is_local_flow and assms by (blast, simp)
 
-abbreviation positive_part :: "('a::ordered_ab_group_add) set \<Rightarrow> 'a set" ("(1{0\<le>_})") where
- "{0\<le>T} \<equiv> {t \<in> T. t \<ge> 0 }"
-abbreviation "g_orbit \<phi> T G \<equiv> 
- \<R> (\<lambda> s. {\<phi> t s |t. t \<in> {0\<le>T} \<and> (\<forall> r \<in> {0..t}. G (\<phi> r s))} \<inter> (local_flow.orbit T \<phi> s))"
+theorem DW:
+  shows "wp ({[x\<acute>=f]T S @ t0 & G}) \<lceil>Q\<rceil> = wp ({[x\<acute>=f]T S @ t0 & G}) \<lceil>\<lambda> s. G s \<longrightarrow> Q s\<rceil>"
+  unfolding rel_antidomain_kleene_algebra.fbox_def rel_ad_def f2r_def
+  apply(simp add: relcomp.simps p2r_def)
+  apply(rule subset_antisym) apply fastforce
+  by fastforce
 
-theorem wp_g_orbit:
-assumes "local_flow f S T L \<phi> 0"
-shows "wp (g_orbit \<phi> T G) \<lceil>Q\<rceil> = \<lceil>\<lambda> s. \<forall> t \<in> {0\<le>T}. (\<forall> r \<in> {0..t}.G (\<phi> r s)) \<longrightarrow> Q (\<phi> t s)\<rceil>"
-unfolding f2r_def apply(subst wp_rel)
-using assms by(auto simp: local_flow.orbit_def)
 
-corollary g_orbit_IdD: 
-assumes "local_flow f S T L \<phi> 0"
-shows "wp (g_orbit \<phi> T G) \<lceil>Q\<rceil> = Id \<Longrightarrow> \<forall>t\<in>{0\<le>T}. (\<forall>r\<in>{0..t}. G (\<phi> r s)) \<longrightarrow> Q (\<phi> t s)"
-apply(subst (asm) wp_g_orbit) 
-using assms apply(simp)
-by(rule_tac s="s" in p2r_IdD, simp)
-
-theorem DW: 
-assumes "local_flow f S T L \<phi> 0"
-shows "wp (g_orbit \<phi> T G) \<lceil>Q\<rceil> = wp (g_orbit \<phi> T G) \<lceil>\<lambda> s. G s \<longrightarrow> Q s\<rceil>"
-apply(subst wp_g_orbit) using assms apply simp
-apply(subst wp_g_orbit) using assms by simp_all
-
-lemma subset_of_positive_part:
-assumes "local_flow f S T L \<phi> 0" and "r \<in> {0..t}" and "t \<in> {0\<le>T}"
-shows "r \<in> {0\<le>T}"
-proof
-from assms have "{0..t} \<subseteq> T" by (metis atLeastAtMost_iff atLeastatMost_subset_iff 
-  local_flow.init_time local_flow.min_max_interval mem_Collect_eq)
-thus "r \<in> T \<and> 0 \<le> r" using \<open>r \<in> {0..t}\<close> by auto
+lemma wp_g_orbit_IdD:
+  assumes "wp ({[x\<acute>=f]T S @ t0 & G}) \<lceil>C\<rceil> = Id" and "\<forall> r\<in>{t0--t}. (a, x r) \<in> {[x\<acute>=f]T S @ t0 & G}"
+  shows "\<forall>r\<in>{t0--t}. C (x r)"
+proof-
+  {fix r :: real
+    have "\<And>R P s. wp R \<lceil>P\<rceil> \<noteq> Id \<or> (\<forall>y. (s::'a, y) \<in> R \<longrightarrow> P y)"
+      by (metis (lifting) p2r_IdD wp_rel)
+    then have "r \<notin> {t0--t} \<or> C (x r)" using assms by blast}
+  then show ?thesis by blast
 qed
 
 theorem DC:
-assumes "local_flow f S T L \<phi> 0" 
-    and "wp (g_orbit \<phi> T G) \<lceil>C\<rceil> = Id"
-shows "wp (g_orbit \<phi> T G) \<lceil>Q\<rceil> = wp (g_orbit \<phi> T (\<lambda> s. G s \<and> C s)) \<lceil>Q\<rceil>"
-apply(subst wp_g_orbit) using assms(1) apply simp
-apply(subst wp_g_orbit) using assms(1) apply simp
-apply(clarsimp, rule iffI) apply(blast, clarify)
-apply(subgoal_tac "\<forall> t \<in> {0\<le>T}. (\<forall>r\<in>{0..t}. G (\<phi> r s)) \<longrightarrow> C (\<phi> t s)", simp)
-apply(erule_tac x="t" in allE, simp, erule impE, rule ballI)
-apply(erule_tac x="r" in allE, erule impE)
-using assms(1) subset_of_positive_part apply blast
-apply(erule impE, simp, simp, simp)
-apply(rule g_orbit_IdD)
-using assms by simp_all
+  assumes "picard_ivp (\<lambda> t. f) T S L t0" 
+    and "wp ({[x\<acute>=f]T S @ t0 & G}) \<lceil>C\<rceil> = Id"
+  shows "wp ({[x\<acute>=f]T S @ t0 & G}) \<lceil>Q\<rceil> = wp {[x\<acute>=f]T S @ t0 & \<lambda>s. G s \<and> C s} \<lceil>Q\<rceil>"
+proof(rule_tac f="\<lambda> x. wp x \<lceil>Q\<rceil>" in HOL.arg_cong, safe)
+fix a b assume "(a, b) \<in> {[x\<acute>=f]T S @ t0 & G}" 
+  then obtain t::real and x where "t \<in> T" and x_solves:"(x solves_ode (\<lambda>t. f)) T S" and "x t0 = a" 
+    and "(\<forall>r\<in>{t0--t}. G (x r))" and "a \<in> S" and "b = x t"
+    using assms(1) unfolding f2r_def by blast
+  from \<open>\<forall>r\<in>{t0--t}. G (x r)\<close> have "\<forall>r\<in>{t0--t}.\<forall> \<tau>\<in>{t0--r}. G (x \<tau>)"
+    using assms(1) by (metis contra_subsetD ends_in_segment(1) subset_segment(1)) 
+  also have "\<forall>r\<in>{t0--t}. r \<in> T"
+    using assms(1) \<open>t \<in> T\<close> picard_ivp.subsegment picard_ivp.init_time by blast
+  ultimately have "\<forall> r\<in>{t0--t}. (a, x r) \<in> {[x\<acute>=f]T S @ t0 & G}"
+    using x_solves \<open>x t0 = a\<close> \<open>a \<in> S\<close> unfolding f2r_def by blast 
+  from this have "\<forall>r\<in>{t0--t}. C (x r)" using wp_g_orbit_IdD assms(2) by blast
+  thus "(a, b) \<in> {[x\<acute>=f]T S @ t0 & \<lambda>s. G s \<and> C s}"
+    using \<open>\<forall>r\<in>{t0--t}. G (x r)\<close> \<open>a \<in> S\<close> \<open>b = x t\<close> \<open>t \<in> T\<close> \<open>x t0 = a\<close> f2r_def x_solves by fastforce 
+next
+  fix a b assume "(a, b) \<in> {[x\<acute>=f]T S @ t0 & \<lambda>s. G s \<and> C s}" 
+  then show "(a, b) \<in> {[x\<acute>=f]T S @ t0 & G}"
+    unfolding f2r_def by blast
+qed
 
 lemma DI_sufficiency:
-assumes "local_flow f UNIV T L \<phi> 0"
-shows "\<lceil>\<lambda>s. \<forall>t\<in>{0\<le>T}. (\<forall>r\<in>{0..t}. G (\<phi> r s)) \<longrightarrow> Q (\<phi> t s)\<rceil> \<subseteq> wp \<lceil>G\<rceil> \<lceil>\<lambda>x. Q x\<rceil>"
-apply(clarsimp, erule_tac x="0" in allE)
-using assms by(simp add: local_flow.init_time local_flow.flow_on_init_time)
+  assumes "local_flow f S T L \<phi>"
+  shows "\<lceil>\<lambda>s. \<forall>t\<in>T. s \<in> S \<longrightarrow> (\<forall>r\<in>{0--t}. G (\<phi> r s)) \<longrightarrow> Q (\<phi> t s)\<rceil> \<subseteq> wp \<lceil>G\<rceil> \<lceil>\<lambda>s. s \<in> S \<longrightarrow> Q s\<rceil>"
+  apply(clarsimp, erule_tac x="0" in ballE)
+  using assms apply(simp_all add: picard_ivp.init_time local_flow.on_init_time local_flow_def)
+  by(simp add: picard_ivp_def picard_ivp_axioms_def)
 
 theorem DI_constant:
-assumes "local_flow f UNIV T L \<phi> 0"
-and "\<lceil>G\<rceil> \<subseteq> wp (g_orbit \<phi> T G) \<lceil>\<lambda>x. 0 = 0\<rceil>"
-shows "wp (g_orbit \<phi> T G) \<lceil>\<lambda> x. Q c\<rceil> = wp \<lceil>G\<rceil> \<lceil>\<lambda> x. Q c\<rceil>"
-apply(subst wp_g_orbit) using assms(1) apply simp
-apply(rule subset_antisym) using assms(1) apply(rule DI_sufficiency)
-apply(simp_all add: local_flow.init_time local_flow.flow_on_init_time)
-using assms apply(subst (asm) wp_g_orbit, simp)
-apply(clarify, erule_tac x="0" in ballE)
-by(simp_all add: local_flow.flow_on_init_time)
+  assumes "local_flow f S T L \<phi>"
+    and "\<lceil>G\<rceil> \<subseteq> wp ({[x\<acute>=f]T S @ 0 & G}) \<lceil>\<lambda>s. 0 = 0\<rceil>"
+  shows "wp ({[x\<acute>=f]T S @ 0 & G}) \<lceil>\<lambda> s. Q c\<rceil> = wp \<lceil>G\<rceil> \<lceil>\<lambda>s. s \<in> S \<longrightarrow> Q c\<rceil>"
+  apply(subst wp_g_orbit) using assms(1) apply simp
+  apply(rule subset_antisym, rule DI_sufficiency) using assms(1) apply simp
+  using assms apply(subst (asm) wp_g_orbit, simp, simp)
+  apply(clarsimp, erule_tac x="0" in ballE)
+  by(simp_all add: local_flow.on_init_time)
 
 lemma 
-fixes f::"('c::{zero,ord,real_normed_vector}) \<Rightarrow> ('a::real_normed_vector)^'b"
-assumes "(f has_derivative f') (at x within I)"
-shows "((\<lambda> t. (f t) $ i) has_derivative (\<lambda> t. (f' t) $ i)) (at x within I)"
-unfolding has_derivative_def bounded_linear_def bounded_linear_axioms_def apply(rule conjI)+
-using assms unfolding has_derivative_def bounded_linear_def bounded_linear_axioms_def 
-linear_def
-oops
+  fixes f::"('c::{zero,ord,real_normed_vector}) \<Rightarrow> ('a::real_normed_vector)^'b"
+  assumes "(f has_derivative f') (at x within I)"
+  shows "((\<lambda> t. (f t) $ i) has_derivative (\<lambda> t. (f' t) $ i)) (at x within I)"
+  unfolding has_derivative_def bounded_linear_def bounded_linear_axioms_def apply(rule conjI)+
+  using assms unfolding has_derivative_def bounded_linear_def bounded_linear_axioms_def linear_def
+  oops
 
 lemma postcondition_is_guard:
-assumes "t \<in> T" and "0 \<le> (t::('a::{zero,preorder}))" and "{0..t} \<subseteq> T"
-    and pHyp:"\<forall>r\<in>{0..t}. P (g r)"
-    and *:" \<forall>\<tau>. \<tau> \<in> T \<and> 0 \<le> \<tau> \<longrightarrow> (\<forall>r\<in>{0..\<tau>}. P (g r)) \<longrightarrow> Q (g \<tau>)"
-shows "\<forall>r\<in>{0..t}. Q (g r)"
+  assumes "t \<in> T" and "0 \<le> (t::('a::{zero,preorder}))" and "{0..t} \<subseteq> T" 
+    and pHyp:"\<forall>r\<in>{0..t}. P (g r)" and *:" \<forall>\<tau>. \<tau> \<in> T \<and> 0 \<le> \<tau> \<longrightarrow> (\<forall>r\<in>{0..\<tau>}. P (g r)) \<longrightarrow> Q (g \<tau>)"
+  shows "\<forall>r\<in>{0..t}. Q (g r)"
 proof(clarsimp)
-fix r assume "0 \<le> r" and "r \<le> t"
-have "\<forall>\<tau>\<in>{0..r}. P (g \<tau>)"
-using pHyp and \<open>r \<le> t\<close> by (meson atLeastAtMost_iff le_left_mono)
-moreover have "r \<in> T \<and> 0 \<le> r" 
-using \<open>{0..t} \<subseteq> T\<close> \<open>0 \<le> r\<close> and \<open>r \<le> t\<close> by auto
-ultimately show "Q (g r)"
-using * by blast
+  fix r assume "0 \<le> r" and "r \<le> t"
+  have "\<forall>\<tau>\<in>{0..r}. P (g \<tau>)"
+    using pHyp and \<open>r \<le> t\<close> by (meson atLeastAtMost_iff le_left_mono)
+  moreover have "r \<in> T \<and> 0 \<le> r" 
+    using \<open>{0..t} \<subseteq> T\<close> \<open>0 \<le> r\<close> and \<open>r \<le> t\<close> by auto
+  ultimately show "Q (g r)"
+    using * by blast
 qed
 
 lemma 
-assumes flow:"local_flow f UNIV T L \<phi> 0" and "G s \<longrightarrow> (s::real^'a) = 0" 
-    and "t \<in> T" and "0 \<le> t" and "\<forall>r\<in>{0..t}. G (\<phi> r s)" 
+  assumes flow:"local_flow f UNIV T L \<phi>" and "G s \<longrightarrow> (s::real^'a) = 0" 
+    and "t \<in> T" and "0 \<le> t" and "\<forall>r\<in>{0..t}. G (\<phi> r s)"
     and " \<forall>\<tau>. \<tau> \<in> T \<and> 0 \<le> \<tau> \<longrightarrow> (\<forall>r\<in>{0..\<tau>}. G (\<phi> r s)) \<longrightarrow> (f (\<phi> \<tau> s)) $ i = 0"
-shows "(\<phi> t s) $ i = 0"
+  shows "(\<phi> t s) $ i = 0"
 proof-
-have "((\<lambda>t. \<phi> t s) solves_ode (\<lambda>t. f)) T UNIV" 
-  using assms and local_flow.solves by blast
-then have "\<forall>\<tau> \<in> T. ((\<lambda>t. \<phi> t s) has_derivative (\<lambda>x. x *\<^sub>R f (\<phi> \<tau> s))) (at \<tau> within T)"
-  by (simp add: solves_ode_def has_vderiv_on_def has_vector_derivative_def)
-hence dv:"\<forall>\<tau> \<in> {0..t}. ((\<lambda>t. \<phi> t s) has_derivative (\<lambda>x. x *\<^sub>R f (\<phi> \<tau> s))) (at \<tau> within {0..t})"
-  by (meson flow \<open>t\<in>T\<close> \<open>0\<le>t\<close> contra_subsetD has_derivative_subset local_flow.subinterval)
-from assms have "\<forall>r\<in>{0..t}. (f (\<phi> r s)) $ i = 0"
-  apply(rule_tac g="\<lambda> r. \<phi> r s" and T="T" and P="G" in postcondition_is_guard)
-  by(simp_all add: local_flow.subinterval)
-hence "\<forall>\<tau> \<in> {0..t}. ((\<lambda>t. (\<phi> t s) $ i) has_derivative (\<lambda>x. 0)) (at \<tau> within {0..t})"
-using dv sorry
-then have "\<exists>x\<in>{0..t}. (\<phi> t s) $ i - (\<phi> 0 s) $ i = (\<lambda>t. 0) (t - 0)"
-  using \<open>0\<le>t\<close> by(rule_tac f="\<lambda> t. (\<phi> t s) $ i" and f'="\<lambda>x t. 0" in mvt_very_simple, simp_all)
-thus "(\<phi> t s) $ i = 0" using local_flow.flow_on_init_time oops
+  have "((\<lambda>t. \<phi> t s) solves_ode (\<lambda>t. f)) T UNIV" 
+    using assms and local_flow.solves by blast
+  then have "\<forall>\<tau> \<in> T. ((\<lambda>t. \<phi> t s) has_derivative (\<lambda>x. x *\<^sub>R f (\<phi> \<tau> s))) (at \<tau> within T)"
+    by (simp add: solves_ode_def has_vderiv_on_def has_vector_derivative_def)
+  also have "{0..t} \<subseteq> T" using \<open>t\<in>T\<close> assms(1) local_flow.axioms(1) interval_subset_is_interval
+    by (metis interval_cbox  picard_ivp.init_time picard_ivp.interval_time) 
+  ultimately have dv:"\<forall>\<tau> \<in> {0..t}. ((\<lambda>t. \<phi> t s) has_derivative (\<lambda>x. x *\<^sub>R f (\<phi> \<tau> s))) (at \<tau> within {0..t})"
+    by (meson contra_subsetD has_derivative_subset)
+  from assms have "\<forall>r\<in>{0..t}. (f (\<phi> r s)) $ i = 0"
+    apply(rule_tac g="\<lambda> r. \<phi> r s" and T="T" and P="G" in postcondition_is_guard)
+    by(simp_all add: local_flow.axioms(1) \<open>{0..t} \<subseteq> T\<close>)
+  hence "\<forall>\<tau> \<in> {0..t}. ((\<lambda>t. (\<phi> t s) $ i) has_derivative (\<lambda>x. 0)) (at \<tau> within {0..t})"
+    using dv sorry
+  then have "\<exists>x\<in>{0..t}. (\<phi> t s) $ i - (\<phi> 0 s) $ i = (\<lambda>t. 0) (t - 0)"
+    using \<open>0\<le>t\<close> by(rule_tac f="\<lambda> t. (\<phi> t s) $ i" and f'="\<lambda>x t. 0" in mvt_very_simple, simp_all)
+  thus "(\<phi> t s) $ i = 0" using local_flow.on_init_time sorry
+qed
 
 lemma 
-assumes flow:"local_flow f UNIV T L \<phi> 0" and "G s \<longrightarrow> (s::real) = 0" 
+  assumes flow:"local_flow f UNIV T L \<phi>" and "G s \<longrightarrow> (s::real) = 0" 
     and "t \<in> T" and "0 \<le> t" and "\<forall>r\<in>{0..t}. G (\<phi> r s)" 
     and " \<forall>\<tau>. \<tau> \<in> T \<and> 0 \<le> \<tau> \<longrightarrow> (\<forall>r\<in>{0..\<tau>}. G (\<phi> r s)) \<longrightarrow> f (\<phi> \<tau> s) = 0"
-shows "\<phi> t s = 0"
+  shows "\<phi> t s = 0"
 proof-
-have "((\<lambda>t. \<phi> t s) solves_ode (\<lambda>t. f)) T UNIV" 
-  using assms and local_flow.solves by blast
-then have "\<forall>\<tau> \<in> T. ((\<lambda>t. \<phi> t s) has_derivative (\<lambda>x. x *\<^sub>R f (\<phi> \<tau> s))) (at \<tau> within T)"
-  by (simp add: solves_ode_def has_vderiv_on_def has_vector_derivative_def)
-hence dv:"\<forall>\<tau> \<in> {0..t}. ((\<lambda>t. \<phi> t s) has_derivative (\<lambda>x. x *\<^sub>R f (\<phi> \<tau> s))) (at \<tau> within {0..t})"
-  by (meson flow \<open>t\<in>T\<close> \<open>0\<le>t\<close> contra_subsetD has_derivative_subset local_flow.subinterval)
-from assms have "\<forall>r\<in>{0..t}. (f (\<phi> r s)) = 0"
-  apply(rule_tac g="\<lambda> r. \<phi> r s" and T="T" and P="G" in postcondition_is_guard)
-  by(simp_all add: local_flow.subinterval)
-hence "\<forall>\<tau> \<in> {0..t}. ((\<lambda>t. \<phi> t s) has_derivative (\<lambda>t. 0)) (at \<tau> within {0..t})" using dv by auto
-then have "\<exists>x\<in>{0..t}. \<phi> t s - \<phi> 0 s = (\<lambda>t. 0) (t - 0)"
-  using \<open>0\<le>t\<close> by(rule_tac f="\<lambda> t. \<phi> t s" and f'="\<lambda>x t. 0" in mvt_very_simple, simp_all)
-thus "\<phi> t s = 0" using local_flow.flow_on_init_time 
-  by (metis UNIV_I flow assms(2) \<open>0\<le>t\<close> assms(5) atLeastAtMost_iff order_refl right_minus_eq) 
+  have "((\<lambda>t. \<phi> t s) solves_ode (\<lambda>t. f)) T UNIV" 
+    using assms and local_flow.solves by blast
+  then have "\<forall>\<tau> \<in> T. ((\<lambda>t. \<phi> t s) has_derivative (\<lambda>x. x *\<^sub>R f (\<phi> \<tau> s))) (at \<tau> within T)"
+    by (simp add: solves_ode_def has_vderiv_on_def has_vector_derivative_def)
+  also have "{0..t} \<subseteq> T" using \<open>t\<in>T\<close> assms(1) local_flow.axioms(1) interval_subset_is_interval
+    by (metis interval_cbox  picard_ivp.init_time picard_ivp.interval_time) 
+  ultimately have dv:"\<forall>\<tau> \<in> {0..t}. ((\<lambda>t. \<phi> t s) has_derivative (\<lambda>x. x *\<^sub>R f (\<phi> \<tau> s))) (at \<tau> within {0..t})"
+    by (meson contra_subsetD has_derivative_subset)
+  from assms have "\<forall>r\<in>{0..t}. (f (\<phi> r s)) = 0"
+    apply(rule_tac g="\<lambda> r. \<phi> r s" and T="T" and P="G" in postcondition_is_guard)
+    by(simp_all add: local_flow.axioms(1) \<open>{0..t} \<subseteq> T\<close>)
+  hence "\<forall>\<tau> \<in> {0..t}. ((\<lambda>t. \<phi> t s) has_derivative (\<lambda>t. 0)) (at \<tau> within {0..t})" using dv by auto
+  then have "\<exists>x\<in>{0..t}. \<phi> t s - \<phi> 0 s = (\<lambda>t. 0) (t - 0)"
+    using \<open>0\<le>t\<close> by(rule_tac f="\<lambda> t. \<phi> t s" and f'="\<lambda>x t. 0" in mvt_very_simple, simp_all)
+  thus "\<phi> t s = 0" using local_flow.on_init_time 
+    by (metis UNIV_I flow assms(2) \<open>0\<le>t\<close> assms(5) atLeastAtMost_iff order_refl right_minus_eq)
 qed
 
-theorem DI_var:
-assumes "local_flow f UNIV T L \<phi> 0"
-    and "\<lceil>G\<rceil> \<subseteq> wp (g_orbit \<phi> T G) \<lceil>\<lambda>x. f x = 0\<rceil>"
-shows "wp (g_orbit \<phi> T G) \<lceil>\<lambda> x. x = 0\<rceil> = wp \<lceil>G\<rceil> \<lceil>\<lambda> x. x = 0\<rceil>"
-apply(subst wp_g_orbit) using assms(1) apply simp
-apply(rule subset_antisym) using assms(1) apply(rule DI_sufficiency)
-apply(clarsimp) using assms apply(subst (asm) wp_g_orbit, simp, clarsimp)
-apply(thin_tac "\<lceil>G\<rceil> \<subseteq> wp _ _", erule_tac x="s" in allE)
-apply(erule_tac Q = "\<forall>t. t \<in> T \<and> 0 \<le> t \<longrightarrow> (\<forall>r\<in>{0..t}. G (\<phi> r s)) \<longrightarrow> f (\<phi> t s) = 0" in impE)
-apply(erule_tac x="0" in ballE, simp_all add: local_flow.init_time local_flow.flow_on_init_time)
-oops
+theorem 
+  assumes "local_flow f S T L \<phi>"
+    and "\<lceil>G\<rceil> \<subseteq> wp ({[x\<acute>=f]T S @ 0 & G}) \<lceil>\<lambda>s. 0 = 0\<rceil>"
+  shows "wp ({[x\<acute>=f]T S @ 0 & G}) \<lceil>\<lambda> s. Q c\<rceil> = wp \<lceil>G\<rceil> \<lceil>\<lambda>s. s \<in> S \<longrightarrow> Q c\<rceil>"
+  using assms(1) apply(subst wp_g_orbit, simp)
+  apply(rule subset_antisym) apply(rule DI_sufficiency) apply simp
+  using assms(2) apply(subst (asm) wp_g_orbit, simp)
+  apply(clarsimp, erule_tac x="0" in ballE)
+  by(simp_all add: local_flow.on_init_time)
 
-theorem DI_sum:
-assumes "local_flow f UNIV T L \<phi> 0"
-    and "\<lceil>G\<rceil> \<subseteq> wp (g_orbit \<phi> T G) \<lceil>\<lambda>x. \<phi> 0 x = 0\<rceil>"
-shows "wp (g_orbit \<phi> T G) \<lceil>\<lambda> x. expr1 x + expr2 x = 0\<rceil> = wp \<lceil>G\<rceil> \<lceil>\<lambda> x. expr1 x + expr2 x = 0\<rceil>"
-apply(subst wp_g_orbit) using assms(1) apply simp
-apply(clarsimp) apply(rule iffI, rule impI)
-using assms(1) apply(erule_tac x="0" in allE)
-apply(simp_all add: local_flow.init_time local_flow.flow_on_init_time)
-oops
+theorem DI_var:
+  assumes "local_flow f S T L \<phi>"
+    and "\<lceil>G\<rceil> \<subseteq> wp ({[x\<acute>=f]T S @ 0 & G}) \<lceil>\<lambda>x. f x = 0\<rceil>"
+  shows "wp ({[x\<acute>=f]T S @ 0 & G}) \<lceil>\<lambda> x. x = 0\<rceil> = wp \<lceil>G\<rceil> \<lceil>\<lambda> x. x \<in> S \<longrightarrow> x = 0\<rceil>"
+  using assms(1) apply(subst wp_g_orbit, simp)
+  apply(rule subset_antisym) apply(rule DI_sufficiency) apply simp
+  using assms(2) apply(subst (asm) wp_g_orbit, simp, clarsimp)
+  apply(thin_tac "\<lceil>G\<rceil> \<subseteq> wp _ _", erule_tac x="s" in allE)
+  apply(erule_tac impE)
+   apply(erule_tac x="0" in ballE, simp_all add: local_flow.axioms(1) local_flow.on_init_time)
+  oops
 
 
 (**************************************************************************************************)
