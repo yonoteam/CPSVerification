@@ -1,5 +1,5 @@
 theory Abstract_HL
-  imports Main Kleisli "../afpModified/VC_KAD"
+  imports Main Kleisli "../../afpModified/VC_KAD"
 
 begin
 

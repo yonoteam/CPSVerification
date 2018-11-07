@@ -1,4 +1,4 @@
-theory cat2rel
+theory cat2funcset
 imports
   "Abstract_HL"
   "Ordinary_Differential_Equations.Initial_Value_Problem"
