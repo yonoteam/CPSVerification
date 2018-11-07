@@ -211,8 +211,8 @@ qed
 
 lemma bouncing_ball:
 "PRE (\<lambda> s. 0 \<le> s ''x'' \<and> s ''x'' = H \<and> s ''v'' = 0 \<and> s ''g'' > 0)  
-((((ODEsystem [(''x'', \<lambda> s. s ''v''),(''v'',\<lambda> s. - s ''g'')] with (\<lambda> s. 0 \<le> s ''x'')));
-(IF (\<lambda> s. s ''x'' = 0) THEN (''v'' ::= (\<lambda> s. - s ''v'')) ELSE (Id) FI))\<^sup>*)
+((ODEsystem [(''x'', \<lambda> s. s ''v''),(''v'',\<lambda> s. - s ''g'')] with (\<lambda> s. 0 \<le> s ''x''));
+(IF (\<lambda> s. s ''x'' = 0) THEN (''v'' ::= (\<lambda> s. - s ''v'')) ELSE (Id) FI))\<^sup>*
 POST (\<lambda> s. 0 \<le> s ''x'' \<and> s ''x'' \<le> H)"
 apply(rule rel_antidomain_kleene_algebra.fbox_starI[of _ "\<lceil>\<lambda>s. 0 \<le> s ''x'' \<and> 0 < s ''g'' \<and> 
 2 \<cdot> s ''g'' \<cdot> s ''x'' = 2 \<cdot> s ''g'' \<cdot> H - (s ''v'' \<cdot> s ''v'')\<rceil>"])
