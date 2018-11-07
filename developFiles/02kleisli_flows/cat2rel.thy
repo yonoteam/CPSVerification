@@ -1,4 +1,4 @@
-theory playing_flows
+theory cat2rel
 imports
   "Abstract_HL"
   "Ordinary_Differential_Equations.Initial_Value_Problem"
