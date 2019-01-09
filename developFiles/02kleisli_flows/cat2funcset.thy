@@ -2,32 +2,39 @@ theory cat2funcset
 imports
   "Abstract_HL"
   "Ordinary_Differential_Equations.Initial_Value_Problem"
-  "HOL-Library.FSet" (* Finite sets. *)
-  "HOL-Analysis.Cartesian_Euclidean_Space"
 
 begin
 
 no_notation Archimedean_Field.ceiling ("\<lceil>_\<rceil>")
         and Archimedean_Field.floor_ceiling_class.floor ("\<lfloor>_\<rfloor>")
-        and VC_KAD.gets ("_ ::= _" [70, 65] 61)
+        and P2S2R.p2r ("\<lceil>_\<rceil>")
+        and P2S2R.r2p ("\<lfloor>_\<rfloor>")
+        and Modal_Kleene_Algebra_Models.rel_antidomain_kleene_algebra.fbox ("wp")
 
-lemma wp_rel:"wp R \<lceil>P\<rceil> = \<lceil>\<lambda> x. \<forall> y. (x,y) \<in> R \<longrightarrow> P y\<rceil>"
-proof-
-  have "\<lfloor>wp R \<lceil>P\<rceil>\<rfloor> = \<lfloor>\<lceil>\<lambda> x. \<forall> y. (x,y) \<in> R \<longrightarrow> P y\<rceil>\<rfloor>" 
-    by (simp add: wp_trafo pointfree_idE)
-  thus "wp R \<lceil>P\<rceil> = \<lceil>\<lambda> x. \<forall> y. (x,y) \<in> R \<longrightarrow> P y\<rceil>" 
-    by (metis (no_types, lifting) wp_simp d_p2r pointfree_idE prp) 
-qed
+notation nd_fun.fbox ("wp")
+abbreviation p2f :: "'a pred \<Rightarrow> 'a nd_fun" ("(1\<lceil>_\<rceil>)")
+  where "\<lceil>Q\<rceil> \<equiv> (\<lambda> x::'a. {s::'a. s = x \<and> Q s})\<^sup>\<bullet>"
 
-corollary wp_relD:"(x,x) \<in> wp R \<lceil>P\<rceil> \<Longrightarrow> \<forall> y. (x,y) \<in> R \<longrightarrow> P y"
-proof-
-  assume "(x,x) \<in> wp R \<lceil>P\<rceil>"
-  hence "(x,x) \<in> \<lceil>\<lambda> x. \<forall> y. (x,y) \<in> R \<longrightarrow> P y\<rceil>" using wp_rel by auto
-  thus "\<forall> y. (x,y) \<in> R \<longrightarrow> P y" by (simp add: p2r_def)
-qed
+thm Abs_nd_fun_inverse Rep_nd_fun_inverse Abs_nd_fun_inject
 
-lemma p2r_IdD:"\<lceil>P\<rceil> = Id \<Longrightarrow> P s"
-  by (metis (full_types) UNIV_I impl_prop p2r_subid top_empty_eq)
+lemma nd_fun_ext:"(\<And> z. x z = y z) \<Longrightarrow> (x\<^sup>\<bullet>) = (y\<^sup>\<bullet>)"
+  by meson
+
+lemma wp_nd_fun:"wp (F\<^sup>\<bullet>) \<lceil>P\<rceil> = \<lceil>\<lambda> x. \<forall> y. y \<in> (F x) \<longrightarrow> P y\<rceil>"
+  apply(simp add: Abstract_HL.nd_fun.fbox_def Abs_nd_fun_inverse)
+  apply(simp add: Kleisli.ad_fun_def Kleisli.Kcomp_def)
+  apply(simp add: Kleisli.Powf_def)
+  apply(rule nd_fun_ext)
+  by auto
+
+lemma wp_nd_fun_etaD:"wp (F\<^sup>\<bullet>) \<lceil>P\<rceil> = \<eta>\<^sup>\<bullet> \<Longrightarrow> (\<forall>y. y \<in> (F x) \<longrightarrow> P y)"
+  unfolding nd_fun.fbox_def apply(simp add: Abs_nd_fun_inverse ad_fun_def Kcomp_def Powf_def, clarify)
+  apply(subst (asm) Abs_nd_fun_inject, simp_all)
+  by (metis Int_Collect empty_iff empty_not_insert)
+
+lemma p2f_etaD:"\<lceil>P\<rceil> = \<eta>\<^sup>\<bullet> \<Longrightarrow> P s"
+  apply(subst (asm) Abs_nd_fun_inject, simp_all)
+  by (metis Collect_conv_if empty_not_insert)
 
 named_theorems ubc_definitions "definitions used in the locale unique_on_bounded_closed"
 
@@ -78,10 +85,6 @@ locale picard_ivp = continuous_rhs T S f + global_lipschitz T S f L
     and solution_in_domain:"\<And>x s t. t \<in> T \<Longrightarrow> x t0 = s \<Longrightarrow> x \<in> {t0--t} \<rightarrow> S \<Longrightarrow> 
       continuous_on {t0--t} x \<Longrightarrow> x t0 + ivl_integral t0 t (\<lambda>t. f t (x t)) \<in> S"
 begin
-
-print_commands
-print_facts
-print_context
 
 sublocale compact_interval
   using interval_time nonempty_time compact_time by(unfold_locales, auto)
@@ -202,18 +205,8 @@ lemma "\<R> (\<lambda> s. orbit s) = {(s, \<phi> t s)|s t. t \<in> T \<and> s \<
   apply(safe, simp_all add: f2r_def)
   by(rule_tac x="t" in exI, simp)
 
-(* WRONG:
-abbreviation "wlp \<equiv> \<lambda>f. (ad_fun f\<^sup>\<bullet>)\<^sub>\<bullet>"
-abbreviation "\<Xi> Q \<equiv> \<lambda> x::'a. {s::'a |s. Q s}"
-theorem wlp_orbit:"wlp (\<lambda> s. orbit s) \<circ>\<^sub>K (\<Xi> Q) = \<Xi> (\<lambda> s. \<forall> t \<in> T. s \<in> S \<longrightarrow> Q (\<phi> t s))"*)
-
-(* BETTER:
-notation nd_fun.fbox ("wlp")
-abbreviation "\<Xi> Q \<equiv> (\<lambda> x::'a. {s::'a. Q s})\<^sup>\<bullet>"
-theorem wlp_orbit:"wlp ((\<lambda> s. orbit s)\<^sup>\<bullet>) (\<Xi> Q) = \<Xi> (\<lambda> s. \<forall> t \<in> T. s \<in> S \<longrightarrow> Q (\<phi> t s))"*)
-
-theorem wp_orbit:"wp (\<R> (\<lambda> s. orbit s)) \<lceil>Q\<rceil> = \<lceil>\<lambda> s. \<forall> t \<in> T. s \<in> S \<longrightarrow> Q (\<phi> t s)\<rceil>"
-  unfolding f2r_def by (subst wp_rel, auto)
+theorem wlp_orbit:"wp (orbit\<^sup>\<bullet>) \<lceil>Q\<rceil> = \<lceil>\<lambda> s. \<forall> t \<in> T. s \<in> S \<longrightarrow> Q (\<phi> t s)\<rceil>"
+  unfolding f2r_def by (subst wp_nd_fun, rule nd_fun_ext, auto)
 
 end
 
@@ -271,16 +264,15 @@ lemma localize_global_flow:
   unfolding ubc_definitions by simp_all
 
 abbreviation 
-g_orbit :: "(('a :: banach) \<Rightarrow> 'a) \<Rightarrow> real set \<Rightarrow> 'a set \<Rightarrow> real \<Rightarrow> 'a pred \<Rightarrow> 'a rel" ("(1{[x\<acute>=_]_ _ @ _ & _})")
-where "{[x\<acute>=f]T S @ t0 & G} \<equiv> \<R> (\<lambda> s. g_orbital (\<lambda> t. f) T S t0 s G)" 
-(* should we fix t0 to be 0? NO. We use it for flows but not for more general proofs. *)
+g_orbit :: "(('a :: banach) \<Rightarrow> 'a) \<Rightarrow> real set \<Rightarrow> 'a set \<Rightarrow> real \<Rightarrow> 'a pred \<Rightarrow> 
+'a nd_fun" ("(1[{x\<acute>=_}_ _ @ _ & _])") where 
+"[{x\<acute>=f}T S @ t0 & G] \<equiv> ((\<lambda> s. g_orbital (\<lambda> t. f) T S t0 s G)\<^sup>\<bullet>)"
 
 theorem wp_g_orbit:
   assumes "local_flow f S T L \<phi>"
-  shows "wp ({[x\<acute>=f]T S @ 0 & G}) \<lceil>Q\<rceil> = \<lceil>\<lambda> s. \<forall> t \<in> T. s \<in> S \<longrightarrow> (\<forall> r \<in> {0--t}.G (\<phi> r s)) \<longrightarrow> Q (\<phi> t s)\<rceil>"
-  unfolding f2r_def apply(subst wp_rel)
-  using assms apply(subst local_flow.g_orbital_is_orbit, simp)
-  by auto
+  shows "wp [{x\<acute>=f}T S @ 0 & G] \<lceil>Q\<rceil> = \<lceil>\<lambda> s. \<forall> t \<in> T. s \<in> S \<longrightarrow> (\<forall> r \<in> {0--t}.G (\<phi> r s)) \<longrightarrow> Q (\<phi> t s)\<rceil>"
+  apply(subst wp_nd_fun, rule nd_fun_ext)
+  using assms by(subst local_flow.g_orbital_is_orbit, auto)
 
 lemma constant_is_ubc:"0 \<le> t \<Longrightarrow> unique_on_bounded_closed 0 {0..t} s (\<lambda>t s. c) UNIV (1 / (t + 1))"
   unfolding ubc_definitions by(simp add: nonempty_set_def lipschitz_on_def, safe, simp)
@@ -304,65 +296,63 @@ lemma line_is_local_flow:
 
 corollary line_DS:
   assumes "0 \<le> t"
-  shows " wp {[x\<acute>=\<lambda>s. c]{0..t} UNIV @ 0 & G} \<lceil>Q\<rceil> = 
+  shows " wp [{x\<acute>=\<lambda>s. c}{0..t} UNIV @ 0 & G] \<lceil>Q\<rceil> = 
     \<lceil>\<lambda> x. \<forall> \<tau> \<in> {0..t}. (\<forall>r\<in>{0--\<tau>}. G (x + r *\<^sub>R c)) \<longrightarrow> Q (x + \<tau> *\<^sub>R c)\<rceil>"
   apply(subst wp_g_orbit[of "\<lambda> s. c" _ _ "1/(t + 1)" "(\<lambda> t x. x + t *\<^sub>R c)"])
   using line_is_local_flow and assms by (blast, simp)
 
 theorem DW:
-  shows "wp ({[x\<acute>=f]T S @ t0 & G}) \<lceil>Q\<rceil> = wp ({[x\<acute>=f]T S @ t0 & G}) \<lceil>\<lambda> s. G s \<longrightarrow> Q s\<rceil>"
-  unfolding rel_antidomain_kleene_algebra.fbox_def rel_ad_def f2r_def
-  apply(simp add: relcomp.simps p2r_def)
-  apply(rule subset_antisym)
-  by fastforce+
+  shows "wp [{x\<acute>=f}T S @ t0 & G] \<lceil>Q\<rceil> = wp [{x\<acute>=f}T S @ t0 & G] \<lceil>\<lambda> s. G s \<longrightarrow> Q s\<rceil>"
+  unfolding nd_fun.fbox_def apply(simp add: Abs_nd_fun_inverse ad_fun_def Kcomp_def Powf_def)
+  by(rule nd_fun_ext, auto)
 
-lemma wp_g_orbit_IdD:
-  assumes "wp ({[x\<acute>=f]T S @ t0 & G}) \<lceil>C\<rceil> = Id" and "\<forall> r\<in>{t0--t}. (a, x r) \<in> {[x\<acute>=f]T S @ t0 & G}"
+thm nd_fun_ext p2f_etaD wp_nd_fun
+
+lemma wp_g_orbit_etaD:
+  assumes "wp [{x\<acute>=f}T S @ t0 & G] \<lceil>C\<rceil> = \<eta>\<^sup>\<bullet>" and "\<forall> r\<in>{t0--t}. x r \<in> g_orbital (\<lambda>t. f) T S t0 a G"
   shows "\<forall>r\<in>{t0--t}. C (x r)"
-proof-
-  {fix r :: real
-    have "\<And>R P s. wp R \<lceil>P\<rceil> \<noteq> Id \<or> (\<forall>y. (s::'a, y) \<in> R \<longrightarrow> P y)"
-      by (metis (lifting) p2r_IdD wp_rel)
-    then have "r \<notin> {t0--t} \<or> C (x r)" using assms by blast}
-  then show ?thesis by blast
+proof
+  fix r assume "r \<in> {t0--t}"
+  then have "x r \<in> g_orbital (\<lambda>t. f) T S t0 a G" 
+    using assms(2) by blast
+  also have "\<forall>y. y \<in> (g_orbital (\<lambda>t. f) T S t0 a G) \<longrightarrow> C y" 
+    using assms(1) wp_nd_fun_etaD by fastforce
+  ultimately show "C (x r)" by blast
 qed
 
 theorem DC:
   assumes "picard_ivp (\<lambda> t. f) T S L t0" 
-    and "wp ({[x\<acute>=f]T S @ t0 & G}) \<lceil>C\<rceil> = Id"
-  shows "wp ({[x\<acute>=f]T S @ t0 & G}) \<lceil>Q\<rceil> = wp {[x\<acute>=f]T S @ t0 & \<lambda>s. G s \<and> C s} \<lceil>Q\<rceil>"
-proof(rule_tac f="\<lambda> x. wp x \<lceil>Q\<rceil>" in HOL.arg_cong, safe)
-fix a b assume "(a, b) \<in> {[x\<acute>=f]T S @ t0 & G}" 
-  then obtain t::real and x where "t \<in> T" and x_solves:"(x solves_ode (\<lambda>t. f)) T S" and 
+    and "wp [{x\<acute>=f}T S @ t0 & G] \<lceil>C\<rceil> = \<eta>\<^sup>\<bullet>"
+  shows "wp [{x\<acute>=f}T S @ t0 & G] \<lceil>Q\<rceil> = wp [{x\<acute>=f}T S @ t0 & \<lambda>s. G s \<and> C s] \<lceil>Q\<rceil>"
+proof(rule_tac f="\<lambda> x. wp x \<lceil>Q\<rceil>" in HOL.arg_cong, rule nd_fun_ext, rule subset_antisym)
+  fix a
+  show "g_orbital (\<lambda>t. f) T S t0 a G \<subseteq> g_orbital (\<lambda>t. f) T S t0 a (\<lambda> s. G s \<and> C s)"
+  proof
+    fix b assume "b \<in> g_orbital (\<lambda>t. f) T S t0 a G" 
+    then obtain t::real and x where "t \<in> T" and x_solves:"(x solves_ode (\<lambda>t. f)) T S" and 
     "x t0 = a" and guard_x:"(\<forall>r\<in>{t0--t}. G (x r))" and "a \<in> S" and "b = x t"
-    using assms(1) unfolding f2r_def by blast
-  from guard_x have "\<forall>r\<in>{t0--t}.\<forall> \<tau>\<in>{t0--r}. G (x \<tau>)"
-    using assms(1) by (metis contra_subsetD ends_in_segment(1) subset_segment(1)) 
-  also have "\<forall>r\<in>{t0--t}. r \<in> T"
-    using assms(1) \<open>t \<in> T\<close> picard_ivp.subsegment picard_ivp.init_time by blast
-  ultimately have "\<forall> r\<in>{t0--t}. (a, x r) \<in> {[x\<acute>=f]T S @ t0 & G}"
-    using x_solves \<open>x t0 = a\<close> \<open>a \<in> S\<close> unfolding f2r_def by blast 
-  from this have "\<forall>r\<in>{t0--t}. C (x r)" using wp_g_orbit_IdD assms(2) by blast
-  thus "(a, b) \<in> {[x\<acute>=f]T S @ t0 & \<lambda>s. G s \<and> C s}"
-    using guard_x \<open>a \<in> S\<close> \<open>b = x t\<close> \<open>t \<in> T\<close> \<open>x t0 = a\<close> f2r_def x_solves by fastforce 
-next
-  fix a b assume "(a, b) \<in> {[x\<acute>=f]T S @ t0 & \<lambda>s. G s \<and> C s}" 
-  then show "(a, b) \<in> {[x\<acute>=f]T S @ t0 & G}"
-    unfolding f2r_def by blast
+      using assms(1) unfolding f2r_def by blast
+    from guard_x have "\<forall>r\<in>{t0--t}.\<forall> \<tau>\<in>{t0--r}. G (x \<tau>)"
+      using assms(1) by (metis contra_subsetD ends_in_segment(1) subset_segment(1))
+    also have "\<forall>r\<in>{t0--t}. r \<in> T"
+      using assms(1) \<open>t \<in> T\<close> picard_ivp.subsegment picard_ivp.init_time by blast
+    ultimately have "\<forall> r\<in>{t0--t}. x r \<in> g_orbital (\<lambda>t. f) T S t0 a G"
+      using x_solves \<open>x t0 = a\<close> \<open>a \<in> S\<close> unfolding f2r_def by blast 
+    from this have "\<forall>r\<in>{t0--t}. C (x r)" using wp_g_orbit_etaD assms(2) by blast
+    thus "b \<in> g_orbital (\<lambda>t. f) T S t0 a (\<lambda> s. G s \<and> C s)"
+      using guard_x \<open>a \<in> S\<close> \<open>b = x t\<close> \<open>t \<in> T\<close> \<open>x t0 = a\<close> f2r_def x_solves by fastforce 
+  qed
+  next show "\<And> a. g_orbital (\<lambda>t. f) T S t0 a (\<lambda> s. G s \<and> C s) \<subseteq> g_orbital (\<lambda>t. f) T S t0 a G"
+      by auto
 qed
 
 lemma DI_sufficiency:
   assumes picard:"picard_ivp (\<lambda> t. f) T S L t0"
-  shows "wp {[x\<acute>=f]T S @ t0 & G} \<lceil>Q\<rceil> \<subseteq> wp \<lceil>G\<rceil> \<lceil>\<lambda>s. s \<in> S \<longrightarrow> Q s\<rceil>"
-proof(subst wp_rel, subst wp_rel, simp add: p2r_def, clarsimp)
-  fix s assume wlpQ:"\<forall>y. (s, y) \<in> {[x\<acute>=f]T S @ t0 & G} \<longrightarrow> Q y" and "s \<in> S" and "G s"
-  from this and picard obtain x where "(x solves_ode (\<lambda> t. f))T S \<and> x t0 = s"
-    using picard_ivp.fixed_point_solves by blast
-  then also have "\<forall> r \<in> {t0--t0}. G (x r)" using \<open>G s\<close> by simp 
-  ultimately have "(s,s) \<in> {[x\<acute>=f]T S @ t0 & G}"
-    using picard picard_ivp.init_time \<open>s \<in> S\<close> f2r_def by fastforce
-  thus "Q s" using wlpQ by blast
-qed
+  shows "((wp [{x\<acute>=f}T S @ t0 & G] \<lceil>Q\<rceil>)\<^sub>\<bullet>) s \<subseteq> ((wp \<lceil>G\<rceil> \<lceil>\<lambda>s. s \<in> S \<longrightarrow> Q s\<rceil>)\<^sub>\<bullet>) s"
+  apply(subst wp_nd_fun, subst wp_nd_fun, simp add: Abs_nd_fun_inverse)
+  apply(clarsimp, erule_tac x="s" in allE)
+  using picard_ivp.fixed_point_solves picard_ivp.init_time picard
+  by (metis closed_segment_idem equals0D insert_iff)
 
 lemma closed_segment_mvt:
   fixes f :: "real \<Rightarrow> real"
@@ -372,27 +362,19 @@ lemma closed_segment_mvt:
 
 lemma dInvariant:
   fixes \<theta>::"'a::banach \<Rightarrow> real"
-  assumes "\<lceil>G\<rceil> \<subseteq> \<lceil>F\<rceil>" and "bdd_below T"
+  assumes "\<And>s. G s \<Longrightarrow> F s" and "bdd_below T"
     and FisPrimedI:"\<forall> x. (x solves_ode (\<lambda> t. f))T S \<longrightarrow> I (x (Inf T)) \<longrightarrow>
     (\<forall> t \<in> T. (\<forall>r\<in>{(Inf T)--t}. F (x r)) \<longrightarrow> (I (x t)))"
-  shows "\<lceil>I\<rceil> \<subseteq> wp ({[x\<acute>=f]T S @ (Inf T) & G}) \<lceil>I\<rceil>"
-proof(subst wp_rel, simp add: p2r_def, clarsimp)
-  fix s y assume "(s,y) \<in> {[x\<acute>=f]T S @ (Inf T) & G}" and sHyp:"I s"
-  then obtain x and t where x_ivp:"(x solves_ode (\<lambda> t. f))T S \<and> x (Inf T) = s" 
-    and xtHyp:"x t = y \<and> t \<in> T" and GHyp:"\<forall>r\<in>{(Inf T)--t}. G (x r)" 
-    by(simp add: f2r_def, clarify, auto)
-  hence "(Inf T) \<le> t" by (simp add: \<open>bdd_below T\<close> cInf_lower)
-  from GHyp and \<open>\<lceil>G\<rceil> \<subseteq> \<lceil>F\<rceil>\<close> have geq0:"\<forall>r\<in>{(Inf T)--t}. F (x r)"
-    by (auto simp: p2r_def)
-  thus "I y" using xtHyp x_ivp sHyp and FisPrimedI by blast 
-qed
+  shows "(\<lceil>I\<rceil>\<^sub>\<bullet>) s \<subseteq> ((wp [{x\<acute>=f}T S @ (Inf T) & G] \<lceil>I\<rceil>)\<^sub>\<bullet>) s"
+  apply(subst wp_nd_fun, simp add: Abs_nd_fun_inverse, clarsimp)
+  using assms by (simp add: cInf_lower) 
 
 lemma dInvariant_eq_0:
   fixes \<theta>::"'a::banach \<Rightarrow> real"
   assumes nuHyp:"\<forall> x. (x solves_ode (\<lambda> t. f))T S \<longrightarrow> (\<forall> t \<in> T. \<forall> r \<in> {(Inf T)--t}. 
   ((\<lambda>\<tau>. \<theta> (x \<tau>)) has_derivative (\<lambda>\<tau>. \<tau> *\<^sub>R (\<nu> (x r)))) (at r within {(Inf T)--t}))"
-    and "\<lceil>G\<rceil> \<subseteq> \<lceil>\<lambda>s. \<nu> s = 0\<rceil>" and "bdd_below T"
-  shows "\<lceil>\<lambda>s. \<theta> s = 0\<rceil> \<subseteq> wp ({[x\<acute>=f]T S @ (Inf T) & G}) \<lceil>\<lambda>s. \<theta> s = 0\<rceil>"
+    and "\<And>s. G s \<Longrightarrow> \<nu> s = 0" and "bdd_below T"
+  shows "(\<lceil>\<lambda>s. \<theta> s = 0\<rceil>\<^sub>\<bullet>)s \<subseteq> ((wp [{x\<acute>=f}T S @ (Inf T) & G] \<lceil>\<lambda>s. \<theta> s = 0\<rceil>)\<^sub>\<bullet>) s"
   apply(rule dInvariant [of _ "\<lambda> s. \<nu> s = 0"])
   using assms apply(simp, simp)
 proof(clarify)
@@ -414,8 +396,8 @@ lemma dInvariant_geq_0:
   fixes \<theta>::"'a::banach \<Rightarrow> real"
   assumes nuHyp:"\<forall> x. (x solves_ode (\<lambda> t. f))T S \<longrightarrow> (\<forall> t \<in> T. \<forall> r \<in> {(Inf T)--t}. 
   ((\<lambda>\<tau>. \<theta> (x \<tau>)) has_derivative (\<lambda>\<tau>. \<tau> *\<^sub>R (\<nu> (x r)))) (at r within {(Inf T)--t}))"
-    and "\<lceil>G\<rceil> \<subseteq> \<lceil>\<lambda>s. (\<nu> s) \<ge> 0\<rceil>" and "bdd_below T"
-  shows "\<lceil>\<lambda>s. \<theta> s \<ge> 0\<rceil> \<subseteq> wp ({[x\<acute>=f]T S @ (Inf T) & G}) \<lceil>\<lambda>s. \<theta> s \<ge> 0\<rceil>"
+    and "\<And>s. G s \<Longrightarrow> \<nu> s \<ge> 0" and "bdd_below T"
+  shows "(\<lceil>\<lambda>s. \<theta> s \<ge> 0\<rceil>\<^sub>\<bullet>)s \<subseteq> ((wp [{x\<acute>=f}T S @ (Inf T) & G] \<lceil>\<lambda>s. \<theta> s \<ge> 0\<rceil>)\<^sub>\<bullet>) s"
   apply(rule dInvariant [of _ "\<lambda> s. \<nu> s \<ge> 0"])
   using assms apply(simp, simp)
 proof(clarify)
@@ -436,8 +418,8 @@ lemma dInvariant_above_0:
   fixes \<theta>::"'a::banach \<Rightarrow> real"
   assumes nuHyp:"\<forall> x. (x solves_ode (\<lambda> t. f))T S \<longrightarrow>  (\<forall> t \<in> T. \<forall> r \<in> {(Inf T)--t}. 
   ((\<lambda>\<tau>. \<theta> (x \<tau>)) has_derivative (\<lambda>\<tau>. \<tau> *\<^sub>R (\<nu> (x r)))) (at r within {(Inf T)--t}))"
-    and "\<lceil>G\<rceil> \<subseteq> \<lceil>\<lambda>s. (\<nu> s) \<ge> 0\<rceil>" and "bdd_below T"
-  shows "\<lceil>\<lambda>s. \<theta> s > 0\<rceil> \<subseteq> wp ({[x\<acute>=f]T S @ (Inf T) & G}) \<lceil>\<lambda>s. \<theta> s > 0\<rceil>"
+    and "\<And>s. G s \<Longrightarrow> \<nu> s \<ge> 0" and "bdd_below T"
+  shows "(\<lceil>\<lambda>s. \<theta> s > 0\<rceil>\<^sub>\<bullet>)s \<subseteq> ((wp [{x\<acute>=f}T S @ (Inf T) & G] \<lceil>\<lambda>s. \<theta> s > 0\<rceil>)\<^sub>\<bullet>) s"
   apply(rule dInvariant [of _ "\<lambda> s. \<nu> s \<ge> 0"])
   using assms apply(simp, simp)
 proof(clarify)
@@ -457,19 +439,19 @@ proof(clarify)
 qed
 
 lemma dInvariant_meet:
-  assumes "\<lceil>I1\<rceil> \<subseteq> wp ({[x\<acute>=f]T S @ t0 & G}) \<lceil>I1\<rceil>"
-    and "\<lceil>I2\<rceil> \<subseteq> wp ({[x\<acute>=f]T S @ t0 & G}) \<lceil>I2\<rceil>"
-  shows "\<lceil>\<lambda>s. I1 s \<and> I2 s\<rceil> \<subseteq> wp ({[x\<acute>=f]T S @ t0 & G}) \<lceil>\<lambda>s. I1 s \<and> I2 s\<rceil>"
-  using assms apply(subst (asm) wp_rel, subst (asm) wp_rel)
-  apply(subst wp_rel, simp add: p2r_def)
+  assumes "(\<lceil>I1\<rceil>\<^sub>\<bullet>) s \<subseteq> ((wp [{x\<acute>=f}T S @ t0 & G] \<lceil>I1\<rceil>)\<^sub>\<bullet>) s"
+    and "(\<lceil>I2\<rceil>\<^sub>\<bullet>) s \<subseteq> ((wp [{x\<acute>=f}T S @ t0 & G] \<lceil>I2\<rceil>)\<^sub>\<bullet>) s"
+  shows "(\<lceil>\<lambda>s. I1 s \<and> I2 s\<rceil>\<^sub>\<bullet>) s \<subseteq> ((wp [{x\<acute>=f}T S @ t0 & G] \<lceil>\<lambda>s. I1 s \<and> I2 s\<rceil>)\<^sub>\<bullet>) s"
+  using assms apply(subst (asm) wp_nd_fun, subst (asm) wp_nd_fun)
+  apply(subst wp_nd_fun, simp add: Abs_nd_fun_inverse)
   by blast
 
 lemma dInvariant_join:
-  assumes "\<lceil>I1\<rceil> \<subseteq> wp ({[x\<acute>=f]T S @ t0 & G}) \<lceil>I1\<rceil>"
-    and "\<lceil>I2\<rceil> \<subseteq> wp ({[x\<acute>=f]T S @ t0 & G}) \<lceil>I2\<rceil>"
-  shows "\<lceil>\<lambda>s. I1 s \<or> I2 s\<rceil> \<subseteq> wp ({[x\<acute>=f]T S @ t0 & G}) \<lceil>\<lambda>s. I1 s \<or> I2 s\<rceil>"
-  using assms apply(subst (asm) wp_rel, subst (asm) wp_rel)
-  apply(subst wp_rel, simp add: p2r_def)
+  assumes "(\<lceil>I1\<rceil>\<^sub>\<bullet>) s \<subseteq> ((wp [{x\<acute>=f}T S @ t0 & G] \<lceil>I1\<rceil>)\<^sub>\<bullet>) s"
+    and "(\<lceil>I2\<rceil>\<^sub>\<bullet>) s \<subseteq> ((wp [{x\<acute>=f}T S @ t0 & G] \<lceil>I2\<rceil>)\<^sub>\<bullet>) s"
+  shows "(\<lceil>\<lambda>s. I1 s \<or> I2 s\<rceil>\<^sub>\<bullet>) s \<subseteq> ((wp [{x\<acute>=f}T S @ t0 & G] \<lceil>\<lambda>s. I1 s \<or> I2 s\<rceil>)\<^sub>\<bullet>) s"
+  using assms apply(subst (asm) wp_nd_fun, subst (asm) wp_nd_fun)
+  apply(subst wp_nd_fun, simp add: Abs_nd_fun_inverse)
   by blast
 
 end
