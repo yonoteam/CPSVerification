@@ -17,6 +17,32 @@ no_notation Archimedean_Field.ceiling ("\<lceil>_\<rceil>")
 
 subsection{* Weakest Liberal Preconditions *}
 
+lemma (in antidomain_kleene_algebra) fbox_starI: 
+assumes "d p \<le> d i" and "d i \<le> |x] i" and "d i \<le> d q"
+shows "d p \<le> |x\<^sup>\<star>] q"
+proof-
+from \<open>d i \<le> |x] i\<close> have "d i \<le> |x] (d i)"
+  using local.fbox_simp by auto 
+hence "|1] p \<le> |x\<^sup>\<star>] i" using \<open>d p \<le> d i\<close> by (metis (no_types) 
+  local.dual_order.trans local.fbox_one local.fbox_simp local.fbox_star_induct_var)
+thus ?thesis using \<open>d i \<le> d q\<close> by (metis (full_types)
+  local.fbox_mult local.fbox_one local.fbox_seq_var local.fbox_simp)
+qed
+
+lemma rel_ad_mka_starI:
+assumes "P \<subseteq> I" and "I \<subseteq> wp R I" and "I \<subseteq> Q"
+shows "P \<subseteq> wp (R\<^sup>*) Q"
+proof-
+  have "wp R I \<subseteq> Id"
+    by (simp add: rel_antidomain_kleene_algebra.a_subid rel_antidomain_kleene_algebra.fbox_def)
+  hence "P \<subseteq> Id" using assms(1,2) by blast
+  from this have "rdom P = P" by (metis d_p2r p2r_surj)
+  also have "rdom P \<subseteq> wp (R\<^sup>*) Q"
+    by (metis \<open>wp R I \<subseteq> Id\<close> assms d_p2r p2r_surj 
+        rel_antidomain_kleene_algebra.dka.dom_iso rel_antidomain_kleene_algebra.fbox_starI)
+  ultimately show ?thesis by blast
+qed
+
 lemma wp_rel:"wp R \<lceil>P\<rceil> = \<lceil>\<lambda> x. \<forall> y. (x,y) \<in> R \<longrightarrow> P y\<rceil>"
 proof-
   have "\<lfloor>wp R \<lceil>P\<rceil>\<rfloor> = \<lfloor>\<lceil>\<lambda> x. \<forall> y. (x,y) \<in> R \<longrightarrow> P y\<rceil>\<rfloor>" 

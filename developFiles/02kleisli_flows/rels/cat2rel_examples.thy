@@ -5,7 +5,7 @@ begin
 
 subsection{* Examples *}
 
-text{* Here we do our first verification example: the single-hop bouncing ball. We do it in two ways.
+text{* Here we do our first verification example: the single-evolution ball. We do it in two ways.
 The first one provides (1) a finite type and (2) its corresponding problem-specific vector-field and
 flow. The second approach uses an existing finite type and defines a more general vector-field which
 is later instantiated to the problem at hand.*}
@@ -42,7 +42,7 @@ lemma three_exhaust:"\<forall> x::three. x = Abs_three 0 \<or> x = Abs_three 1 \
   using three_univD by auto
 
 text{* Next we use our recently created type to generate a 3-dimensional vector space. We then define 
-the vector field and the flow for the single-hop ball on this vector space. Then we follow the 
+the vector field and the flow for the single-evolution ball on this vector space. Then we follow the 
 standard procedure to prove that they are in fact a Lipschitz vector-field and a its flow. *}
 
 abbreviation "free_fall_kinematics (s::real^three) \<equiv> (\<chi> i. if i=(Abs_three 0) then s $ (Abs_three 1) else 
@@ -92,7 +92,7 @@ lemma free_fall_flow_is_local_flow:
     using three_univD by fastforce
   done
 
-text{* We end the first example by computing the wlp of the kinematics for the single-hop bouncing
+text{* We end the first example by computing the wlp of the kinematics for the single-evolution
 ball and then using it to verify "its safety".*}
 
 corollary free_fall_flow_DS:
@@ -213,8 +213,7 @@ lemma flow_for_K_is_local_flow:
     using UNIV_3 by fastforce+
   done
 
-text{* Finally, we compute the wlp of these example and use it to verify the single-hop bouncing ball
-again.*}
+text{* Finally, we compute the wlp of these example and use it to verify the single-evolution ball again.*}
 
 corollary flow_for_K_DS:
   assumes "0 \<le> t" and "t < 1/9"
@@ -234,9 +233,23 @@ lemma single_evolution_ball_K:
 term "{[x\<acute>= (f::real^three \<Rightarrow> real^three)]T S @ t0 & G}"
 term "{(s, (\<chi> i. ((($) s)(x := expr)) i))| s. True}" (* assignment *)
 
+lemma bouncing_ball_invariant:"0 \<le> x \<Longrightarrow> 0 < g \<Longrightarrow> 2 \<cdot> g \<cdot> x = 2 \<cdot> g \<cdot> H - v \<cdot> v \<Longrightarrow> (x::real) \<le> H"
+proof-
+assume "0 \<le> x" and "0 < g" and "2 \<cdot> g \<cdot> x = 2 \<cdot> g \<cdot> H - v \<cdot> v"
+then have "v \<cdot> v = 2 \<cdot> g \<cdot> H - 2 \<cdot> g \<cdot> x \<and> 0 < g" by auto
+hence *:"v \<cdot> v = 2 \<cdot> g \<cdot> (H - x) \<and> 0 < g \<and> v \<cdot> v \<ge> 0" 
+  using left_diff_distrib mult.commute by (metis zero_le_square) 
+from this have "(v \<cdot> v)/(2 \<cdot> g) = (H - x)" by auto 
+also from * have "(v \<cdot> v)/(2 \<cdot> g) \<ge> 0"
+by (meson divide_nonneg_pos linordered_field_class.sign_simps(44) zero_less_numeral) 
+ultimately have "H - x \<ge> 0" by linarith
+thus ?thesis by auto
+qed
+
+
 lemma bouncing_ball:
-  fixes  x v g ::three
-  (* assumes "x \<noteq> v" and "v \<noteq> g" and "x \<noteq> g" *)
+  fixes  x v g ::3
+  assumes "x \<noteq> v" and "v \<noteq> g" and "x \<noteq> g"
   (* assumes "x = Abs_three 0" and "v = Abs_three 1" and "g = Abs_three 2" *)
   shows "\<lceil>\<lambda>s. (0::real) \<le> s $ x \<and> s $ x = H \<and> s $ v = 0 \<and> 0 < s $ g\<rceil> \<subseteq> wp 
   (({[x\<acute>=\<lambda>s. (\<chi> i. if i=x then s $ v else 
@@ -246,7 +259,13 @@ lemma bouncing_ball:
    ELSE ({(s, (\<chi> i. ((($) s)(v := s $ v)) i))| s. True}) FI)
   )\<^sup>*)
   \<lceil>\<lambda>s. 0 \<le> s $ x \<and> s $ x \<le> H\<rceil>"
-  apply simp
+  thm fbox_starI rel_ad_mka_starI
+  apply(rule rel_ad_mka_starI[of _ "\<lceil>\<lambda>s. 0 \<le> s $ x \<and> 0 < s $ g \<and> 2 \<cdot> s $ g \<cdot> s $ x = 2 \<cdot> s $ g \<cdot> H - (s $ v \<cdot> s $ v)\<rceil>"])
+    apply simp
+   defer
+  apply(auto simp: bouncing_ball_invariant)[1]
+  apply(subst flow_for_K_DS)
+
   oops
 
 (* FOR FUTURE REFERENCE *)
