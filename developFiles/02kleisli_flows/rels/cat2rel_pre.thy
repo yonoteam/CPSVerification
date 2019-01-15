@@ -17,6 +17,48 @@ no_notation Archimedean_Field.ceiling ("\<lceil>_\<rceil>")
 
 subsection{* Weakest Liberal Preconditions *}
 
+lemma p2r_IdD:"\<lceil>P\<rceil> = Id \<Longrightarrow> P s"
+  by (metis (full_types) UNIV_I impl_prop p2r_subid top_empty_eq)
+
+definition f2r :: "('a \<Rightarrow> 'b set) \<Rightarrow> ('a \<times> 'b) set" ("\<R>") where
+  "\<R> f = {(x,y). y \<in> f x}"
+
+lemma case_of_fst[simp]:"(\<lambda>x. case x of (t, x) \<Rightarrow> f t) = (\<lambda> x. (f \<circ> fst) x)"
+  by auto
+
+lemma case_of_snd[simp]:"(\<lambda>x. case x of (t, x) \<Rightarrow> f x) = (\<lambda> x. (f \<circ> snd) x)"
+  by auto
+
+lemma wp_rel:"wp R \<lceil>P\<rceil> = \<lceil>\<lambda> x. \<forall> y. (x,y) \<in> R \<longrightarrow> P y\<rceil>"
+proof-
+  have "\<lfloor>wp R \<lceil>P\<rceil>\<rfloor> = \<lfloor>\<lceil>\<lambda> x. \<forall> y. (x,y) \<in> R \<longrightarrow> P y\<rceil>\<rfloor>" 
+    by (simp add: wp_trafo pointfree_idE)
+  thus "wp R \<lceil>P\<rceil> = \<lceil>\<lambda> x. \<forall> y. (x,y) \<in> R \<longrightarrow> P y\<rceil>" 
+    by (metis (no_types, lifting) wp_simp d_p2r pointfree_idE prp) 
+qed
+
+corollary wp_relD:"(x,x) \<in> wp R \<lceil>P\<rceil> \<Longrightarrow> \<forall> y. (x,y) \<in> R \<longrightarrow> P y"
+proof-
+  assume "(x,x) \<in> wp R \<lceil>P\<rceil>"
+  hence "(x,x) \<in> \<lceil>\<lambda> x. \<forall> y. (x,y) \<in> R \<longrightarrow> P y\<rceil>" using wp_rel by auto
+  thus "\<forall> y. (x,y) \<in> R \<longrightarrow> P y" by (simp add: p2r_def)
+qed
+
+lemma wp_simp_sym:"wp R P = \<lceil>\<lfloor>wp R P\<rfloor>\<rceil>"
+  using d_p2r wp_simp by blast
+
+abbreviation vec_upd :: "('a^'b) \<Rightarrow> 'b \<Rightarrow> 'a \<Rightarrow> 'a^'b" ("_(2[_ :== _])" [70, 65] 61) where 
+"x[i :== a] \<equiv> (\<chi> j. (if j = i then a else (x $ j)))"
+
+abbreviation assign :: "'b \<Rightarrow> ('a^'b \<Rightarrow> 'a) \<Rightarrow> ('a^'b) rel" ("(2[_ ::== _])" [70, 65] 61) where 
+   "[x ::== expr]\<equiv> {(s, s[x :== expr s])| s. True}" 
+
+lemma wp_assign [simp]: "wp ([x ::== expr]) \<lceil>Q\<rceil> = \<lceil>\<lambda>s. Q (s[x :== expr s])\<rceil>"
+  by(auto simp: rel_antidomain_kleene_algebra.fbox_def rel_ad_def p2r_def)
+
+lemma wp_assign_var [simp]: "\<lfloor>wp ([x ::== expr]) \<lceil>Q\<rceil>\<rfloor> = (\<lambda>s. Q (s[x :== expr s]))"
+  by(subst wp_assign, simp add: pointfree_idE)
+
 lemma (in antidomain_kleene_algebra) fbox_starI: 
 assumes "d p \<le> d i" and "d i \<le> |x] i" and "d i \<le> d q"
 shows "d p \<le> |x\<^sup>\<star>] q"
@@ -43,33 +85,6 @@ proof-
   ultimately show ?thesis by blast
 qed
 
-lemma wp_rel:"wp R \<lceil>P\<rceil> = \<lceil>\<lambda> x. \<forall> y. (x,y) \<in> R \<longrightarrow> P y\<rceil>"
-proof-
-  have "\<lfloor>wp R \<lceil>P\<rceil>\<rfloor> = \<lfloor>\<lceil>\<lambda> x. \<forall> y. (x,y) \<in> R \<longrightarrow> P y\<rceil>\<rfloor>" 
-    by (simp add: wp_trafo pointfree_idE)
-  thus "wp R \<lceil>P\<rceil> = \<lceil>\<lambda> x. \<forall> y. (x,y) \<in> R \<longrightarrow> P y\<rceil>" 
-    by (metis (no_types, lifting) wp_simp d_p2r pointfree_idE prp) 
-qed
-
-corollary wp_relD:"(x,x) \<in> wp R \<lceil>P\<rceil> \<Longrightarrow> \<forall> y. (x,y) \<in> R \<longrightarrow> P y"
-proof-
-  assume "(x,x) \<in> wp R \<lceil>P\<rceil>"
-  hence "(x,x) \<in> \<lceil>\<lambda> x. \<forall> y. (x,y) \<in> R \<longrightarrow> P y\<rceil>" using wp_rel by auto
-  thus "\<forall> y. (x,y) \<in> R \<longrightarrow> P y" by (simp add: p2r_def)
-qed
-
-lemma p2r_IdD:"\<lceil>P\<rceil> = Id \<Longrightarrow> P s"
-  by (metis (full_types) UNIV_I impl_prop p2r_subid top_empty_eq)
-
-definition f2r :: "('a \<Rightarrow> 'b set) \<Rightarrow> ('a \<times> 'b) set" ("\<R>") where
-  "\<R> f = {(x,y). y \<in> f x}"
-
-lemma case_of_fst[simp]:"(\<lambda>x. case x of (t, x) \<Rightarrow> f t) = (\<lambda> x. (f \<circ> fst) x)"
-  by auto
-
-lemma case_of_snd[simp]:"(\<lambda>x. case x of (t, x) \<Rightarrow> f x) = (\<lambda> x. (f \<circ> snd) x)"
-  by auto
-
 subsection{* Real Numbers and Derivatives *}
 
 lemma sqrt_le_itself: "1 \<le> x \<Longrightarrow> sqrt x \<le> x"
@@ -78,6 +93,12 @@ lemma sqrt_le_itself: "1 \<le> x \<Longrightarrow> sqrt x \<le> x"
 
 lemma sqrt_real_nat_le:"sqrt (real n) \<le> real n"
   by (metis (full_types) abs_of_nat le_square of_nat_mono of_nat_mult real_sqrt_abs2 real_sqrt_le_iff)
+
+lemma closed_segment_mvt:
+  fixes f :: "real \<Rightarrow> real"
+  assumes "(\<And>r. r\<in>{a--b} \<Longrightarrow> (f has_derivative f' r) (at r within {a--b}))" and "a \<le> b"
+  shows "\<exists>r\<in>{a--b}. f b - f a = f' r (b - a)"
+  using assms closed_segment_eq_real_ivl and mvt_very_simple by auto
 
 lemma componentwise_solves:
   fixes f::"(('a::banach)^('n::finite)) \<Rightarrow> ('a^'n)" and \<phi>::"real \<Rightarrow> ('a^'n)"

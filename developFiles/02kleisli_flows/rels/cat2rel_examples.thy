@@ -104,7 +104,8 @@ corollary free_fall_flow_DS:
 
 lemma single_evolution_ball:
   assumes "0 \<le> t" and "t < 1" 
-  shows "\<lceil>\<lambda>s. (0::real) \<le> s $ (Abs_three 0) \<and> s $ (Abs_three 0) = H \<and> s $ (Abs_three 1) = 0 \<and> 0 > s $ (Abs_three 2)\<rceil> 
+  shows 
+ "\<lceil>\<lambda>s. (0::real) \<le> s $ (Abs_three 0) \<and> s $ (Abs_three 0) = H \<and> s $ (Abs_three 1) = 0 \<and> 0 > s $ (Abs_three 2)\<rceil> 
   \<subseteq> wp ({[x\<acute>=\<lambda>s. free_fall_kinematics s]{0..t} UNIV @ 0 & (\<lambda> s. s $ (Abs_three 0) \<ge> 0)})
          \<lceil>\<lambda>s. 0 \<le> s $ (Abs_three 0) \<and> s $ (Abs_three 0) \<le> H\<rceil>"
   apply(subst free_fall_flow_DS)
@@ -193,15 +194,14 @@ lemma "0 \<le> t \<Longrightarrow> t < 1/9 \<Longrightarrow> picard_ivp (\<lambd
   apply(rule picard_ivp_linear_system)
   unfolding entries_K by auto
 
-lemma flow_for_K_solves_K:
-  "((\<lambda> \<tau>. flow_for_K \<tau> s) solves_ode (\<lambda>t s.  K *v s)) {0..t} UNIV"
+lemma flow_for_K_solves_K: "((\<lambda> \<tau>. flow_for_K \<tau> s) solves_ode (\<lambda>t s.  K *v s)) {0..t} UNIV"
   apply (rule componentwise_solves)
   apply(simp add: solves_ode_def)
   using poly_derivatives(1, 3, 4) 
   by(auto simp: matrix_vector_mult_def)
 
-lemma flow_for_K_is_local_flow:
-"0 \<le> t \<Longrightarrow> t < 1/9 \<Longrightarrow> local_flow (\<lambda> s. K *v s) UNIV {0..t} ((real CARD(3))\<^sup>2 \<cdot> maxAbs K) (\<lambda> t x. flow_for_K t x)"
+lemma flow_for_K_is_local_flow: "0 \<le> t \<Longrightarrow> t < 1/9 \<Longrightarrow> 
+  local_flow (\<lambda> s. K *v s) UNIV {0..t} ((real CARD(3))\<^sup>2 \<cdot> maxAbs K) (\<lambda> t x. flow_for_K t x)"
   unfolding local_flow_def local_flow_axioms_def apply safe
   subgoal apply(rule picard_ivp_linear_system)
     unfolding entries_K by auto
@@ -213,7 +213,7 @@ lemma flow_for_K_is_local_flow:
     using UNIV_3 by fastforce+
   done
 
-text{* Finally, we compute the wlp of these example and use it to verify the single-evolution ball again.*}
+text{* Finally, we compute the wlp of this example and use it to verify the single-evolution ball again.*}
 
 corollary flow_for_K_DS:
   assumes "0 \<le> t" and "t < 1/9"
@@ -230,43 +230,109 @@ lemma single_evolution_ball_K:
   apply(subst flow_for_K_DS)
   using assms by(simp_all add: mult_nonneg_nonpos2)
 
-term "{[x\<acute>= (f::real^three \<Rightarrow> real^three)]T S @ t0 & G}"
-term "{(s, (\<chi> i. ((($) s)(x := expr)) i))| s. True}" (* assignment *)
+subsubsection{* Bouncing Ball *}
+text{* Armed now with two vector fields for free-fall kinematics and their respective flows, proving
+the safety of a ``bouncing ball'' is merely an exercise of real arithmetic: *}
 
-lemma bouncing_ball_invariant:"0 \<le> x \<Longrightarrow> 0 < g \<Longrightarrow> 2 \<cdot> g \<cdot> x = 2 \<cdot> g \<cdot> H - v \<cdot> v \<Longrightarrow> (x::real) \<le> H"
+named_theorems bb_real_arith "real arithmetic properties for the bouncing ball."
+
+lemma [bb_real_arith]:"0 \<le> x \<Longrightarrow> 0 > g \<Longrightarrow> 2 \<cdot> g \<cdot> x = 2 \<cdot> g \<cdot> H + v \<cdot> v \<Longrightarrow> (x::real) \<le> H"
 proof-
-assume "0 \<le> x" and "0 < g" and "2 \<cdot> g \<cdot> x = 2 \<cdot> g \<cdot> H - v \<cdot> v"
-then have "v \<cdot> v = 2 \<cdot> g \<cdot> H - 2 \<cdot> g \<cdot> x \<and> 0 < g" by auto
-hence *:"v \<cdot> v = 2 \<cdot> g \<cdot> (H - x) \<and> 0 < g \<and> v \<cdot> v \<ge> 0" 
-  using left_diff_distrib mult.commute by (metis zero_le_square) 
-from this have "(v \<cdot> v)/(2 \<cdot> g) = (H - x)" by auto 
-also from * have "(v \<cdot> v)/(2 \<cdot> g) \<ge> 0"
-by (meson divide_nonneg_pos linordered_field_class.sign_simps(44) zero_less_numeral) 
-ultimately have "H - x \<ge> 0" by linarith
-thus ?thesis by auto
+  assume "0 \<le> x" and "0 > g" and "2 \<cdot> g \<cdot> x = 2 \<cdot> g \<cdot> H + v \<cdot> v"
+  then have "v \<cdot> v = 2 \<cdot> g \<cdot> x - 2 \<cdot> g \<cdot> H \<and> 0 > g" by auto
+  hence *:"v \<cdot> v = 2 \<cdot> g \<cdot> (x - H) \<and> 0 > g \<and> v \<cdot> v \<ge> 0" 
+    using left_diff_distrib mult.commute by (metis zero_le_square) 
+  from this have "(v \<cdot> v)/(2 \<cdot> g) = (x - H)" by auto 
+  also from * have "(v \<cdot> v)/(2 \<cdot> g) \<le> 0"
+    using divide_nonneg_neg by fastforce 
+  ultimately have "H - x \<ge> 0" by linarith
+  thus ?thesis by auto
 qed
 
+lemma [bb_real_arith]:
+  assumes invar:"2 \<cdot> g \<cdot> x = 2 \<cdot> g \<cdot> H + v \<cdot> v"
+    and pos:"g \<cdot> \<tau>\<^sup>2 / 2 + v \<cdot> \<tau> + (x::real) = 0"
+  shows "2 \<cdot> g \<cdot> H + (- (g \<cdot> \<tau>) - v) \<cdot> (- (g \<cdot> \<tau>) - v) = 0"
+proof-
+  from pos have "g \<cdot> \<tau>\<^sup>2  + 2 \<cdot> v \<cdot> \<tau> + 2 \<cdot> x = 0" by auto
+  then have "g\<^sup>2  \<cdot> \<tau>\<^sup>2  + 2 \<cdot> g \<cdot> v \<cdot> \<tau> + 2 \<cdot> g \<cdot> x = 0"
+    by (metis (mono_tags, hide_lams) Groups.mult_ac(1,3) mult_zero_right
+        monoid_mult_class.power2_eq_square semiring_class.distrib_left)
+  hence "g\<^sup>2 \<cdot> \<tau>\<^sup>2 + 2 \<cdot> g \<cdot> v \<cdot> \<tau> + v\<^sup>2 + 2 \<cdot> g \<cdot> H = 0"
+    using invar by (simp add: monoid_mult_class.power2_eq_square) 
+  from this have "(g \<cdot> \<tau> + v)\<^sup>2 + 2 \<cdot> g \<cdot> H = 0"
+    apply(subst power2_sum) by (metis (no_types, hide_lams) Groups.add_ac(2, 3) 
+        Groups.mult_ac(2, 3) monoid_mult_class.power2_eq_square nat_distrib(2))
+  hence "2 \<cdot> g \<cdot> H + (- ((g \<cdot> \<tau>) + v))\<^sup>2 = 0"
+    by (metis Groups.add_ac(2) power2_minus)
+  thus ?thesis
+    by (simp add: monoid_mult_class.power2_eq_square)
+qed
+    
+lemma [bb_real_arith]:
+  assumes invar:"2 \<cdot> g \<cdot> x = 2 \<cdot> g \<cdot> H + v \<cdot> v"
+  shows "2 \<cdot> g \<cdot> (g \<cdot> \<tau>\<^sup>2 / 2 + v \<cdot> \<tau> + (x::real)) = 
+  2 \<cdot> g \<cdot> H + (g \<cdot> \<tau> \<cdot> (g \<cdot> \<tau> + v) + v \<cdot> (g \<cdot> \<tau> + v))" (is "?lhs = ?rhs")
+proof-
+  have "?lhs = g\<^sup>2 \<cdot> \<tau>\<^sup>2 + 2 \<cdot> g \<cdot> v \<cdot> \<tau> + 2 \<cdot> g \<cdot> x" 
+      apply(subst Rat.sign_simps(18))+ 
+      by(auto simp: semiring_normalization_rules(29))
+    also have "... = g\<^sup>2 \<cdot> \<tau>\<^sup>2 + 2 \<cdot> g \<cdot> v \<cdot> \<tau> + 2 \<cdot> g \<cdot> H + v \<cdot> v" (is "... = ?middle")
+      by(subst invar, simp)
+    finally have "?lhs = ?middle".
+  moreover 
+  {have "?rhs = g \<cdot> g \<cdot> (\<tau> \<cdot> \<tau>) + 2 \<cdot> g \<cdot> v \<cdot> \<tau> + 2 \<cdot> g \<cdot> H + v \<cdot> v"
+    by (simp add: Groups.mult_ac(2,3) semiring_class.distrib_left)
+  also have "... = ?middle"
+    by (simp add: semiring_normalization_rules(29))
+  finally have "?rhs = ?middle".}
+  ultimately show ?thesis by auto
+qed
 
 lemma bouncing_ball:
-  fixes  x v g ::3
-  assumes "x \<noteq> v" and "v \<noteq> g" and "x \<noteq> g"
-  (* assumes "x = Abs_three 0" and "v = Abs_three 1" and "g = Abs_three 2" *)
-  shows "\<lceil>\<lambda>s. (0::real) \<le> s $ x \<and> s $ x = H \<and> s $ v = 0 \<and> 0 < s $ g\<rceil> \<subseteq> wp 
-  (({[x\<acute>=\<lambda>s. (\<chi> i. if i=x then s $ v else 
-                (if i=v then - s $ g else 0))]{0..t} UNIV @ 0 & (\<lambda> s. s $ x \<ge> 0)};
-  (IF (\<lambda> s. s $ x = 0) 
-   THEN ({(s, (\<chi> i. ((($) s)(v := (- s $ v))) i))| s. True}) 
-   ELSE ({(s, (\<chi> i. ((($) s)(v := s $ v)) i))| s. True}) FI)
-  )\<^sup>*)
-  \<lceil>\<lambda>s. 0 \<le> s $ x \<and> s $ x \<le> H\<rceil>"
-  thm fbox_starI rel_ad_mka_starI
-  apply(rule rel_ad_mka_starI[of _ "\<lceil>\<lambda>s. 0 \<le> s $ x \<and> 0 < s $ g \<and> 2 \<cdot> s $ g \<cdot> s $ x = 2 \<cdot> s $ g \<cdot> H - (s $ v \<cdot> s $ v)\<rceil>"])
-    apply simp
-   defer
-  apply(auto simp: bouncing_ball_invariant)[1]
-  apply(subst flow_for_K_DS)
+  assumes "0 \<le> t" and "t < 1/9" 
+  shows "\<lceil>\<lambda>s. (0::real) \<le> s $ (0::3) \<and> s $ 0 = H \<and> s $ 1 = 0 \<and> 0 > s $ 2\<rceil> \<subseteq> wp 
+  (({[x\<acute>=\<lambda>s. K *v s]{0..t} UNIV @ 0 & (\<lambda> s. s $ 0 \<ge> 0)};
+  (IF (\<lambda> s. s $ 0 = 0) THEN ([1 ::== (\<lambda>s. - s $ 1)]) ELSE Id FI))\<^sup>*)
+  \<lceil>\<lambda>s. 0 \<le> s $ 0 \<and> s $ 0 \<le> H\<rceil>"
+  apply(rule rel_ad_mka_starI [of _ "\<lceil>\<lambda>s. 0 \<le> s $ (0::3) \<and> 0 > s $ 2 \<and> 
+  2 \<cdot> s $ 2 \<cdot> s $ 0 = 2 \<cdot> s $ 2 \<cdot> H + (s $ 1 \<cdot> s $ 1)\<rceil>"])
+    apply(simp, simp only: rel_antidomain_kleene_algebra.fbox_seq)
+   apply(subst wp_simp_sym[of "(IF (\<lambda>s. s $ 0 = 0) THEN ([1 ::== (\<lambda>s. - s $ 1)]) ELSE Id FI)"])
+   apply(subst flow_for_K_DS) using assms apply(simp, simp) apply(subst wp_trafo)
+  by(auto simp: p2r_def rel_antidomain_kleene_algebra.cond_def 
+      rel_antidomain_kleene_algebra.ads_d_def rel_ad_def closed_segment_eq_real_ivl bb_real_arith)
 
-  oops
+lemma wp_simp:"\<lceil>\<lfloor>wp R P\<rfloor>\<rceil> = wp R P" (* RENAME THIS AND ITS PARTNER *)
+  by(rule sym, subst wp_simp_sym, simp)
+
+lemma bouncing_ball_invariants:
+  assumes "0 \<le> t" and "t < 1/9" 
+  shows"\<lceil>\<lambda>s. (0::real) \<le> s $ (0::3) \<and> s $ 0 = H \<and> s $ 1 = 0 \<and> 0 > s $ 2\<rceil> \<subseteq> wp 
+  (({[x\<acute>=\<lambda>s. K *v s]{0..t} UNIV @ 0 & (\<lambda> s. s $ 0 \<ge> 0)};
+  (IF (\<lambda> s. s $ 0 = 0) THEN ([1 ::== (\<lambda>s. - s $ 1)]) ELSE Id FI))\<^sup>*)
+  \<lceil>\<lambda>s. 0 \<le> s $ 0 \<and> s $ 0 \<le> H\<rceil>"
+  apply(rule rel_ad_mka_starI [of _ "\<lceil>\<lambda>s. 0 \<le> s $ (0::3) \<and> 0 > s $ 2 \<and> 
+  2 \<cdot> s $ 2 \<cdot> s $ 0 = 2 \<cdot> s $ 2 \<cdot> H + (s $ 1 \<cdot> s $ 1)\<rceil>"])
+    apply(simp, simp only: rel_antidomain_kleene_algebra.fbox_seq)
+   apply(subst wp_simp_sym[of "(IF (\<lambda>s. s $ 0 = 0) THEN ([1 ::== (\<lambda>s. - s $ 1)]) ELSE Id FI)"])
+   prefer 2 apply(auto simp: bb_real_arith)[1]
+  apply(rule dCut[of _ _ _ _ _ _ "\<lambda> s.  s $ 2 < 0"])
+  using assms(1) apply(simp, simp add: interval_def)
+   apply(rule_tac \<theta>="\<lambda>s. s $ 2" and \<nu>="\<lambda>s. 0" in dInvariant_below_0)
+  subgoal 
+    apply clarsimp
+    thm componentwise_solves
+    sorry
+      apply(simp, simp, simp, simp add: \<open>0 \<le> t\<close>)
+  apply(rule dCut[of _ _ _ _ _ _ "\<lambda> s.  2 \<cdot> s $ 2 \<cdot> s $ 0 - 2 \<cdot> s $ 2 \<cdot> H - s $ 1 \<cdot> s $ 1 = 0"])
+  using assms(1) apply(simp, simp add: interval_def)
+  apply(rule_tac \<theta>="\<lambda>s. 2 \<cdot> s $ 2 \<cdot> s $ 0 - 2 \<cdot> s $ 2 \<cdot> H - s $ 1 \<cdot> s $ 1" in dInvariant_eq_0)
+  apply(simp, simp add: \<open>0 \<le> t\<close>)
+  apply(rule dWeakening)
+  apply(subst wp_simp)
+  by(auto simp: p2r_def rel_antidomain_kleene_algebra.cond_def 
+      rel_antidomain_kleene_algebra.fbox_def rel_antidomain_kleene_algebra.ads_d_def rel_ad_def)
 
 (* FOR FUTURE REFERENCE *)
 
