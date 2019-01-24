@@ -1,5 +1,5 @@
-theory cat2rel_examples
-  imports cat2rel
+theory cat2funcset_examples
+  imports cat2funcset
 
 begin
 
@@ -106,7 +106,7 @@ lemma single_evolution_ball:
   assumes "0 \<le> t" and "t < 1" 
   shows 
  "\<lceil>\<lambda>s. (0::real) \<le> s $ (Abs_three 0) \<and> s $ (Abs_three 0) = H \<and> s $ (Abs_three 1) = 0 \<and> 0 > s $ (Abs_three 2)\<rceil> 
-  \<subseteq> wp ({[x\<acute>=\<lambda>s. free_fall_kinematics s]{0..t} UNIV @ 0 & (\<lambda> s. s $ (Abs_three 0) \<ge> 0)})
+  \<le> wp ({[x\<acute>=\<lambda>s. free_fall_kinematics s]{0..t} UNIV @ 0 & (\<lambda> s. s $ (Abs_three 0) \<ge> 0)})
          \<lceil>\<lambda>s. 0 \<le> s $ (Abs_three 0) \<and> s $ (Abs_three 0) \<le> H\<rceil>"
   apply(subst free_fall_flow_DS)
   by(simp_all add: assms mult_nonneg_nonpos2)
@@ -224,7 +224,7 @@ corollary flow_for_K_DS:
 lemma single_evolution_ball_K:
   assumes "0 \<le> t" and "t < 1/9" 
   shows "\<lceil>\<lambda>s. (0::real) \<le> s $ (0::3) \<and> s $ 0 = H \<and> s $ 1 = 0 \<and> 0 > s $ 2\<rceil> 
-  \<subseteq> wp ({[x\<acute>=\<lambda>s. K *v s]{0..t} UNIV @ 0 & (\<lambda> s. s $ 0 \<ge> 0)})
+  \<le> wp ({[x\<acute>=\<lambda>s. K *v s]{0..t} UNIV @ 0 & (\<lambda> s. s $ 0 \<ge> 0)})
         \<lceil>\<lambda>s. 0 \<le> s $ 0 \<and> s $ 0 \<le> H\<rceil>"
   apply(subst flow_for_K_DS)
   using assms by(simp_all add: mult_nonneg_nonpos2)
@@ -288,19 +288,26 @@ proof-
   ultimately show ?thesis by auto
 qed
 
+lemma "\<lfloor>wp (IF (\<lambda>s. s $ 0 = 0) THEN ((\<lambda>s. \<eta> (s[1 :== - s $ 1]))\<^sup>\<bullet>) ELSE \<eta>\<^sup>\<bullet> FI) 
+\<lceil>\<lambda>s. 0 \<le> s $ 0 \<and> s $ 2 < 0 \<and> 2 \<cdot> s $ 2 \<cdot> s $ 0 = 2 \<cdot> s $ 2 \<cdot> H + s $ 1 \<cdot> s $ 1\<rceil>\<rfloor> = Q"
+  apply(subst wp_trafo) thm wp_trafo
+  oops
+
 lemma bouncing_ball:
   assumes "0 \<le> t" and "t < 1/9" 
-  shows "\<lceil>\<lambda>s. (0::real) \<le> s $ (0::3) \<and> s $ 0 = H \<and> s $ 1 = 0 \<and> 0 > s $ 2\<rceil> \<subseteq> wp 
-  (({[x\<acute>=\<lambda>s. K *v s]{0..t} UNIV @ 0 & (\<lambda> s. s $ 0 \<ge> 0)};
-  (IF (\<lambda> s. s $ 0 = 0) THEN ([1 ::== (\<lambda>s. - s $ 1)]) ELSE Id FI))\<^sup>*)
+  shows "\<lceil>\<lambda>s. (0::real) \<le> s $ (0::3) \<and> s $ 0 = H \<and> s $ 1 = 0 \<and> 0 > s $ 2\<rceil> \<le> wp 
+  (({[x\<acute>=\<lambda>s. K *v s]{0..t} UNIV @ 0 & (\<lambda> s. s $ 0 \<ge> 0)} \<cdot>
+  (IF (\<lambda> s. s $ 0 = 0) THEN ([1 ::== (\<lambda>s. - s $ 1)]) ELSE \<eta>\<^sup>\<bullet> FI))\<^sup>\<star>)
   \<lceil>\<lambda>s. 0 \<le> s $ 0 \<and> s $ 0 \<le> H\<rceil>"
-  apply(rule rel_ad_mka_starI [of _ "\<lceil>\<lambda>s. 0 \<le> s $ (0::3) \<and> 0 > s $ 2 \<and> 
+  apply(subst star_nd_fun.abs_eq, rule rel_ad_mka_starI [of _ "\<lceil>\<lambda>s. 0 \<le> s $ (0::3) \<and> 0 > s $ 2 \<and> 
   2 \<cdot> s $ 2 \<cdot> s $ 0 = 2 \<cdot> s $ 2 \<cdot> H + (s $ 1 \<cdot> s $ 1)\<rceil>"])
-    apply(simp, simp only: rel_antidomain_kleene_algebra.fbox_seq)
-   apply(subst p2r_r2p_wp_sym[of "(IF (\<lambda>s. s $ 0 = 0) THEN ([1 ::== (\<lambda>s. - s $ 1)]) ELSE Id FI)"])
-   apply(subst flow_for_K_DS) using assms apply(simp, simp) apply(subst wp_trafo)
-  by(auto simp: p2r_def rel_antidomain_kleene_algebra.cond_def 
-      rel_antidomain_kleene_algebra.ads_d_def rel_ad_def closed_segment_eq_real_ivl bb_real_arith)
+    apply(simp, simp only: fbox_seq)
+   apply(subst p2ndf_ndf2p_wp_sym[of "(IF (\<lambda>s. s $ 0 = 0) THEN ([1 ::== (\<lambda>s. - s $ 1)]) ELSE \<eta>\<^sup>\<bullet> FI)"])
+   apply(subst flow_for_K_DS) using assms apply(simp, simp) 
+   apply(subst wp_trafo[of "(IF (\<lambda>s. s $ 0 = 0) THEN ((\<lambda>s. \<eta> (s[1 :== - s $ 1]))\<^sup>\<bullet>) ELSE \<eta>\<^sup>\<bullet> FI)"])
+   apply(auto simp: ads_d_def closed_segment_eq_real_ivl bb_real_arith)
+  apply(subst wp_trafo)
+  oops
 
 subsubsection{* Bouncing Ball with invariants *}
 
@@ -329,24 +336,25 @@ r \<in> {0..\<tau>} \<Longrightarrow> ((\<lambda>\<tau>. 2 \<cdot> x \<tau> $ 2 
 
 lemma bouncing_ball_invariants:
   assumes "0 \<le> t" and "t < 1/9" 
-  shows"\<lceil>\<lambda>s. (0::real) \<le> s $ (0::3) \<and> s $ 0 = H \<and> s $ 1 = 0 \<and> 0 > s $ 2\<rceil> \<subseteq> wp 
-  (({[x\<acute>=\<lambda>s. K *v s]{0..t} UNIV @ 0 & (\<lambda> s. s $ 0 \<ge> 0)};
-  (IF (\<lambda> s. s $ 0 = 0) THEN ([1 ::== (\<lambda>s. - s $ 1)]) ELSE Id FI))\<^sup>*)
+  shows"\<lceil>\<lambda>s. (0::real) \<le> s $ (0::3) \<and> s $ 0 = H \<and> s $ 1 = 0 \<and> 0 > s $ 2\<rceil> \<le> wp 
+  (({[x\<acute>=\<lambda>s. K *v s]{0..t} UNIV @ 0 & (\<lambda> s. s $ 0 \<ge> 0)} \<cdot>
+  (IF (\<lambda> s. s $ 0 = 0) THEN ([1 ::== (\<lambda>s. - s $ 1)]) ELSE \<eta>\<^sup>\<bullet> FI))\<^sup>\<star>)
   \<lceil>\<lambda>s. 0 \<le> s $ 0 \<and> s $ 0 \<le> H\<rceil>"
-  apply(rule_tac I="\<lceil>\<lambda>s. 0 \<le> s$0 \<and> 0 > s$2 \<and> 2 \<cdot> s$2 \<cdot> s$0 = 2 \<cdot> s$2 \<cdot> H + (s$1 \<cdot> s$1)\<rceil>" in rel_ad_mka_starI)
-    apply(simp, simp only: rel_antidomain_kleene_algebra.fbox_seq)
-   apply(subst p2r_r2p_wp_sym[of "(IF (\<lambda>s. s $ 0 = 0) THEN ([1 ::== (\<lambda>s. - s $ 1)]) ELSE Id FI)"])
+  apply(subst star_nd_fun.abs_eq, rule_tac I="\<lceil>\<lambda>s. 0 \<le> s$0 \<and> 0 > s$2 \<and> 2 \<cdot> s$2 \<cdot> s$0 = 2 \<cdot> s$2 \<cdot> H + (s$1 \<cdot> s$1)\<rceil>" in rel_ad_mka_starI)
+    apply(simp, simp only: fbox_seq)
+   apply(subst p2ndf_ndf2p_wp_sym[of "(IF (\<lambda>s. s $ 0 = 0) THEN ([1 ::== (\<lambda>s. - s $ 1)]) ELSE \<eta>\<^sup>\<bullet> FI)"])
   using assms(1) apply(rule dCut_interval[of _ _ _ _ _ _ "\<lambda> s. s $ 2 < 0"])
    apply(rule_tac \<theta>="\<lambda>s. s $ 2" and \<nu>="\<lambda>s. 0" in dInvariant_below_0)
   using gravity_is_invariant apply force
-       apply(simp, simp, simp, simp add: \<open>0 \<le> t\<close>)
+  apply simp apply simp apply(transfer, simp add: le_fun_def, force)
+       apply(simp add: \<open>0 \<le> t\<close>)
    apply(rule_tac C="\<lambda> s. 2 \<cdot> s$2 \<cdot> s$0 - 2 \<cdot> s$2 \<cdot> H - s$1 \<cdot> s$1 = 0" in dCut_interval, simp add: \<open>0 \<le> t\<close>)
    apply(rule_tac \<theta>="\<lambda>s. 2 \<cdot> s$2 \<cdot> s$0 - 2 \<cdot> s$2 \<cdot> H - s$1 \<cdot> s$1" and \<nu>="\<lambda> s. 0" in dInvariant_eq_0)
   using bouncing_ball_invariant apply force
-  apply(simp, simp, simp, simp add: \<open>0 \<le> t\<close>)
-  apply(rule dWeakening, subst p2r_r2p_wp)
-  by(auto simp: bb_real_arith p2r_def rel_antidomain_kleene_algebra.cond_def
-      rel_antidomain_kleene_algebra.fbox_def rel_antidomain_kleene_algebra.ads_d_def rel_ad_def)
+  apply(simp, simp, transfer, simp add: le_fun_def, force, simp add: \<open>0 \<le> t\<close>)
+  apply(rule dWeakening, subst p2ndf_ndf2p_wp)
+   apply(auto simp: bb_real_arith cond_def fbox_def ads_d_def)
+  oops
 
 subsubsection{* Circular motion with invariants *}
 
@@ -441,43 +449,8 @@ qed
 
 lemma circular_motion:
   assumes "0 \<le> t" and "t < 1/4" and "(R::real) > 0"
-  shows"\<lceil>\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2\<rceil> \<subseteq> wp 
+  shows"\<lceil>\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2\<rceil> \<le> wp 
   {[x\<acute>=\<lambda>s. Circ *v s]{0..t} UNIV @ 0 & (\<lambda> s. s $ 0 \<ge> 0)}
   \<lceil>\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2\<rceil>"
   apply(subst flow_for_Circ_DS)
   using assms by simp_all
-  
-
-(* FOR FUTURE REFERENCE *)
-
-thm bij_betwI  bij_betwI' bij_betw_finite
-thm Rep_three  Rep_three_inject Rep_three_cases Rep_three_inverse
-thm           Abs_three_inject Abs_three_cases Abs_three_inverse
-thm vec_nth   vec_nth_inject vec_nth_cases vec_nth_inverse 
-thm           vec_lambda_inject vec_lambda_cases vec_lambda_inverse
-thm L2_set_def norm_vec_def component_le_norm_cart norm_bound_component_le_cart
-thm matrix_vector_mult_def matrix_mult_dot matrix_mult_sum vector_componentwise basis_expansion
-thm card_eq_sum sum_def real_scaleR_def Connected.bounded_has_Sup sum_norm_allsubsets_bound
-thm dist_norm matrix_vector_mult_diff_distrib
-value "card (UNIV :: nat set)"
-term "the_inv"
-term "the_inv_into"
-
-(* PENDING: *)
-
-(* Generalized theorems for each finite type: *)
-lemma fun_1:"f (x::num1) = f 1"
-  apply(subgoal_tac "\<forall> x::num1. f x = f 1")
-  by(erule_tac x="x" in allE, simp_all)
-
-lemma "(\<Sum>(j::num1)\<in>UNIV. axis i 1 $ j \<cdot> f j) = ((f i)::real)"
-  unfolding axis_def apply simp
-  using fun_1 by metis
-
-declare [[show_sorts, show_types]]
-term "x::4" term "x::5" term "x::10" term "x::1000" term "(x::0) = x :: 5"
-
-(* Understand the following concept in Isabelle *)
-term "frechet_derivative"
-
-end

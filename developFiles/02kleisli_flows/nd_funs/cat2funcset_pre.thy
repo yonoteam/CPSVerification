@@ -1,8 +1,7 @@
-theory cat2rel_pre
-  imports
-  flow_locales
-  "afpModified/VC_KAD"
-
+theory cat2funcset_pre
+  imports "Ordinary_Differential_Equations.Initial_Value_Problem" flow_locales
+"Transformer_Semantics.Kleisli_Quantale" "KAD.Modal_Kleene_Algebra"
+                        
 begin
 
 section {* Preliminaries *}
@@ -10,76 +9,182 @@ section {* Preliminaries *}
 text{* This file presents a miscellaneous collection of preliminary lemmas for verification of 
 Hybrid Systems in Isabelle.*}
 
-\<comment> \<open>We start by deleting some conflicting notation.\<close>
+\<comment> \<open>We start by deleting some conflicting notation and introducing some new.\<close>
 no_notation Archimedean_Field.ceiling ("\<lceil>_\<rceil>")
         and Archimedean_Field.floor_ceiling_class.floor ("\<lfloor>_\<rfloor>")
         and Range_Semiring.antirange_semiring_class.ars_r ("r")
+        and Isotone_Transformers.bqtran ("\<lfloor>_\<rfloor>")
+
+notation Abs_nd_fun ("_\<^sup>\<bullet>" [101] 100) and Rep_nd_fun ("_\<^sub>\<bullet>" [101] 100)
+type_synonym 'a pred = "'a \<Rightarrow> bool"
+
+subsection{* Nondeterministic Functions *}
+
+lemma Abs_nd_fun_inverse2[simp]:"(f\<^sup>\<bullet>)\<^sub>\<bullet> = f"
+  by(simp add: Abs_nd_fun_inverse)
+
+lemma nd_fun_ext:"(\<And>x. (f\<^sub>\<bullet>) x = (g\<^sub>\<bullet>) x) \<Longrightarrow> f = g"
+  apply(subgoal_tac "Rep_nd_fun f = Rep_nd_fun g")
+  using Rep_nd_fun_inject apply blast
+  by(rule ext, simp)
+
+instantiation nd_fun :: (type) antidomain_kleene_algebra
+begin
+
+lift_definition antidomain_op_nd_fun :: "'a nd_fun \<Rightarrow> 'a nd_fun" 
+  is "\<lambda>f. (\<lambda>x. if ((f\<^sub>\<bullet>) x = {}) then {x} else {})\<^sup>\<bullet>".
+lift_definition zero_nd_fun :: "'a nd_fun" 
+  is "\<zeta>\<^sup>\<bullet>".
+lift_definition star_nd_fun :: "'a nd_fun \<Rightarrow> 'a nd_fun" 
+  is "\<lambda>(f::'a nd_fun).qstar f".
+lift_definition plus_nd_fun :: "'a nd_fun \<Rightarrow> 'a nd_fun \<Rightarrow> 'a nd_fun" 
+  is "\<lambda>f g.((f\<^sub>\<bullet>) \<squnion> (g\<^sub>\<bullet>))\<^sup>\<bullet>".
+
+named_theorems nd_fun_aka "antidomain kleene algebra properties for nondeterministic functions."
+
+lemma nd_fun_assoc[nd_fun_aka]:"(a::'a nd_fun) + b + c = a + (b + c)"
+  by(transfer, simp add: ksup_assoc)
+
+lemma nd_fun_comm[nd_fun_aka]:"(a::'a nd_fun) + b = b + a"
+  by(transfer, simp add: ksup_comm)
+
+lemma nd_fun_distr[nd_fun_aka]:"((x::'a nd_fun) + y) \<cdot> z = x \<cdot> z + y \<cdot> z"
+  and nd_fun_distl[nd_fun_aka]:"x \<cdot> (y + z) = x \<cdot> y + x \<cdot> z"
+  by(transfer, simp add: kcomp_distr, transfer, simp add: kcomp_distl)
+
+lemma nd_fun_zero_sum[nd_fun_aka]:"0 + (x::'a nd_fun) = x" 
+  and nd_fun_zero_dot[nd_fun_aka]:"0 \<cdot> x = 0"
+  by(transfer, simp, transfer, auto) 
+
+lemma nd_fun_leq[nd_fun_aka]:"((x::'a nd_fun) \<le> y) = (x + y = y)"
+  and nd_fun_leq_add[nd_fun_aka]:" z \<cdot> x \<le> z \<cdot> (x + y)"
+   apply(transfer, metis Abs_nd_fun_inverse2 Rep_nd_fun_inverse le_iff_sup)
+  by(transfer, simp add: kcomp_isol)
+
+lemma nd_fun_ad_zero[nd_fun_aka]: "ad (x::'a nd_fun) \<cdot> x = 0"
+  and nd_fun_ad[nd_fun_aka]: "ad (x \<cdot> y) + ad (x \<cdot> ad (ad y)) = ad (x \<cdot> ad (ad y))"
+  and nd_fun_ad_one[nd_fun_aka]: "ad (ad x) + ad x = 1"
+   apply(transfer, rule nd_fun_ext, simp add: kcomp_def)
+   apply(transfer, rule nd_fun_ext, simp, simp add: kcomp_def)
+  by(transfer, simp, rule nd_fun_ext, simp add: kcomp_def)
+
+lemma nd_star_one[nd_fun_aka]:"1 + (x::'a nd_fun) \<cdot> x\<^sup>\<star> \<le> x\<^sup>\<star>"
+  and nd_star_unfoldl[nd_fun_aka]:"z + x \<cdot> y \<le> y \<Longrightarrow> x\<^sup>\<star> \<cdot> z \<le> y"
+  and nd_star_unfoldr[nd_fun_aka]:"z + y \<cdot> x \<le> y \<Longrightarrow> z \<cdot> x\<^sup>\<star> \<le> y"
+    apply(transfer, metis Abs_nd_fun_inverse Rep_comp_hom UNIV_I fun_star_unfoldr 
+      le_sup_iff less_eq_nd_fun.abs_eq mem_Collect_eq one_nd_fun.abs_eq qstar_comm)
+   apply(transfer, metis (no_types, lifting) Abs_comp_hom Rep_nd_fun_inverse 
+      fun_star_inductl less_eq_nd_fun.transfer sup_nd_fun.transfer)
+  by(transfer, metis qstar_inductr Rep_comp_hom Rep_nd_fun_inverse 
+      less_eq_nd_fun.abs_eq sup_nd_fun.transfer)
+
+instance
+  apply intro_classes apply auto
+  using nd_fun_aka apply simp_all
+  by(transfer; auto)+
+end
 
 subsection{* Weakest Liberal Preconditions *}
 
-lemma p2r_IdD:"\<lceil>P\<rceil> = Id \<Longrightarrow> P s"
-  by (metis (full_types) UNIV_I impl_prop p2r_subid top_empty_eq)
+abbreviation p2ndf :: "'a pred \<Rightarrow> 'a nd_fun" ("(1\<lceil>_\<rceil>)")
+  where "\<lceil>Q\<rceil> \<equiv> (\<lambda> x::'a. {s::'a. s = x \<and> Q s})\<^sup>\<bullet>"
 
-definition f2r :: "('a \<Rightarrow> 'b set) \<Rightarrow> ('a \<times> 'b) set" ("\<R>") where
-  "\<R> f = {(x,y). y \<in> f x}"
+lemma le_p2ndf_iff[simp]:"\<lceil>P\<rceil> \<le> \<lceil>Q\<rceil> = (\<forall>s. P s \<longrightarrow> Q s)"
+  by(transfer, auto simp: le_fun_def)
 
-lemma wp_rel:"wp R \<lceil>P\<rceil> = \<lceil>\<lambda> x. \<forall> y. (x,y) \<in> R \<longrightarrow> P y\<rceil>"
-proof-
-  have "\<lfloor>wp R \<lceil>P\<rceil>\<rfloor> = \<lfloor>\<lceil>\<lambda> x. \<forall> y. (x,y) \<in> R \<longrightarrow> P y\<rceil>\<rfloor>" 
-    by (simp add: wp_trafo pointfree_idE)
-  thus "wp R \<lceil>P\<rceil> = \<lceil>\<lambda> x. \<forall> y. (x,y) \<in> R \<longrightarrow> P y\<rceil>" 
-    by (metis (no_types, lifting) wp_simp d_p2r pointfree_idE prp) 
+abbreviation ndf2p :: "'a nd_fun \<Rightarrow> 'a \<Rightarrow> bool" ("(1\<lfloor>_\<rfloor>)")
+  where "\<lfloor>f\<rfloor> \<equiv> (\<lambda>x. x \<in> Domain (\<R> (f\<^sub>\<bullet>)))"
+
+lemma p2ndf_ndf2p_id:"F \<le> \<eta>\<^sup>\<bullet> \<Longrightarrow> \<lceil>\<lfloor>F\<rfloor>\<rceil> = F"
+  unfolding f2r_def apply(rule nd_fun_ext)
+  apply(subgoal_tac "\<forall>x. (F\<^sub>\<bullet>) x \<subseteq> {x}", simp)
+  by(blast, simp add: le_fun_def less_eq_nd_fun.rep_eq)
+
+abbreviation "wp f \<equiv> fbox (f::'a nd_fun)"
+
+lemma wp_nd_fun:"wp (F\<^sup>\<bullet>) \<lceil>P\<rceil> = \<lceil>\<lambda> x. \<forall> y. y \<in> (F x) \<longrightarrow> P y\<rceil>"
+  apply(simp add: fbox_def, transfer, simp)
+  by(rule nd_fun_ext, auto simp: kcomp_def)
+
+lemma wp_nd_fun_etaD:"wp (F\<^sup>\<bullet>) \<lceil>P\<rceil> = \<eta>\<^sup>\<bullet> \<Longrightarrow>  (\<forall>y. y \<in> (F x) \<longrightarrow> P y)"
+proof
+  fix y assume "wp (F\<^sup>\<bullet>) \<lceil>P\<rceil> = (\<eta>\<^sup>\<bullet>)"
+  from this have "\<eta>\<^sup>\<bullet> = \<lceil>\<lambda>s. \<forall>y. s2p (F s) y \<longrightarrow> P y\<rceil>" 
+    by(subst wp_nd_fun[THEN sym], simp)
+  hence "\<And>x. {x} = {s. s = x \<and> (\<forall>y. s2p (F s) y \<longrightarrow> P y)}"
+    apply(subst (asm) Abs_nd_fun_inject, simp_all)
+    by(drule_tac x="x" in fun_cong, simp)
+  then show "s2p (F x) y \<longrightarrow> P y" by auto
 qed
 
-corollary wp_relD:"(x,x) \<in> wp R \<lceil>P\<rceil> \<Longrightarrow> \<forall> y. (x,y) \<in> R \<longrightarrow> P y"
-proof-
-  assume "(x,x) \<in> wp R \<lceil>P\<rceil>"
-  hence "(x,x) \<in> \<lceil>\<lambda> x. \<forall> y. (x,y) \<in> R \<longrightarrow> P y\<rceil>" using wp_rel by auto
-  thus "\<forall> y. (x,y) \<in> R \<longrightarrow> P y" by (simp add: p2r_def)
-qed
+lemma p2ndf_ndf2p_wp:"\<lceil>\<lfloor>wp R P\<rfloor>\<rceil> = wp R P"
+  apply(rule p2ndf_ndf2p_id)
+  by (simp add: a_subid fbox_def one_nd_fun.transfer) 
 
-lemma p2r_r2p_wp_sym:"wp R P = \<lceil>\<lfloor>wp R P\<rfloor>\<rceil>"
-  using d_p2r wp_simp by blast
+lemma p2ndf_ndf2p_wp_sym:"wp R P = \<lceil>\<lfloor>wp R P\<rfloor>\<rceil>"
+  by(rule sym, simp add: p2ndf_ndf2p_wp)
 
-lemma p2r_r2p_wp:"\<lceil>\<lfloor>wp R P\<rfloor>\<rceil> = wp R P"
-  by(rule sym, subst p2r_r2p_wp_sym, simp)
+lemma wp_trafo: "\<lfloor>wp F \<lceil>Q\<rceil>\<rfloor> = (\<lambda>s. \<forall>s'. s' \<in> (F\<^sub>\<bullet>) s \<longrightarrow> Q s')"  
+  apply(subgoal_tac "F = (F\<^sub>\<bullet>)\<^sup>\<bullet>")
+  apply(rule ssubst[of F "(F\<^sub>\<bullet>)\<^sup>\<bullet>"], simp)
+  apply(subst wp_nd_fun)
+  by(simp_all add: f2r_def)
 
 abbreviation vec_upd :: "('a^'b) \<Rightarrow> 'b \<Rightarrow> 'a \<Rightarrow> 'a^'b" ("_(2[_ :== _])" [70, 65] 61) where 
 "x[i :== a] \<equiv> (\<chi> j. (if j = i then a else (x $ j)))"
 
-abbreviation assign :: "'b \<Rightarrow> ('a^'b \<Rightarrow> 'a) \<Rightarrow> ('a^'b) rel" ("(2[_ ::== _])" [70, 65] 61) where 
-"[x ::== expr]\<equiv> {(s, s[x :== expr s])| s. True}" 
+abbreviation assign :: "'b \<Rightarrow> ('a^'b \<Rightarrow> 'a) \<Rightarrow> ('a^'b) nd_fun" ("(2[_ ::== _])" [70, 65] 61) where 
+"[x ::== expr]\<equiv> (\<lambda>s. {s[x :== expr s]})\<^sup>\<bullet>" 
 
-lemma wp_assign [simp]: "wp ([x ::== expr]) \<lceil>Q\<rceil> = \<lceil>\<lambda>s. Q (s[x :== expr s])\<rceil>"
-  by(auto simp: rel_antidomain_kleene_algebra.fbox_def rel_ad_def p2r_def)
+lemma wp_assign[simp]: "wp ([x ::== expr]) \<lceil>Q\<rceil> = \<lceil>\<lambda>s. Q (s[x :== expr s])\<rceil>"
+  by(subst wp_nd_fun, rule nd_fun_ext, simp)
 
-lemma wp_assign_var [simp]: "\<lfloor>wp ([x ::== expr]) \<lceil>Q\<rceil>\<rfloor> = (\<lambda>s. Q (s[x :== expr s]))"
-  by(subst wp_assign, simp add: pointfree_idE)
+lemma fbox_seq [simp]: "|x \<cdot> y] q = |x] |y] q"
+  by (simp add: fbox_mult) 
+
+definition (in antidomain_kleene_algebra) cond :: "'a \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> 'a" 
+("if _ then _ else _ fi" [64,64,64] 63) where "if p then x else y fi = d p \<cdot> x + ad p \<cdot> y"
+
+abbreviation cond_sugar :: "'a pred \<Rightarrow> 'a nd_fun \<Rightarrow> 'a nd_fun \<Rightarrow> 'a nd_fun" 
+("IF _ THEN _ ELSE _ FI" [64,64,64] 63) where
+  "IF P THEN X ELSE Y FI \<equiv> cond \<lceil>P\<rceil> X Y"
 
 lemma (in antidomain_kleene_algebra) fbox_starI: 
 assumes "d p \<le> d i" and "d i \<le> |x] i" and "d i \<le> d q"
 shows "d p \<le> |x\<^sup>\<star>] q"
-proof-
-from \<open>d i \<le> |x] i\<close> have "d i \<le> |x] (d i)"
-  using local.fbox_simp by auto 
-hence "|1] p \<le> |x\<^sup>\<star>] i" using \<open>d p \<le> d i\<close> by (metis (no_types) 
-  local.dual_order.trans local.fbox_one local.fbox_simp local.fbox_star_induct_var)
-thus ?thesis using \<open>d i \<le> d q\<close> by (metis (full_types)
-  local.fbox_mult local.fbox_one local.fbox_seq_var local.fbox_simp)
-qed
+  by (meson assms local.dual_order.trans local.fbox_iso local.fbox_star_induct_var)
+
+lemma bot_pres_del:"bot_pres (If (\<not> Q x) (\<eta> x)) \<Longrightarrow> Q x"
+  using empty_not_insert by fastforce thm empty_not_insert
+
+lemma nd_fun_ads_d_def:"d (f::'a nd_fun) = (\<lambda>x. if (f\<^sub>\<bullet>) x = {} then {} else \<eta> x )\<^sup>\<bullet>"
+  unfolding ads_d_def apply(rule nd_fun_ext, simp)
+  apply transfer by auto
+
+lemma ads_d_mono: "x \<le> y \<Longrightarrow> d x \<le> d y"
+  by (metis ads_d_def fbox_antitone_var fbox_dom)
+
+lemma nd_fun_top_ads_d:"(x::'a nd_fun) \<le> 1 \<Longrightarrow> d x = x"
+  apply(simp add: ads_d_def, transfer, simp)
+  apply(rule nd_fun_ext, simp)
+  apply(subst (asm) le_fun_def)
+  by auto
 
 lemma rel_ad_mka_starI:
-assumes "P \<subseteq> I" and "I \<subseteq> wp R I" and "I \<subseteq> Q"
-shows "P \<subseteq> wp (R\<^sup>*) Q"
+assumes "P \<le> I" and "I \<le> wp F I" and "I \<le> Q"
+shows "P \<le> wp (qstar F) Q"
 proof-
-  have "wp R I \<subseteq> Id"
-    by (simp add: rel_antidomain_kleene_algebra.a_subid rel_antidomain_kleene_algebra.fbox_def)
-  hence "P \<subseteq> Id" using assms(1,2) by blast
-  from this have "rdom P = P" by (metis d_p2r p2r_surj)
-  also have "rdom P \<subseteq> wp (R\<^sup>*) Q"
-    by (metis \<open>wp R I \<subseteq> Id\<close> assms d_p2r p2r_surj 
-        rel_antidomain_kleene_algebra.dka.dom_iso rel_antidomain_kleene_algebra.fbox_starI)
-  ultimately show ?thesis by blast
+  from assms(1,2) have "P \<le> 1"
+    by (metis a_subid basic_trans_rules(23) fbox_def) 
+  hence "d P = P" using nd_fun_top_ads_d by blast
+  have "\<And> x y. d (wp x y) = wp x y"
+    by(metis ds.ddual.mult_oner fbox_mult fbox_one)
+  from this and assms have "d P \<le> d I \<and> d I \<le> wp F I \<and> d I \<le> d Q"
+    by (metis (no_types) ads_d_mono assms)
+  hence "d P \<le> wp (F\<^sup>\<star>) Q"
+    by(simp add: fbox_starI[of _ I])
+  then show "P \<le> wp (qstar F) Q"
+    using \<open>d P = P\<close> by (transfer, simp)
 qed
 
 subsection{* Real Numbers and Derivatives *}
