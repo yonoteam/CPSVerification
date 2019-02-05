@@ -2,7 +2,7 @@ section {* VC\_diffKAD *}
 theory VC_diffKAD_auxiliarities
 imports
 Main
-"afpModified/VC_KAD"
+"../afpModified/VC_KAD"
 "Ordinary_Differential_Equations.ODE_Analysis"
 
 begin

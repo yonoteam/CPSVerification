@@ -493,4 +493,9 @@ theorem dInvariant_join:
   using impls by auto
 
 
+locale_deps
+
+thm Rep_nd_fun  Rep_nd_fun_inject Rep_nd_fun_cases Rep_nd_fun_inverse
+thm           Abs_nd_fun_inject Abs_nd_fun_cases Abs_nd_fun_inverse 
+
 end

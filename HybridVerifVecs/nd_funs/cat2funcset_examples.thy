@@ -267,11 +267,6 @@ proof-
   thus ?thesis
     by (simp add: monoid_mult_class.power2_eq_square)
 qed
-
-lemma "\<forall> g x v H \<tau>::real. 2 \<cdot> g \<cdot> x = 2 \<cdot> g \<cdot> H + v \<cdot> v \<longrightarrow> 2 \<cdot> g \<cdot> (g \<cdot> \<tau>\<^sup>2 / 2 + v \<cdot> \<tau> + x) = 
-  2 \<cdot> g \<cdot> H + (g \<cdot> \<tau> \<cdot> (g \<cdot> \<tau> + v) + v \<cdot> (g \<cdot> \<tau> + v))"
-  apply eval
-  oops
     
 lemma [bb_real_arith]:
   assumes invar:"2 \<cdot> g \<cdot> x = 2 \<cdot> g \<cdot> H + v \<cdot> v"
@@ -308,10 +303,7 @@ lemma bouncing_ball:
   2 \<cdot> s $ 2 \<cdot> s $ 0 = 2 \<cdot> s $ 2 \<cdot> H + (s $ 1 \<cdot> s $ 1)\<rceil>"])
     apply(simp, simp only: fbox_seq)
    apply(subst p2ndf_ndf2p_wp_sym[of "(IF (\<lambda>s. s $ 0 = 0) THEN ([1 ::== (\<lambda>s. - s $ 1)]) ELSE \<eta>\<^sup>\<bullet> FI)"])
-   apply(subst flow_for_K_DS) using assms apply(simp, simp) 
-   apply(subst wp_trafo[of "(IF (\<lambda>s. s $ 0 = 0) THEN ((\<lambda>s. \<eta> (s[1 :== - s $ 1]))\<^sup>\<bullet>) ELSE \<eta>\<^sup>\<bullet> FI)"])
-   apply(auto simp: ads_d_def closed_segment_eq_real_ivl bb_real_arith)
-  apply(subst wp_trafo)
+   apply(subst flow_for_K_DS) using assms apply(simp, simp)
   oops
 
 subsubsection{* Bouncing Ball with invariants *}
@@ -358,15 +350,6 @@ rule_tac I="\<lceil>\<lambda>s. 0 \<le> s$0 \<and> 0 > s$2 \<and> 2 \<cdot> s$2 
   using bouncing_ball_invariant apply force
   apply(simp, simp, simp, simp add: \<open>0 \<le> t\<close>)
    apply(rule dWeakening, subst p2ndf_ndf2p_wp)
-  apply(subst wp_trafo)
-  apply(subst wp_assign)
-   apply(simp add: fbox_def cond_def)
-   apply transfer
-   apply(simp add: le_fun_def)
-   apply safe
-   apply(simp only: kcomp_def)
-  oops
-   apply(auto simp: bb_real_arith cond_def fbox_def ads_d_def)[1]
   oops
 
 subsubsection{* Circular motion with invariants *}

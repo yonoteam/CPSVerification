@@ -446,5 +446,38 @@ lemma circular_motion:
   \<lceil>\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2\<rceil>"
   apply(subst flow_for_Circ_DS)
   using assms by simp_all
+  
+
+(* FOR FUTURE REFERENCE *)
+
+thm bij_betwI  bij_betwI' bij_betw_finite
+thm Rep_three  Rep_three_inject Rep_three_cases Rep_three_inverse
+thm           Abs_three_inject Abs_three_cases Abs_three_inverse
+thm vec_nth   vec_nth_inject vec_nth_cases vec_nth_inverse 
+thm           vec_lambda_inject vec_lambda_cases vec_lambda_inverse
+thm L2_set_def norm_vec_def component_le_norm_cart norm_bound_component_le_cart
+thm matrix_vector_mult_def matrix_mult_dot matrix_mult_sum vector_componentwise basis_expansion
+thm card_eq_sum sum_def real_scaleR_def Connected.bounded_has_Sup sum_norm_allsubsets_bound
+thm dist_norm matrix_vector_mult_diff_distrib
+value "card (UNIV :: nat set)"
+term "the_inv"
+term "the_inv_into"
+
+(* PENDING: *)
+
+(* Generalized theorems for each finite type: *)
+lemma fun_1:"f (x::num1) = f 1"
+  apply(subgoal_tac "\<forall> x::num1. f x = f 1")
+  by(erule_tac x="x" in allE, simp_all)
+
+lemma "(\<Sum>(j::num1)\<in>UNIV. axis i 1 $ j \<cdot> f j) = ((f i)::real)"
+  unfolding axis_def apply simp
+  using fun_1 by metis
+
+declare [[show_sorts, show_types]]
+term "x::4" term "x::5" term "x::10" term "x::1000" term "(x::0) = x :: 5"
+
+(* Understand the following concept in Isabelle *)
+term "frechet_derivative"
 
 end

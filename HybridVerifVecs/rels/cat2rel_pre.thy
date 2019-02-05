@@ -1,7 +1,7 @@
 theory cat2rel_pre
   imports
-  flow_locales
-  "afpModified/VC_KAD"
+  "../flow_locales"
+  "../../afpModified/VC_KAD"
 
 begin
 

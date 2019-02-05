@@ -1,6 +1,5 @@
 theory cat2funcset_pre
-  imports "Ordinary_Differential_Equations.Initial_Value_Problem" flow_locales
-"Transformer_Semantics.Kleisli_Quantale" "KAD.Modal_Kleene_Algebra"
+  imports "../flow_locales" "Transformer_Semantics.Kleisli_Quantale" "KAD.Modal_Kleene_Algebra"
                         
 begin
 
