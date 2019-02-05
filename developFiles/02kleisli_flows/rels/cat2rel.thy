@@ -49,12 +49,18 @@ abbreviation
 g_orbit :: "(('a::banach) \<Rightarrow> 'a) \<Rightarrow> real set \<Rightarrow> 'a set \<Rightarrow> real \<Rightarrow> 'a pred \<Rightarrow> 'a rel" ("(1{[x\<acute>=_]_ _ @ _ & _})")
 where "{[x\<acute>=f]T S @ t0 & G} \<equiv> \<R> (\<lambda> s. g_orbital (\<lambda> t. f) T S t0 s G)"
 
+lemma dSolution:
+  assumes "local_flow f S T L \<phi>"
+    and "\<forall>s. P s \<longrightarrow> (\<forall> t \<in> T. s \<in> S \<longrightarrow> (\<forall> r \<in> {0--t}.G (\<phi> r s)) \<longrightarrow> Q (\<phi> t s))"
+  shows "\<lceil>P\<rceil> \<subseteq> wp ({[x\<acute>=f]T S @ 0 & G}) \<lceil>Q\<rceil>"
+  unfolding f2r_def apply(subst wp_rel)
+  using assms by(subst local_flow.g_orbital_is_orbit, auto)
+
 theorem wp_g_orbit:
   assumes "local_flow f S T L \<phi>"
   shows "wp ({[x\<acute>=f]T S @ 0 & G}) \<lceil>Q\<rceil> = \<lceil>\<lambda> s. \<forall> t \<in> T. s \<in> S \<longrightarrow> (\<forall> r \<in> {0--t}.G (\<phi> r s)) \<longrightarrow> Q (\<phi> t s)\<rceil>"
   unfolding f2r_def apply(subst wp_rel)
-  using assms apply(subst local_flow.g_orbital_is_orbit, simp)
-  by auto
+  using assms by(subst local_flow.g_orbital_is_orbit, auto)
 
 text{* This last theorem allows us to compute weakest liberal preconditions for known systems of ODEs: *}
 corollary line_DS:

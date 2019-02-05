@@ -148,7 +148,7 @@ lemma matrix_lipschitz_constant:
   unfolding dist_norm vector_norm_distr_minus proof(subst norm_matrix_sgn)
   have "norm\<^sub>S A \<le> maxAbs A \<cdot> (real CARD('n) \<cdot> real CARD('n))"
     by (metis (no_types) Groups.mult_ac(2) norms_le_dims_maxAbs)
-  then have "norm\<^sub>S A \<cdot> norm (x - y) \<le> (real (card (UNIV::'n set)))\<^sup>2 \<cdot> maxAbs A \<cdot> norm (x - y)"
+  then have "norm\<^sub>S A \<cdot> norm (x - y) \<le> (real CARD('n))\<^sup>2 \<cdot> maxAbs A \<cdot> norm (x - y)"
     by (simp add: cross3_simps(11) mult_left_mono semiring_normalization_rules(29))
   also have "norm (A *v sgn (x - y)) \<cdot> norm (x - y) \<le> norm\<^sub>S A \<cdot> norm (x - y)"
     by (simp add: norm_sgn_le_norms cross3_simps(11) mult_left_mono) 
@@ -267,6 +267,11 @@ proof-
   thus ?thesis
     by (simp add: monoid_mult_class.power2_eq_square)
 qed
+
+lemma "\<forall> g x v H \<tau>::real. 2 \<cdot> g \<cdot> x = 2 \<cdot> g \<cdot> H + v \<cdot> v \<longrightarrow> 2 \<cdot> g \<cdot> (g \<cdot> \<tau>\<^sup>2 / 2 + v \<cdot> \<tau> + x) = 
+  2 \<cdot> g \<cdot> H + (g \<cdot> \<tau> \<cdot> (g \<cdot> \<tau> + v) + v \<cdot> (g \<cdot> \<tau> + v))"
+  apply eval
+  oops
     
 lemma [bb_real_arith]:
   assumes invar:"2 \<cdot> g \<cdot> x = 2 \<cdot> g \<cdot> H + v \<cdot> v"
@@ -340,20 +345,28 @@ lemma bouncing_ball_invariants:
   (({[x\<acute>=\<lambda>s. K *v s]{0..t} UNIV @ 0 & (\<lambda> s. s $ 0 \<ge> 0)} \<cdot>
   (IF (\<lambda> s. s $ 0 = 0) THEN ([1 ::== (\<lambda>s. - s $ 1)]) ELSE \<eta>\<^sup>\<bullet> FI))\<^sup>\<star>)
   \<lceil>\<lambda>s. 0 \<le> s $ 0 \<and> s $ 0 \<le> H\<rceil>"
-  apply(subst star_nd_fun.abs_eq, rule_tac I="\<lceil>\<lambda>s. 0 \<le> s$0 \<and> 0 > s$2 \<and> 2 \<cdot> s$2 \<cdot> s$0 = 2 \<cdot> s$2 \<cdot> H + (s$1 \<cdot> s$1)\<rceil>" in rel_ad_mka_starI)
+  apply(subst star_nd_fun.abs_eq, 
+rule_tac I="\<lceil>\<lambda>s. 0 \<le> s$0 \<and> 0 > s$2 \<and> 2 \<cdot> s$2 \<cdot> s$0 = 2 \<cdot> s$2 \<cdot> H + (s$1 \<cdot> s$1)\<rceil>" in rel_ad_mka_starI)
     apply(simp, simp only: fbox_seq)
    apply(subst p2ndf_ndf2p_wp_sym[of "(IF (\<lambda>s. s $ 0 = 0) THEN ([1 ::== (\<lambda>s. - s $ 1)]) ELSE \<eta>\<^sup>\<bullet> FI)"])
   using assms(1) apply(rule dCut_interval[of _ _ _ _ _ _ "\<lambda> s. s $ 2 < 0"])
    apply(rule_tac \<theta>="\<lambda>s. s $ 2" and \<nu>="\<lambda>s. 0" in dInvariant_below_0)
   using gravity_is_invariant apply force
-  apply simp apply simp apply(transfer, simp add: le_fun_def, force)
-       apply(simp add: \<open>0 \<le> t\<close>)
+  apply(simp, simp, simp, simp add: \<open>0 \<le> t\<close>)
    apply(rule_tac C="\<lambda> s. 2 \<cdot> s$2 \<cdot> s$0 - 2 \<cdot> s$2 \<cdot> H - s$1 \<cdot> s$1 = 0" in dCut_interval, simp add: \<open>0 \<le> t\<close>)
    apply(rule_tac \<theta>="\<lambda>s. 2 \<cdot> s$2 \<cdot> s$0 - 2 \<cdot> s$2 \<cdot> H - s$1 \<cdot> s$1" and \<nu>="\<lambda> s. 0" in dInvariant_eq_0)
   using bouncing_ball_invariant apply force
-  apply(simp, simp, transfer, simp add: le_fun_def, force, simp add: \<open>0 \<le> t\<close>)
-  apply(rule dWeakening, subst p2ndf_ndf2p_wp)
-   apply(auto simp: bb_real_arith cond_def fbox_def ads_d_def)
+  apply(simp, simp, simp, simp add: \<open>0 \<le> t\<close>)
+   apply(rule dWeakening, subst p2ndf_ndf2p_wp)
+  apply(subst wp_trafo)
+  apply(subst wp_assign)
+   apply(simp add: fbox_def cond_def)
+   apply transfer
+   apply(simp add: le_fun_def)
+   apply safe
+   apply(simp only: kcomp_def)
+  oops
+   apply(auto simp: bb_real_arith cond_def fbox_def ads_d_def)[1]
   oops
 
 subsubsection{* Circular motion with invariants *}
@@ -454,3 +467,21 @@ lemma circular_motion:
   \<lceil>\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2\<rceil>"
   apply(subst flow_for_Circ_DS)
   using assms by simp_all
+
+lemma circular_motion_invariants:
+  assumes "0 \<le> t" and "t < 1/4" and "(R::real) > 0"
+  shows"\<lceil>\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2\<rceil> \<le> wp 
+  {[x\<acute>=\<lambda>s. Circ *v s]{0..t} UNIV @ 0 & (\<lambda> s. s $ 0 \<ge> 0)}
+  \<lceil>\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2\<rceil>" thm dCut_interval
+  using assms(1) apply(rule_tac C="\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2" in dCut_interval, simp)
+   apply(subgoal_tac "(\<lambda>s. (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2 - R\<^sup>2 = 0) = (\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2)")
+    apply(rule ssubst[of "(\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2)" "\<lambda>s. (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2 - R\<^sup>2 = 0"], simp) 
+    apply(rule_tac \<theta>="\<lambda>s. (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2 - R\<^sup>2" and \<nu>="\<lambda>s. 0" in dInvariant_eq_0)
+  subgoal apply clarify
+    apply(frule_tac i="0" in solves_vec_nth, drule_tac i="1" in solves_vec_nth)
+    apply(unfold solves_ode_def has_vderiv_on_def has_vector_derivative_def, clarsimp)
+    apply(erule_tac x="r" in ballE, simp_all add: matrix_vector_mult_def)+
+    sorry
+  apply(simp, simp, simp, simp add: \<open>0 \<le> t\<close>) apply auto[1]
+  by(rule dWeakening, simp)
+

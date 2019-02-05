@@ -92,6 +92,9 @@ abbreviation p2ndf :: "'a pred \<Rightarrow> 'a nd_fun" ("(1\<lceil>_\<rceil>)")
 lemma le_p2ndf_iff[simp]:"\<lceil>P\<rceil> \<le> \<lceil>Q\<rceil> = (\<forall>s. P s \<longrightarrow> Q s)"
   by(transfer, auto simp: le_fun_def)
 
+lemma p2ndf_le_eta[simp]:"\<lceil>P\<rceil> \<le> \<eta>\<^sup>\<bullet>"
+  by(transfer, simp add: le_fun_def, clarify)
+
 abbreviation ndf2p :: "'a nd_fun \<Rightarrow> 'a \<Rightarrow> bool" ("(1\<lfloor>_\<rfloor>)")
   where "\<lfloor>f\<rfloor> \<equiv> (\<lambda>x. x \<in> Domain (\<R> (f\<^sub>\<bullet>)))"
 

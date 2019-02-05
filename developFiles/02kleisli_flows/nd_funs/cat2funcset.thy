@@ -10,6 +10,7 @@ subsection{* Verification by providing solutions *}
 abbreviation "orbital f T S t0 x0 \<equiv> {x t |t x. t \<in> T \<and> (x solves_ode f)T S \<and> x t0 = x0 \<and> x0 \<in> S}"
 abbreviation "g_orbital f T S t0 x0 G \<equiv> 
   {x t |t x. t \<in> T \<and> (x solves_ode f)T S \<and> x t0 = x0 \<and> (\<forall> r \<in> {t0--t}. G (x r)) \<and> x0 \<in> S}"
+(************** doesn't guarantee that initial time is in interval... ******************************)
 
 lemma (in picard_ivp) orbital_collapses:
   shows "orbital f T S t0 s = {phi t s| t. t \<in> T \<and> s \<in> S}"
@@ -48,6 +49,14 @@ theorem (in local_flow) wp_orbit:"wp (orbit\<^sup>\<bullet>) \<lceil>Q\<rceil> =
 abbreviation 
 g_orbit ::"(('a::banach)\<Rightarrow>'a) \<Rightarrow> real set \<Rightarrow> 'a set \<Rightarrow> real \<Rightarrow> 'a pred \<Rightarrow> 'a nd_fun" ("(1{[x\<acute>=_]_ _ @ _ & _})")
 where "{[x\<acute>=f]T S @ t0 & G} \<equiv> (\<lambda> s. g_orbital (\<lambda> t. f) T S t0 s G)\<^sup>\<bullet>"
+(************************************************************************************)
+lemma "(x solves_ode (\<lambda>a. f)) T S \<and> x t0 = s \<and> G (x t0) \<and> s \<in> S \<Longrightarrow> x t0 \<in> ({[x\<acute>=f]T S @ t0 & G}\<^sub>\<bullet>) s"
+  apply simp
+  apply(rule_tac x="t0" in exI)
+  apply(rule_tac x="x" in exI)
+  apply auto
+  unfolding solves_ode_def apply(auto simp: Pi_def)
+  oops
 
 theorem wp_g_orbit:
   assumes "local_flow f S T L \<phi>"
@@ -62,7 +71,7 @@ corollary line_DS:
   shows "wp {[x\<acute>=\<lambda>s. c]{0..t} UNIV @ 0 & G} \<lceil>Q\<rceil> = 
     \<lceil>\<lambda> x. \<forall> \<tau> \<in> {0..t}. (\<forall>r\<in>{0--\<tau>}. G (x + r *\<^sub>R c)) \<longrightarrow> Q (x + \<tau> *\<^sub>R c)\<rceil>"
   apply(subst wp_g_orbit[of "\<lambda> s. c" _ _ "1/(t + 1)" "(\<lambda> t x. x + t *\<^sub>R c)"])
-  using line_is_local_flow and assms by (blast, simp)
+  using line_is_local_flow and assms by auto
 
 subsection{* Verification with differential invariants *}
 
@@ -183,13 +192,30 @@ lemma DI_sufficiency:
   apply(erule_tac x="s" in allE, erule impE, rule_tac x="t0" in exI, simp_all)
   using assms picard_ivp.fixed_point_solves picard_ivp.init_time by metis
 
-lemma dInvariant:
+lemma 
   fixes \<theta>::"'a::banach \<Rightarrow> real"
-  assumes "\<lceil>G\<rceil> \<le> \<lceil>F\<rceil>" and "bdd_below T"
-    and FisPrimedI:"\<forall> x. (x solves_ode (\<lambda> t. f))T S \<longrightarrow> I (x (Inf T)) \<longrightarrow>
-    (\<forall> t \<in> T. (\<forall>r\<in>{(Inf T)--t}. F (x r)) \<longrightarrow> (I (x t)))"
+  assumes "\<lceil>G\<rceil> \<le> \<lceil>I'\<rceil>" and "t \<ge> 0"
+    and "\<forall> x. (x solves_ode (\<lambda> t. f)){0..t} S \<longrightarrow> I (x 0) \<longrightarrow>
+ (\<forall> t \<ge> 0. (\<forall>r\<in>{0--t}. I' (x r)) \<longrightarrow> (I (x t)))"
+  shows "\<lceil>I\<rceil> \<le> wp ({[x\<acute>=f]{0..t} S @ 0 & G}) \<lceil>I\<rceil>"
+  using assms apply(subst wp_nd_fun)
+  apply(subst le_p2ndf_iff) apply clarify
+  apply(erule_tac x="x" in allE)
+  apply(erule impE, simp)+
+  apply(erule_tac x="ta" in allE)
+  by simp
+
+definition pderivative :: "'a pred \<Rightarrow> 'a pred \<Rightarrow> (('a::real_normed_vector) \<Rightarrow> 'a) \<Rightarrow> real set \<Rightarrow> 
+'a set \<Rightarrow> bool" ("(_)/ is'_pderivative'_of (_)/ with'_respect'_to (_) (_) (_)" [70, 65] 61) where
+"I' is_pderivative_of I with_respect_to f T S \<equiv> bdd_below T \<and> (\<forall> x. (x solves_ode (\<lambda> t. f))T S \<longrightarrow> 
+I (x (Inf T)) \<longrightarrow> (\<forall> t \<in> T. (\<forall>r\<in>{(Inf T)--t}. I' (x r)) \<longrightarrow> (I (x t))))"
+
+lemma dInvariant:
+  assumes "\<lceil>G\<rceil> \<le> \<lceil>I'\<rceil>" and "I' is_pderivative_of I with_respect_to f T S"
   shows "\<lceil>I\<rceil> \<le> wp ({[x\<acute>=f]T S @ (Inf T) & G}) \<lceil>I\<rceil>"
-  using assms apply(subst wp_nd_fun) by clarsimp
+  using assms unfolding pderivative_def apply(subst wp_nd_fun)
+  apply(subst le_p2ndf_iff)
+  apply(clarify) by simp
 
 lemma invariant_eq_0:
   fixes \<theta>::"'a::banach \<Rightarrow> real"
@@ -198,7 +224,7 @@ lemma invariant_eq_0:
     and "\<lceil>G\<rceil> \<le> \<lceil>\<lambda>s. \<nu> s = 0\<rceil>" and "bdd_below T"
   shows "\<lceil>\<lambda>s. \<theta> s = 0\<rceil> \<le> wp ({[x\<acute>=f]T S @ (Inf T) & G}) \<lceil>\<lambda>s. \<theta> s = 0\<rceil>"
   apply(rule dInvariant [of _ "\<lambda> s. \<nu> s = 0"])
-  using assms apply(simp, simp)
+  using assms apply(simp, simp add: pderivative_def)
 proof(clarify)
   fix x and t 
   assume x_ivp:"(x solves_ode (\<lambda>t. f)) T S" "\<theta> (x (Inf T)) = 0"  
@@ -246,7 +272,7 @@ lemma invariant_geq_0:
     and "\<lceil>G\<rceil> \<le> \<lceil>\<lambda>s. (\<nu> s) \<ge> 0\<rceil>" and "bdd_below T"
   shows "\<lceil>\<lambda>s. \<theta> s \<ge> 0\<rceil> \<le> wp ({[x\<acute>=f]T S @ (Inf T) & G}) \<lceil>\<lambda>s. \<theta> s \<ge> 0\<rceil>"
   apply(rule dInvariant [of _ "\<lambda> s. \<nu> s \<ge> 0"])
-  using assms apply(simp, simp)
+  using assms apply(simp, simp add: pderivative_def)
 proof(clarify)
   fix x and t
   assume x_ivp:"\<theta> (x (Inf T)) \<ge> 0" "(x solves_ode (\<lambda>t. f)) T S" 
@@ -293,7 +319,7 @@ lemma invariant_leq_0:
     and "\<lceil>G\<rceil> \<le> \<lceil>\<lambda>s. (\<nu> s) \<le> 0\<rceil>" and "bdd_below T"
   shows "\<lceil>\<lambda>s. \<theta> s \<le> 0\<rceil> \<le> wp ({[x\<acute>=f]T S @ (Inf T) & G}) \<lceil>\<lambda>s. \<theta> s \<le> 0\<rceil>"
   apply(rule dInvariant [of _ "\<lambda> s. \<nu> s \<le> 0"])
-  using assms apply(simp, simp)
+  using assms apply(simp, simp add: pderivative_def)
 proof(clarify)
   fix x and t
   assume x_ivp:"\<theta> (x (Inf T)) \<le> 0" "(x solves_ode (\<lambda>t. f)) T S" 
@@ -341,7 +367,7 @@ lemma invariant_above_0:
     and "\<lceil>G\<rceil> \<le> \<lceil>\<lambda>s. (\<nu> s) \<ge> 0\<rceil>" and "bdd_below T"
   shows "\<lceil>\<lambda>s. \<theta> s > 0\<rceil> \<le> wp ({[x\<acute>=f]T S @ (Inf T) & G}) \<lceil>\<lambda>s. \<theta> s > 0\<rceil>"
   apply(rule dInvariant [of _ "\<lambda> s. \<nu> s \<ge> 0"])
-  using assms apply(simp, simp)
+  using assms apply(simp, simp add: pderivative_def)
 proof(clarify)
   fix x and t
   assume x_ivp:"(x solves_ode (\<lambda>t. f)) T S" "\<theta> (x (Inf T)) > 0"
@@ -390,7 +416,7 @@ lemma invariant_below_0:
     and "\<lceil>G\<rceil> \<le> \<lceil>\<lambda>s. (\<nu> s) \<le> 0\<rceil>" and "bdd_below T"
   shows "\<lceil>\<lambda>s. \<theta> s < 0\<rceil> \<le> wp ({[x\<acute>=f]T S @ (Inf T) & G}) \<lceil>\<lambda>s. \<theta> s < 0\<rceil>"
   apply(rule dInvariant [of _ "\<lambda> s. \<nu> s \<le> 0"])
-  using assms apply(simp, simp)
+  using assms apply(simp, simp add: pderivative_def)
 proof(clarify)
   fix x and t
   assume x_ivp:"(x solves_ode (\<lambda>t. f)) T S" "\<theta> (x (Inf T)) < 0"
