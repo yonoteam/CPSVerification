@@ -468,3 +468,4 @@ lemma circular_motion_invariants:
   apply(simp, simp, simp, simp add: \<open>0 \<le> t\<close>) apply auto[1]
   by(rule dWeakening, simp)
 
+end
