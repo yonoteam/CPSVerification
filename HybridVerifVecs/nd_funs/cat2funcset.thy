@@ -7,71 +7,74 @@ section{* Hybrid System Verification *}
 
 subsection{* Verification by providing solutions *}
 
-abbreviation "orbital f T S t0 x0 \<equiv> {x t |t x. t \<in> T \<and> (x solves_ode f)T S \<and> x t0 = x0 \<and> x0 \<in> S}"
+abbreviation "orbital f T S t0 x0 \<equiv> 
+  {x t |t x. t \<in> T \<and> (x solves_ode f)T S \<and> x t0 = x0 \<and> x0 \<in> S \<and> t0 \<in> T}"
 abbreviation "g_orbital f T S t0 x0 G \<equiv> 
-  {x t |t x. t \<in> T \<and> (x solves_ode f)T S \<and> x t0 = x0 \<and> (\<forall> r \<in> {t0--t}. G (x r)) \<and> x0 \<in> S}"
-(************** doesn't guarantee that initial time is in interval... ******************************)
-
-lemma (in picard_ivp) orbital_collapses:
-  shows "orbital f T S t0 s = {phi t s| t. t \<in> T \<and> s \<in> S}"
-  apply(rule subset_antisym)
-  using fixed_point_usolves apply(clarsimp, rule_tac x="t" in exI, simp)
-  apply(clarsimp, rule_tac x="t" in exI, rule_tac x="(\<lambda> t. phi t s)" in exI, simp)
-  using fixed_point_solves by blast
-
-lemma (in picard_ivp) g_orbital_collapses:
-  shows "g_orbital f T S t0 s G = {phi t s| t. t \<in> T \<and> (\<forall> r \<in> {t0--t}. G (phi r s)) \<and> s \<in> S}"
-  apply(rule subset_antisym)
-  using fixed_point_usolves apply(clarsimp, rule_tac x="t" in exI, simp)
-  apply (metis closed_segment_subset_domainI init_time)
-  apply(clarsimp, rule_tac x="t" in exI, rule_tac x="(\<lambda> t. phi t s)" in exI)
-  by(simp add: fixed_point_solves)
-
-abbreviation (in local_flow) "orbit s \<equiv> {\<phi> t s |t. t \<in> T \<and> s \<in> S}"
-abbreviation (in local_flow) "g_orbit s G \<equiv> {\<phi> t s |t. t \<in> T \<and> (\<forall> r \<in> {0--t}. G (\<phi> r s)) \<and> s \<in> S}"
-
-lemma (in local_flow) orbital_is_orbit:
-  shows "orbital (\<lambda> t. f) T S 0 s = orbit s"
-  by (metis (no_types, lifting) fixed_point_solves flow_def) 
-
-lemma (in local_flow) g_orbital_is_orbit:
-  shows "g_orbital (\<lambda> t. f) T S 0 s G = g_orbit s G"
-  using is_fixed_point unfolding g_orbital_collapses
-  by (metis (mono_tags, lifting) closed_segment_subset_domainI picard_ivp.init_time picard_ivp_axioms) 
-
-lemma (in local_flow) "\<R> (\<lambda> s. orbit s) = {(s, \<phi> t s)|s t. t \<in> T \<and> s \<in> S}"
-  apply(safe, simp_all add: f2r_def)
-  by(rule_tac x="t" in exI, simp)
-
-theorem (in local_flow) wp_orbit:"wp (orbit\<^sup>\<bullet>) \<lceil>Q\<rceil> = \<lceil>\<lambda> s. \<forall> t \<in> T. s \<in> S \<longrightarrow> Q (\<phi> t s)\<rceil>"
-  by(subst wp_nd_fun, rule nd_fun_ext, auto)
+  {x t |t x. t \<in> T \<and> (x solves_ode f)T S \<and> x t0 = x0 \<and> x0 \<in> S \<and> t0 \<in> T \<and> (\<forall> r \<in> {t0--t}. G (x r))}"
 
 abbreviation 
-g_orbit ::"(('a::banach)\<Rightarrow>'a) \<Rightarrow> real set \<Rightarrow> 'a set \<Rightarrow> real \<Rightarrow> 'a pred \<Rightarrow> 'a nd_fun" ("(1{[x\<acute>=_]_ _ @ _ & _})")
-where "{[x\<acute>=f]T S @ t0 & G} \<equiv> (\<lambda> s. g_orbital (\<lambda> t. f) T S t0 s G)\<^sup>\<bullet>"
-(************************************************************************************)
-lemma "(x solves_ode (\<lambda>a. f)) T S \<and> x t0 = s \<and> G (x t0) \<and> s \<in> S \<Longrightarrow> x t0 \<in> ({[x\<acute>=f]T S @ t0 & G}\<^sub>\<bullet>) s"
-  apply simp
-  apply(rule_tac x="t0" in exI)
-  apply(rule_tac x="x" in exI)
-  apply auto
-  unfolding solves_ode_def apply(auto simp: Pi_def)
-  oops
+g_evolution ::"(real \<Rightarrow> ('a::banach)\<Rightarrow>'a) \<Rightarrow> real set \<Rightarrow> 'a set \<Rightarrow> real \<Rightarrow> 'a pred \<Rightarrow> 'a nd_fun" 
+("(1{[x\<acute>=_]_ _ @ _ & _})") where "{[x\<acute>=f]T S @ t0 & G} \<equiv> (\<lambda> s. g_orbital f T S t0 s G)\<^sup>\<bullet>"
 
-theorem wp_g_orbit:
-  assumes "local_flow f S T L \<phi>"
-  shows "wp ({[x\<acute>=f]T S @ 0 & G}) \<lceil>Q\<rceil> = \<lceil>\<lambda> s. \<forall> t \<in> T. s \<in> S \<longrightarrow> (\<forall> r \<in> {0--t}.G (\<phi> r s)) \<longrightarrow> Q (\<phi> t s)\<rceil>"
-  apply(subst wp_nd_fun, rule nd_fun_ext)
-  using assms apply(subst local_flow.g_orbital_is_orbit, simp) by auto
+context picard_ivp
+begin
+
+lemma orbital_collapses: 
+  assumes ivp:"\<forall>s \<in> S. ((\<lambda>t. \<phi> t s) solves_ode f)T S \<and> \<phi> t0 s = s" and "s \<in> S"
+  shows "orbital f T S t0 s = {\<phi> t s| t. t \<in> T}"
+  apply safe apply(rule_tac x="t" in exI, simp)
+   apply(rule_tac x="xa" and s="xa t0" in unique_solution, simp_all add: assms)
+  apply(rule_tac x="t" in exI, rule_tac x="\<lambda>t. \<phi> t s" in exI)
+  using assms init_time by auto
+
+lemma g_orbital_collapses: 
+  assumes ivp:"\<forall>s \<in> S. ((\<lambda>t. \<phi> t s) solves_ode f)T S \<and> \<phi> t0 s = s" and "s \<in> S"
+  shows "g_orbital f T S t0 s G = {\<phi> t s| t. t \<in> T \<and> (\<forall> r \<in> {t0--t}. G (\<phi> r s))}"
+  apply safe apply(rule_tac x="t" in exI, simp) 
+  using assms unique_solution apply(metis closed_segment_subset_domainI)
+  apply(rule_tac x="t" in exI, rule_tac x="\<lambda>t. \<phi> t s" in exI) 
+  using assms init_time by auto
+
+lemma wp_orbit:
+  assumes ivp:"\<forall>s \<in> S. ((\<lambda>t. \<phi> t s) solves_ode f)T S \<and> \<phi> t0 s = s"
+  shows "wp ((\<lambda> s. orbital f T S t0 s)\<^sup>\<bullet>) \<lceil>Q\<rceil> = \<lceil>\<lambda> s. \<forall> t \<in> T. s \<in> S \<longrightarrow> Q (\<phi> t s)\<rceil>"
+  apply(subst wp_nd_fun, subst eq_p2ndf_iff) apply(rule ext, safe)
+   apply(erule_tac x="\<phi> t s" in allE, erule impE, simp)
+    apply(rule_tac x="t" in exI, rule_tac x="\<lambda> t. \<phi> t s" in exI)
+  using ivp init_time apply(simp, simp)
+  apply(subgoal_tac "\<phi> t (x t0) = x t")
+   apply(erule_tac x="t" in ballE, simp, simp)
+  by(rule_tac y="x" and s="x t0" in unique_solution, simp_all add: assms)
+
+lemma wp_g_orbit:
+  assumes ivp:"\<forall>s \<in> S. ((\<lambda>t. \<phi> t s) solves_ode f)T S \<and> \<phi> t0 s = s"
+  shows "wp {[x\<acute>=f]T S @ t0 & G} \<lceil>Q\<rceil> = \<lceil>\<lambda> s. \<forall> t \<in> T. s \<in> S \<longrightarrow> (\<forall> r \<in> {t0--t}.G (\<phi> r s)) \<longrightarrow> Q (\<phi> t s)\<rceil>"
+  apply(subst wp_nd_fun, subst eq_p2ndf_iff) apply(rule ext, safe)
+   apply(erule_tac x="\<phi> t s" in allE, erule impE, simp)
+    apply(rule_tac x="t" in exI, rule_tac x="\<lambda> t. \<phi> t s" in exI)
+  apply(simp add: ivp init_time, simp)
+  apply(subgoal_tac "\<forall>r\<in>{t0--t}. \<phi> r (x t0) = x r")
+   apply(erule_tac x="t" in ballE, safe)
+    apply(erule_tac x="r" in ballE)+ apply simp_all
+  apply(erule_tac x="t" in ballE)+ apply simp_all
+  apply(rule_tac y="x" and s="x t0" in unique_solution, simp_all add: assms)
+  using subsegment by blast 
+
+end
+
+lemma dSolution:
+  assumes "picard_ivp f T S L t0" and ivp:"\<forall>s \<in> S. ((\<lambda>t. \<phi> t s) solves_ode f)T S \<and> \<phi> t0 s = s"
+    and "\<forall>s. P s \<longrightarrow> (\<forall> t \<in> T. s \<in> S \<longrightarrow> (\<forall> r \<in> {t0..t}.G (\<phi> r s)) \<longrightarrow> Q (\<phi> t s))"
+  shows "\<lceil>P\<rceil> \<le> wp ({[x\<acute>=f]T S @ t0 & G}) \<lceil>Q\<rceil>"
+  using assms apply(subst picard_ivp.wp_g_orbit, auto)
+  by (simp add: Starlike.closed_segment_eq_real_ivl)
 
 text{* This last theorem allows us to compute weakest liberal preconditions for known systems of ODEs: *}
-
-corollary line_DS:
-  assumes "0 \<le> t"
-  shows "wp {[x\<acute>=\<lambda>s. c]{0..t} UNIV @ 0 & G} \<lceil>Q\<rceil> = 
+corollary line_DS: "0 \<le> t \<Longrightarrow> wp {[x\<acute>=\<lambda>t s. c]{0..t} UNIV @ 0 & G} \<lceil>Q\<rceil> = 
     \<lceil>\<lambda> x. \<forall> \<tau> \<in> {0..t}. (\<forall>r\<in>{0--\<tau>}. G (x + r *\<^sub>R c)) \<longrightarrow> Q (x + \<tau> *\<^sub>R c)\<rceil>"
-  apply(subst wp_g_orbit[of "\<lambda> s. c" _ _ "1/(t + 1)" "(\<lambda> t x. x + t *\<^sub>R c)"])
-  using line_is_local_flow and assms by auto
+  apply(subst picard_ivp.wp_g_orbit[of "\<lambda> t s. c" _ _ "1/(t + 1)" _ "(\<lambda> t x. x + t *\<^sub>R c)"])
+  using constant_is_picard_ivp apply blast
+  using line_solves_constant by auto
 
 subsection{* Verification with differential invariants *}
 
@@ -89,7 +92,7 @@ theorem DW:
   unfolding fbox_def apply(rule nd_fun_ext) apply transfer apply simp
 proof(subst kcomp_prop)+
   fix x::'a and T f S t0 G Q 
-  let ?Y = "g_orbital (\<lambda>a. f) T S t0 x G"
+  let ?Y = "g_orbital f T S t0 x G"
   have *:"\<forall>y \<in> ?Y. G y" by blast
   {assume "(\<Union>y\<in>?Y . if \<not> Q y then \<eta> y else {}) = {}"
     then have "\<forall>y\<in>?Y . (if \<not> Q y then \<eta> y else {}) = {}" by blast
@@ -119,40 +122,40 @@ shows "\<lceil>P\<rceil> \<le> wp ({[x\<acute>=f]T S @ t0 & G}) \<lceil>Q\<rceil
 subsubsection{* Differential Cut *}
 
 lemma wp_g_orbit_etaD:
-  assumes "wp ({[x\<acute>=f]T S @ t0 & G}) \<lceil>C\<rceil> = \<eta>\<^sup>\<bullet>" and "\<forall> r\<in>{t0--t}. x r \<in> g_orbital (\<lambda>t. f) T S t0 a G"
+  assumes "wp ({[x\<acute>=f]T S @ t0 & G}) \<lceil>C\<rceil> = \<eta>\<^sup>\<bullet>" and "\<forall> r\<in>{t0--t}. x r \<in> g_orbital f T S t0 a G"
   shows "\<forall>r\<in>{t0--t}. C (x r)"
 proof
   fix r assume "r \<in> {t0--t}"
-  then have "x r \<in> g_orbital (\<lambda>t. f) T S t0 a G" 
+  then have "x r \<in> g_orbital f T S t0 a G" 
     using assms(2) by blast
-  also have "\<forall>y. y \<in> (g_orbital (\<lambda>t. f) T S t0 a G) \<longrightarrow> C y" 
+  also have "\<forall>y. y \<in> (g_orbital f T S t0 a G) \<longrightarrow> C y" 
     using assms(1) wp_nd_fun_etaD by fastforce
   ultimately show "C (x r)" by blast
 qed
 
 theorem DC:
-  assumes "picard_ivp (\<lambda> t. f) T S L t0" 
+  assumes "t0 \<in> T" and "interval T"
     and "wp ({[x\<acute>=f]T S @ t0 & G}) \<lceil>C\<rceil> = \<eta>\<^sup>\<bullet>"
   shows "wp ({[x\<acute>=f]T S @ t0 & G}) \<lceil>Q\<rceil> = wp ({[x\<acute>=f]T S @ t0 & \<lambda>s. G s \<and> C s}) \<lceil>Q\<rceil>"
 proof(rule_tac f="\<lambda> x. wp x \<lceil>Q\<rceil>" in HOL.arg_cong, rule nd_fun_ext, rule subset_antisym, simp_all)
   fix a
-  show "g_orbital (\<lambda>a. f) T S t0 a G \<subseteq> g_orbital (\<lambda>a. f) T S t0 a (\<lambda>s. G s \<and> C s)"
+  show "g_orbital f T S t0 a G \<subseteq> g_orbital f T S t0 a (\<lambda>s. G s \<and> C s)"
   proof
-    fix b assume "b \<in> g_orbital (\<lambda>a. f) T S t0 a G" 
-    then obtain t::real and x where "t \<in> T" and x_solves:"(x solves_ode (\<lambda>t. f)) T S" and 
+    fix b assume "b \<in> g_orbital f T S t0 a G" 
+    then obtain t::real and x where "t \<in> T" and x_solves:"(x solves_ode f) T S" and 
     "x t0 = a" and guard_x:"(\<forall>r\<in>{t0--t}. G (x r))" and "a \<in> S" and "b = x t"
       using assms(1) unfolding f2r_def by blast
     from guard_x have "\<forall>r\<in>{t0--t}.\<forall> \<tau>\<in>{t0--r}. G (x \<tau>)"
       using assms(1) by (metis contra_subsetD ends_in_segment(1) subset_segment(1))
     also have "\<forall>r\<in>{t0--t}. r \<in> T"
-      using assms(1) \<open>t \<in> T\<close> picard_ivp.subsegment picard_ivp.init_time by blast
-    ultimately have "\<forall> r\<in>{t0--t}. x r \<in> g_orbital (\<lambda>t. f) T S t0 a G"
+      using assms(1,2) \<open>t \<in> T\<close> interval.closed_segment_subset_domain by blast
+    ultimately have "\<forall> r\<in>{t0--t}. x r \<in> g_orbital f T S t0 a G"
       using x_solves \<open>x t0 = a\<close> \<open>a \<in> S\<close> unfolding f2r_def by blast 
-    from this have "\<forall>r\<in>{t0--t}. C (x r)" using wp_g_orbit_etaD assms(2) by blast
-    thus "b \<in> g_orbital (\<lambda>t. f) T S t0 a (\<lambda> s. G s \<and> C s)"
-      using guard_x \<open>a \<in> S\<close> \<open>b = x t\<close> \<open>t \<in> T\<close> \<open>x t0 = a\<close> f2r_def x_solves by fastforce 
+    from this have "\<forall>r\<in>{t0--t}. C (x r)" using wp_g_orbit_etaD assms(3) by blast
+    thus "b \<in> g_orbital f T S t0 a (\<lambda> s. G s \<and> C s)" unfolding f2r_def
+      using guard_x \<open>a \<in> S\<close> \<open>b = x t\<close> \<open>t \<in> T\<close> \<open>x t0 = a\<close> x_solves \<open>\<forall>r\<in>{t0--t}. r \<in> T\<close> by fastforce 
   qed
-next show "\<And> a. g_orbital (\<lambda>t. f) T S t0 a (\<lambda> s. G s \<and> C s) \<subseteq> g_orbital (\<lambda>t. f) T S t0 a G" by auto
+next show "\<And> a. g_orbital f T S t0 a (\<lambda> s. G s \<and> C s) \<subseteq> g_orbital f T S t0 a G" by auto
 qed
 
 theorem dCut:
@@ -162,16 +165,16 @@ theorem dCut:
   shows "\<lceil>P\<rceil> \<le> wp ({[x\<acute>=f]T S @ t0 & G}) \<lceil>Q\<rceil>"
 proof(subst wp_nd_fun, clarsimp)
   fix t::real and x::"real \<Rightarrow> 'a" assume "P (x t0)" and "t \<in> T"  and "x t0 \<in> S"
-and x_solves:"(x solves_ode (\<lambda> t s. f s))T S " and guard_x:"(\<forall> r \<in> {t0--t}. G (x r))"
+and x_solves:"(x solves_ode f)T S " and guard_x:"(\<forall> r \<in> {t0--t}. G (x r))"
   from guard_x have "\<forall>r\<in>{t0--t}.\<forall> \<tau>\<in>{t0--r}. G (x \<tau>)"
     using \<open>t0 \<in> T\<close> by (metis contra_subsetD ends_in_segment(1) subset_segment(1)) 
   also have "\<forall>r\<in>{t0--t}. r \<in> T"
     using \<open>t0 \<in> T\<close> \<open>interval T\<close> \<open>t \<in> T\<close> interval.closed_segment_subset_domain by blast
-  ultimately have "\<forall>r\<in>{t0--t}. x r \<in> g_orbital (\<lambda>a. f) T S t0 (x t0) G"
+  ultimately have "\<forall>r\<in>{t0--t}. x r \<in> g_orbital f T S t0 (x t0) G"
     using x_solves \<open>x t0 \<in> S\<close> by blast
   from this have "\<forall>r\<in>{t0--t}. C (x r)" using wp_C \<open>P (x t0)\<close> by(subst (asm) wp_nd_fun, simp)
-  hence "x t \<in> g_orbital (\<lambda>a. f) T S t0 (x t0) (\<lambda> s. G s \<and> C s)"
-    using guard_x  \<open>t \<in> T\<close>  x_solves \<open>x t0 \<in> S\<close> by fastforce
+  hence "x t \<in> g_orbital f T S t0 (x t0) (\<lambda> s. G s \<and> C s)"
+    using guard_x  \<open>t \<in> T\<close>  x_solves \<open>x t0 \<in> S\<close> \<open>\<forall>r\<in>{t0--t}. r \<in> T\<close> by fastforce
   from this \<open>P (x t0)\<close> and wp_Q show "Q (x t)"
     by(subst (asm) wp_nd_fun, simp)
 qed
@@ -186,7 +189,7 @@ corollary dCut_interval:
 subsubsection{* Differential Invariant *}
 
 lemma DI_sufficiency:
-  assumes "picard_ivp (\<lambda> t. f) T S L t0"
+  assumes "picard_ivp f T S L t0"
   shows "wp {[x\<acute>=f]T S @ t0 & G} \<lceil>Q\<rceil> \<le> wp \<lceil>G\<rceil> \<lceil>\<lambda>s. s \<in> S \<longrightarrow> Q s\<rceil>"
   apply(subst wp_nd_fun, subst wp_nd_fun, clarsimp)
   apply(erule_tac x="s" in allE, erule impE, rule_tac x="t0" in exI, simp_all)
@@ -195,7 +198,7 @@ lemma DI_sufficiency:
 lemma 
   fixes \<theta>::"'a::banach \<Rightarrow> real"
   assumes "\<lceil>G\<rceil> \<le> \<lceil>I'\<rceil>" and "t \<ge> 0"
-    and "\<forall> x. (x solves_ode (\<lambda> t. f)){0..t} S \<longrightarrow> I (x 0) \<longrightarrow>
+    and "\<forall> x. (x solves_ode f){0..t} S \<longrightarrow> I (x 0) \<longrightarrow>
  (\<forall> t \<ge> 0. (\<forall>r\<in>{0--t}. I' (x r)) \<longrightarrow> (I (x t)))"
   shows "\<lceil>I\<rceil> \<le> wp ({[x\<acute>=f]{0..t} S @ 0 & G}) \<lceil>I\<rceil>"
   using assms apply(subst wp_nd_fun)
@@ -205,9 +208,9 @@ lemma
   apply(erule_tac x="ta" in allE)
   by simp
 
-definition pderivative :: "'a pred \<Rightarrow> 'a pred \<Rightarrow> (('a::real_normed_vector) \<Rightarrow> 'a) \<Rightarrow> real set \<Rightarrow> 
+definition pderivative :: "'a pred \<Rightarrow> 'a pred \<Rightarrow> (real \<Rightarrow> ('a::real_normed_vector) \<Rightarrow> 'a) \<Rightarrow> real set \<Rightarrow> 
 'a set \<Rightarrow> bool" ("(_)/ is'_pderivative'_of (_)/ with'_respect'_to (_) (_) (_)" [70, 65] 61) where
-"I' is_pderivative_of I with_respect_to f T S \<equiv> bdd_below T \<and> (\<forall> x. (x solves_ode (\<lambda> t. f))T S \<longrightarrow> 
+"I' is_pderivative_of I with_respect_to f T S \<equiv> bdd_below T \<and> (\<forall> x. (x solves_ode f)T S \<longrightarrow> 
 I (x (Inf T)) \<longrightarrow> (\<forall> t \<in> T. (\<forall>r\<in>{(Inf T)--t}. I' (x r)) \<longrightarrow> (I (x t))))"
 
 lemma dInvariant:
@@ -219,7 +222,7 @@ lemma dInvariant:
 
 lemma invariant_eq_0:
   fixes \<theta>::"'a::banach \<Rightarrow> real"
-  assumes nuHyp:"\<forall> x. (x solves_ode (\<lambda> t. f))T S \<longrightarrow> (\<forall> t \<in> T. \<forall> r \<in> {(Inf T)--t}. 
+  assumes nuHyp:"\<forall> x. (x solves_ode f)T S \<longrightarrow> (\<forall> t \<in> T. \<forall> r \<in> {(Inf T)--t}. 
   ((\<lambda>\<tau>. \<theta> (x \<tau>)) has_derivative (\<lambda>\<tau>. \<tau> *\<^sub>R \<nu> (x r))) (at r within {(Inf T)--t}))"
     and "\<lceil>G\<rceil> \<le> \<lceil>\<lambda>s. \<nu> s = 0\<rceil>" and "bdd_below T"
   shows "\<lceil>\<lambda>s. \<theta> s = 0\<rceil> \<le> wp ({[x\<acute>=f]T S @ (Inf T) & G}) \<lceil>\<lambda>s. \<theta> s = 0\<rceil>"
@@ -227,7 +230,7 @@ lemma invariant_eq_0:
   using assms apply(simp, simp add: pderivative_def)
 proof(clarify)
   fix x and t 
-  assume x_ivp:"(x solves_ode (\<lambda>t. f)) T S" "\<theta> (x (Inf T)) = 0"  
+  assume x_ivp:"(x solves_ode f) T S" "\<theta> (x (Inf T)) = 0"  
     and tHyp:"t \<in> T" and eq0:"\<forall>r\<in>{Inf T--t}. \<nu> (x r) = 0"
   hence "(Inf T) \<le> t" by (simp add: \<open>bdd_below T\<close> cInf_lower) 
   have "\<forall> r \<in> {(Inf T)--t}. ((\<lambda>\<tau>. \<theta> (x \<tau>)) has_derivative (\<lambda>\<tau>. \<tau> *\<^sub>R \<nu> (x r))) 
@@ -242,7 +245,7 @@ qed
 
 corollary invariant_eq_0_interval:
   fixes \<theta>::"'a::banach \<Rightarrow> real"
-  assumes "\<forall> x. (x solves_ode (\<lambda> t. f)){t0..t} S \<longrightarrow> (\<forall> \<tau> \<in> {t0..t}. \<forall> r \<in> {t0..\<tau>}. 
+  assumes "\<forall> x. (x solves_ode f){t0..t} S \<longrightarrow> (\<forall> \<tau> \<in> {t0..t}. \<forall> r \<in> {t0..\<tau>}. 
   ((\<lambda>\<tau>. \<theta> (x \<tau>)) has_derivative (\<lambda>\<tau>. \<tau> *\<^sub>R (\<nu> (x r)))) (at r within {t0..\<tau>}))"
     and "\<lceil>G\<rceil> \<le> \<lceil>\<lambda>s. \<nu> s = 0\<rceil>" and "t0 \<le> t"
   shows "\<lceil>\<lambda>s. \<theta> s = 0\<rceil> \<le> wp ({[x\<acute>=f]{t0..t} S @ t0 & G}) \<lceil>\<lambda>s. \<theta> s = 0\<rceil>"
@@ -254,7 +257,7 @@ corollary invariant_eq_0_interval:
 
 theorem dInvariant_eq_0:
   fixes \<theta>::"'a::banach \<Rightarrow> real" and \<nu>::"'a \<Rightarrow> real"
-  assumes "\<forall>x. (x solves_ode (\<lambda>t. f)) {t0..t} S \<longrightarrow> 
+  assumes "\<forall>x. (x solves_ode f) {t0..t} S \<longrightarrow> 
   (\<forall>\<tau>\<in>{t0..t}. \<forall>r\<in>{t0..\<tau>}. ((\<lambda>\<tau>. \<theta> (x \<tau>)) has_derivative (\<lambda>\<tau>. \<tau> *\<^sub>R \<nu> (x r))) (at r within {t0..\<tau>}))"
     and impls:"\<lceil>P\<rceil> \<le> \<lceil>\<lambda>s. \<theta> s = 0\<rceil>" "\<lceil>\<lambda>s. \<theta> s = 0\<rceil> \<le> \<lceil>Q\<rceil>" "\<lceil>G\<rceil> \<le> \<lceil>\<lambda>s. \<nu> s = 0\<rceil>" and "t0 \<le> t"
   shows "\<lceil>P\<rceil> \<le> wp ({[x\<acute>=f]{t0..t} S @ t0 & G}) \<lceil>Q\<rceil>"
@@ -267,7 +270,7 @@ theorem dInvariant_eq_0:
 
 lemma invariant_geq_0:
   fixes \<theta>::"'a::banach \<Rightarrow> real"
-  assumes nuHyp:"\<forall> x. (x solves_ode (\<lambda> t. f))T S \<longrightarrow> (\<forall> t \<in> T. \<forall> r \<in> {(Inf T)--t}. 
+  assumes nuHyp:"\<forall> x. (x solves_ode f)T S \<longrightarrow> (\<forall> t \<in> T. \<forall> r \<in> {(Inf T)--t}. 
   ((\<lambda>\<tau>. \<theta> (x \<tau>)) has_derivative (\<lambda>\<tau>. \<tau> *\<^sub>R (\<nu> (x r)))) (at r within {(Inf T)--t}))"
     and "\<lceil>G\<rceil> \<le> \<lceil>\<lambda>s. (\<nu> s) \<ge> 0\<rceil>" and "bdd_below T"
   shows "\<lceil>\<lambda>s. \<theta> s \<ge> 0\<rceil> \<le> wp ({[x\<acute>=f]T S @ (Inf T) & G}) \<lceil>\<lambda>s. \<theta> s \<ge> 0\<rceil>"
@@ -275,7 +278,7 @@ lemma invariant_geq_0:
   using assms apply(simp, simp add: pderivative_def)
 proof(clarify)
   fix x and t
-  assume x_ivp:"\<theta> (x (Inf T)) \<ge> 0" "(x solves_ode (\<lambda>t. f)) T S" 
+  assume x_ivp:"\<theta> (x (Inf T)) \<ge> 0" "(x solves_ode f) T S" 
     and tHyp:"t \<in> T" and ge0:"\<forall>r\<in>{Inf T--t}. \<nu> (x r) \<ge> 0"
   hence "(Inf T) \<le> t" by (simp add: \<open>bdd_below T\<close> cInf_lower) 
   have "\<forall> r \<in> {(Inf T)--t}. ((\<lambda>\<tau>. \<theta> (x \<tau>)) has_derivative (\<lambda>\<tau>. \<tau> *\<^sub>R (\<nu> (x r)))) 
@@ -289,7 +292,7 @@ qed
 
 corollary invariant_geq_0_interval:
   fixes \<theta>::"'a::banach \<Rightarrow> real"
-  assumes "\<forall> x. (x solves_ode (\<lambda> t. f)){t0..t} S \<longrightarrow> (\<forall> \<tau> \<in> {t0..t}. \<forall> r \<in> {t0..\<tau>}. 
+  assumes "\<forall> x. (x solves_ode f){t0..t} S \<longrightarrow> (\<forall> \<tau> \<in> {t0..t}. \<forall> r \<in> {t0..\<tau>}. 
   ((\<lambda>\<tau>. \<theta> (x \<tau>)) has_derivative (\<lambda>\<tau>. \<tau> *\<^sub>R (\<nu> (x r)))) (at r within {t0..\<tau>}))"
     and "\<lceil>G\<rceil> \<le> \<lceil>\<lambda>s. \<nu> s \<ge> 0\<rceil>" and "t0 \<le> t"
   shows "\<lceil>\<lambda>s. \<theta> s \<ge> 0\<rceil> \<le> wp ({[x\<acute>=f]{t0..t} S @ t0 & G}) \<lceil>\<lambda>s. \<theta> s \<ge> 0\<rceil>"
@@ -301,7 +304,7 @@ corollary invariant_geq_0_interval:
 
 theorem dInvariant_geq_0:
   fixes \<theta>::"'a::banach \<Rightarrow> real" and \<nu>::"'a \<Rightarrow> real"
-  assumes "\<forall>x. (x solves_ode (\<lambda>t. f)) {t0..t} S \<longrightarrow> 
+  assumes "\<forall>x. (x solves_ode f) {t0..t} S \<longrightarrow> 
   (\<forall>\<tau>\<in>{t0..t}. \<forall>r\<in>{t0..\<tau>}. ((\<lambda>\<tau>. \<theta> (x \<tau>)) has_derivative (\<lambda>\<tau>. \<tau> *\<^sub>R \<nu> (x r))) (at r within {t0..\<tau>}))"
     and impls:"\<lceil>P\<rceil> \<le> \<lceil>\<lambda>s. \<theta> s \<ge> 0\<rceil>" "\<lceil>\<lambda>s. \<theta> s \<ge> 0\<rceil> \<le> \<lceil>Q\<rceil>" "\<lceil>G\<rceil> \<le> \<lceil>\<lambda>s. \<nu> s \<ge> 0\<rceil>" and "t0 \<le> t"
   shows "\<lceil>P\<rceil> \<le> wp ({[x\<acute>=f]{t0..t} S @ t0 & G}) \<lceil>Q\<rceil>"
@@ -314,7 +317,7 @@ theorem dInvariant_geq_0:
 
 lemma invariant_leq_0:
   fixes \<theta>::"'a::banach \<Rightarrow> real"
-  assumes nuHyp:"\<forall> x. (x solves_ode (\<lambda> t. f))T S \<longrightarrow> (\<forall> t \<in> T. \<forall> r \<in> {(Inf T)--t}. 
+  assumes nuHyp:"\<forall> x. (x solves_ode f)T S \<longrightarrow> (\<forall> t \<in> T. \<forall> r \<in> {(Inf T)--t}. 
   ((\<lambda>\<tau>. \<theta> (x \<tau>)) has_derivative (\<lambda>\<tau>. \<tau> *\<^sub>R (\<nu> (x r)))) (at r within {(Inf T)--t}))"
     and "\<lceil>G\<rceil> \<le> \<lceil>\<lambda>s. (\<nu> s) \<le> 0\<rceil>" and "bdd_below T"
   shows "\<lceil>\<lambda>s. \<theta> s \<le> 0\<rceil> \<le> wp ({[x\<acute>=f]T S @ (Inf T) & G}) \<lceil>\<lambda>s. \<theta> s \<le> 0\<rceil>"
@@ -322,7 +325,7 @@ lemma invariant_leq_0:
   using assms apply(simp, simp add: pderivative_def)
 proof(clarify)
   fix x and t
-  assume x_ivp:"\<theta> (x (Inf T)) \<le> 0" "(x solves_ode (\<lambda>t. f)) T S" 
+  assume x_ivp:"\<theta> (x (Inf T)) \<le> 0" "(x solves_ode f) T S" 
     and tHyp:"t \<in> T" and ge0:"\<forall>r\<in>{Inf T--t}. \<nu> (x r) \<le> 0"
   hence "(Inf T) \<le> t" by (simp add: \<open>bdd_below T\<close> cInf_lower) 
   have "\<forall> r \<in> {(Inf T)--t}. ((\<lambda>\<tau>. \<theta> (x \<tau>)) has_derivative (\<lambda>\<tau>. \<tau> *\<^sub>R (\<nu> (x r)))) 
@@ -337,7 +340,7 @@ qed
 
 corollary invariant_leq_0_interval:
   fixes \<theta>::"'a::banach \<Rightarrow> real"
-  assumes "\<forall> x. (x solves_ode (\<lambda> t. f)){t0..t} S \<longrightarrow> (\<forall> \<tau> \<in> {t0..t}. \<forall> r \<in> {t0..\<tau>}. 
+  assumes "\<forall> x. (x solves_ode f){t0..t} S \<longrightarrow> (\<forall> \<tau> \<in> {t0..t}. \<forall> r \<in> {t0..\<tau>}. 
   ((\<lambda>\<tau>. \<theta> (x \<tau>)) has_derivative (\<lambda>\<tau>. \<tau> *\<^sub>R (\<nu> (x r)))) (at r within {t0..\<tau>}))"
     and "\<lceil>G\<rceil> \<le> \<lceil>\<lambda>s. \<nu> s \<le> 0\<rceil>" and "t0 \<le> t"
   shows "\<lceil>\<lambda>s. \<theta> s \<le> 0\<rceil> \<le> wp ({[x\<acute>=f]{t0..t} S @ t0 & G}) \<lceil>\<lambda>s. \<theta> s \<le> 0\<rceil>"
@@ -349,7 +352,7 @@ corollary invariant_leq_0_interval:
 
 theorem dInvariant_leq_0:
   fixes \<theta>::"'a::banach \<Rightarrow> real" and \<nu>::"'a \<Rightarrow> real"
-  assumes "\<forall>x. (x solves_ode (\<lambda>t. f)) {t0..t} S \<longrightarrow> 
+  assumes "\<forall>x. (x solves_ode f) {t0..t} S \<longrightarrow> 
   (\<forall>\<tau>\<in>{t0..t}. \<forall>r\<in>{t0..\<tau>}. ((\<lambda>\<tau>. \<theta> (x \<tau>)) has_derivative (\<lambda>\<tau>. \<tau> *\<^sub>R \<nu> (x r))) (at r within {t0..\<tau>}))"
     and impls:"\<lceil>P\<rceil> \<le> \<lceil>\<lambda>s. \<theta> s \<le> 0\<rceil>" "\<lceil>\<lambda>s. \<theta> s \<le> 0\<rceil> \<le> \<lceil>Q\<rceil>" "\<lceil>G\<rceil> \<le> \<lceil>\<lambda>s. \<nu> s \<le> 0\<rceil>" and "t0 \<le> t"
   shows "\<lceil>P\<rceil> \<le> wp ({[x\<acute>=f]{t0..t} S @ t0 & G}) \<lceil>Q\<rceil>"
@@ -362,7 +365,7 @@ theorem dInvariant_leq_0:
 
 lemma invariant_above_0:
   fixes \<theta>::"'a::banach \<Rightarrow> real"
-  assumes nuHyp:"\<forall> x. (x solves_ode (\<lambda> t. f))T S \<longrightarrow>  (\<forall> t \<in> T. \<forall> r \<in> {(Inf T)--t}. 
+  assumes nuHyp:"\<forall> x. (x solves_ode f)T S \<longrightarrow>  (\<forall> t \<in> T. \<forall> r \<in> {(Inf T)--t}. 
   ((\<lambda>\<tau>. \<theta> (x \<tau>)) has_derivative (\<lambda>\<tau>. \<tau> *\<^sub>R (\<nu> (x r)))) (at r within {(Inf T)--t}))"
     and "\<lceil>G\<rceil> \<le> \<lceil>\<lambda>s. (\<nu> s) \<ge> 0\<rceil>" and "bdd_below T"
   shows "\<lceil>\<lambda>s. \<theta> s > 0\<rceil> \<le> wp ({[x\<acute>=f]T S @ (Inf T) & G}) \<lceil>\<lambda>s. \<theta> s > 0\<rceil>"
@@ -370,7 +373,7 @@ lemma invariant_above_0:
   using assms apply(simp, simp add: pderivative_def)
 proof(clarify)
   fix x and t
-  assume x_ivp:"(x solves_ode (\<lambda>t. f)) T S" "\<theta> (x (Inf T)) > 0"
+  assume x_ivp:"(x solves_ode f) T S" "\<theta> (x (Inf T)) > 0"
     and tHyp:"t \<in> T" and ge0:"\<forall>r\<in>{Inf T--t}. \<nu> (x r) \<ge> 0"
   hence "(Inf T) \<le> t" by (simp add: \<open>bdd_below T\<close> cInf_lower) 
   have "\<forall> r \<in> {(Inf T)--t}. ((\<lambda>\<tau>. \<theta> (x \<tau>)) has_derivative (\<lambda>\<tau>. \<tau> *\<^sub>R (\<nu> (x r)))) 
@@ -386,7 +389,7 @@ qed
 
 corollary invariant_above_0_interval:
   fixes \<theta>::"'a::banach \<Rightarrow> real"
-  assumes "\<forall> x. (x solves_ode (\<lambda> t. f)){t0..t} S \<longrightarrow> (\<forall> \<tau> \<in> {t0..t}. \<forall> r \<in> {t0..\<tau>}. 
+  assumes "\<forall> x. (x solves_ode f){t0..t} S \<longrightarrow> (\<forall> \<tau> \<in> {t0..t}. \<forall> r \<in> {t0..\<tau>}. 
   ((\<lambda>\<tau>. \<theta> (x \<tau>)) has_derivative (\<lambda>\<tau>. \<tau> *\<^sub>R (\<nu> (x r)))) (at r within {t0..\<tau>}))"
     and "\<lceil>G\<rceil> \<le> \<lceil>\<lambda>s. \<nu> s \<ge> 0\<rceil>" and "t0 \<le> t"
   shows "\<lceil>\<lambda>s. \<theta> s > 0\<rceil> \<le> wp ({[x\<acute>=f]{t0..t} S @ t0 & G}) \<lceil>\<lambda>s. \<theta> s > 0\<rceil>"
@@ -398,7 +401,7 @@ corollary invariant_above_0_interval:
 
 theorem dInvariant_above_0:
   fixes \<theta>::"'a::banach \<Rightarrow> real" and \<nu>::"'a \<Rightarrow> real"
-  assumes "\<forall>x. (x solves_ode (\<lambda>t. f)) {t0..t} S \<longrightarrow> 
+  assumes "\<forall>x. (x solves_ode f) {t0..t} S \<longrightarrow> 
   (\<forall>\<tau>\<in>{t0..t}. \<forall>r\<in>{t0..\<tau>}. ((\<lambda>\<tau>. \<theta> (x \<tau>)) has_derivative (\<lambda>\<tau>. \<tau> *\<^sub>R \<nu> (x r))) (at r within {t0..\<tau>}))"
     and impls:"\<lceil>P\<rceil> \<le> \<lceil>\<lambda>s. \<theta> s > 0\<rceil>" "\<lceil>\<lambda>s. \<theta> s > 0\<rceil> \<le> \<lceil>Q\<rceil>" "\<lceil>G\<rceil> \<le> \<lceil>\<lambda>s. \<nu> s \<ge> 0\<rceil>" and "t0 \<le> t"
   shows "\<lceil>P\<rceil> \<le> wp ({[x\<acute>=f]{t0..t} S @ t0 & G}) \<lceil>Q\<rceil>"
@@ -411,7 +414,7 @@ theorem dInvariant_above_0:
 
 lemma invariant_below_0:
   fixes \<theta>::"'a::banach \<Rightarrow> real"
-  assumes nuHyp:"\<forall> x. (x solves_ode (\<lambda> t. f))T S \<longrightarrow>  (\<forall> t \<in> T. \<forall> r \<in> {(Inf T)--t}. 
+  assumes nuHyp:"\<forall> x. (x solves_ode f)T S \<longrightarrow>  (\<forall> t \<in> T. \<forall> r \<in> {(Inf T)--t}. 
   ((\<lambda>\<tau>. \<theta> (x \<tau>)) has_derivative (\<lambda>\<tau>. \<tau> *\<^sub>R (\<nu> (x r)))) (at r within {(Inf T)--t}))"
     and "\<lceil>G\<rceil> \<le> \<lceil>\<lambda>s. (\<nu> s) \<le> 0\<rceil>" and "bdd_below T"
   shows "\<lceil>\<lambda>s. \<theta> s < 0\<rceil> \<le> wp ({[x\<acute>=f]T S @ (Inf T) & G}) \<lceil>\<lambda>s. \<theta> s < 0\<rceil>"
@@ -419,7 +422,7 @@ lemma invariant_below_0:
   using assms apply(simp, simp add: pderivative_def)
 proof(clarify)
   fix x and t
-  assume x_ivp:"(x solves_ode (\<lambda>t. f)) T S" "\<theta> (x (Inf T)) < 0"
+  assume x_ivp:"(x solves_ode f) T S" "\<theta> (x (Inf T)) < 0"
     and tHyp:"t \<in> T" and ge0:"\<forall>r\<in>{Inf T--t}. \<nu> (x r) \<le> 0"
   hence "(Inf T) \<le> t" by (simp add: \<open>bdd_below T\<close> cInf_lower) 
   have "\<forall> r \<in> {(Inf T)--t}. ((\<lambda>\<tau>. \<theta> (x \<tau>)) has_derivative (\<lambda>\<tau>. \<tau> *\<^sub>R (\<nu> (x r)))) 
@@ -433,7 +436,7 @@ qed
 
 corollary invariant_below_0_interval:
   fixes \<theta>::"'a::banach \<Rightarrow> real"
-  assumes "\<forall> x. (x solves_ode (\<lambda> t. f)){t0..t} S \<longrightarrow> (\<forall> \<tau> \<in> {t0..t}. \<forall> r \<in> {t0..\<tau>}. 
+  assumes "\<forall> x. (x solves_ode f){t0..t} S \<longrightarrow> (\<forall> \<tau> \<in> {t0..t}. \<forall> r \<in> {t0..\<tau>}. 
   ((\<lambda>\<tau>. \<theta> (x \<tau>)) has_derivative (\<lambda>\<tau>. \<tau> *\<^sub>R (\<nu> (x r)))) (at r within {t0..\<tau>}))"
     and "\<lceil>G\<rceil> \<le> \<lceil>\<lambda>s. \<nu> s \<le> 0\<rceil>" and "t0 \<le> t"
   shows "\<lceil>\<lambda>s. \<theta> s < 0\<rceil> \<le> wp ({[x\<acute>=f]{t0..t} S @ t0 & G}) \<lceil>\<lambda>s. \<theta> s < 0\<rceil>"
@@ -445,7 +448,7 @@ corollary invariant_below_0_interval:
 
 theorem dInvariant_below_0:
   fixes \<theta>::"'a::banach \<Rightarrow> real"
-  assumes "\<forall>x. (x solves_ode (\<lambda>t. f)) {t0..t} S \<longrightarrow> 
+  assumes "\<forall>x. (x solves_ode f) {t0..t} S \<longrightarrow> 
   (\<forall>\<tau>\<in>{t0..t}. \<forall>r\<in>{t0..\<tau>}. ((\<lambda>\<tau>. \<theta> (x \<tau>)) has_derivative (\<lambda>\<tau>. \<tau> *\<^sub>R \<nu> (x r))) (at r within {t0..\<tau>}))"
     and impls:"\<lceil>P\<rceil> \<le> \<lceil>\<lambda>s. \<theta> s < 0\<rceil>" "\<lceil>\<lambda>s. \<theta> s < 0\<rceil> \<le> \<lceil>Q\<rceil>" "\<lceil>G\<rceil> \<le> \<lceil>\<lambda>s. \<nu> s \<le> 0\<rceil>" and "t0 \<le> t"
   shows "\<lceil>P\<rceil> \<le> wp ({[x\<acute>=f]{t0..t} S @ t0 & G}) \<lceil>Q\<rceil>"
@@ -491,6 +494,5 @@ theorem dInvariant_join:
   using assms(1,2,5) apply(simp, simp)
   apply(rule dWeakening)
   using impls by auto
-
 
 end

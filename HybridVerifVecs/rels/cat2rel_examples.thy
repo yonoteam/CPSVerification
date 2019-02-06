@@ -79,34 +79,23 @@ lemma free_fall_flow_solves_free_fall_kinematics:
   unfolding has_vderiv_on_def has_vector_derivative_def apply(auto simp: Abs_three_inject)
   using poly_derivatives(3, 4) unfolding has_vderiv_on_def has_vector_derivative_def by auto
 
-lemma free_fall_flow_is_local_flow:
-"0 \<le> t \<Longrightarrow> t < 1 \<Longrightarrow> local_flow (\<lambda> s. free_fall_kinematics s) UNIV {0..t} 1 (\<lambda> t x. free_fall_flow t x)"
-  unfolding local_flow_def local_flow_axioms_def apply safe
-  using free_fall_kinematics_is_picard_ivp apply simp
-  subgoal for x _ \<tau>
-    apply(rule picard_ivp.unique_solution [of "\<lambda> t s. free_fall_kinematics s" "{0..t}" 
-          UNIV 1 0 "(\<lambda> t. free_fall_flow t (x 0))" "x 0"])
-    using free_fall_kinematics_is_picard_ivp apply simp
-         apply(rule free_fall_flow_solves_free_fall_kinematics)
-        apply(simp_all add: vec_eq_iff Abs_three_inject)
-    using three_univD by fastforce
-  done
-
 text{* We end the first example by computing the wlp of the kinematics for the single-evolution
 ball and then using it to verify "its safety".*}
 
 corollary free_fall_flow_DS:
   assumes "0 \<le> t" and "t < 1"
-  shows " wp {[x\<acute>=\<lambda>s. free_fall_kinematics s]{0..t} UNIV @ 0 & G} \<lceil>Q\<rceil> = 
+  shows "wp {[x\<acute>=\<lambda>t s. free_fall_kinematics s]{0..t} UNIV @ 0 & G} \<lceil>Q\<rceil> = 
     \<lceil>\<lambda> x. \<forall> \<tau> \<in> {0..t}. (\<forall>r\<in>{0--\<tau>}. G (free_fall_flow r x)) \<longrightarrow> Q (free_fall_flow \<tau> x)\<rceil>"
-  apply(subst wp_g_orbit[of "\<lambda>s. free_fall_kinematics s" _ _ 1 "(\<lambda> t x. free_fall_flow t x)"])
-  using free_fall_flow_is_local_flow and assms by (blast, simp)
+  apply(subst picard_ivp.wp_g_orbit[of "\<lambda>t s. free_fall_kinematics s" _ _ 1 _ "(\<lambda> t x. free_fall_flow t x)"])
+  using free_fall_kinematics_is_picard_ivp and assms apply blast apply(clarify, rule conjI)
+  using free_fall_flow_solves_free_fall_kinematics apply blast
+   apply(simp add: vec_eq_iff) using three_exhaust by auto
 
 lemma single_evolution_ball:
   assumes "0 \<le> t" and "t < 1" 
   shows 
  "\<lceil>\<lambda>s. (0::real) \<le> s $ (Abs_three 0) \<and> s $ (Abs_three 0) = H \<and> s $ (Abs_three 1) = 0 \<and> 0 > s $ (Abs_three 2)\<rceil> 
-  \<subseteq> wp ({[x\<acute>=\<lambda>s. free_fall_kinematics s]{0..t} UNIV @ 0 & (\<lambda> s. s $ (Abs_three 0) \<ge> 0)})
+  \<subseteq> wp ({[x\<acute>=\<lambda>t s. free_fall_kinematics s]{0..t} UNIV @ 0 & (\<lambda> s. s $ (Abs_three 0) \<ge> 0)})
          \<lceil>\<lambda>s. 0 \<le> s $ (Abs_three 0) \<and> s $ (Abs_three 0) \<le> H\<rceil>"
   apply(subst free_fall_flow_DS)
   by(simp_all add: assms mult_nonneg_nonpos2)
@@ -190,7 +179,8 @@ lemma entries_K:"entries K = {0, 1}"
   apply (simp_all add: axis_def, safe)
   by(rule_tac x="1" in exI, simp)+
 
-lemma "0 \<le> t \<Longrightarrow> t < 1/9 \<Longrightarrow> picard_ivp (\<lambda> t s. K *v s) {0..t} UNIV ((real CARD(3))\<^sup>2 \<cdot> maxAbs K) 0"
+lemma K_is_picard_ivp:"0 \<le> t \<Longrightarrow> t < 1/9 \<Longrightarrow> 
+picard_ivp (\<lambda> t s. K *v s) {0..t} UNIV ((real CARD(3))\<^sup>2 \<cdot> maxAbs K) 0"
   apply(rule picard_ivp_linear_system)
   unfolding entries_K by auto
 
@@ -200,32 +190,23 @@ lemma flow_for_K_solves_K: "((\<lambda> \<tau>. flow_for_K \<tau> s) solves_ode 
   using poly_derivatives(1, 3, 4) 
   by(auto simp: matrix_vector_mult_def)
 
-lemma flow_for_K_is_local_flow: "0 \<le> t \<Longrightarrow> t < 1/9 \<Longrightarrow> 
-  local_flow (\<lambda> s. K *v s) UNIV {0..t} ((real CARD(3))\<^sup>2 \<cdot> maxAbs K) (\<lambda> t x. flow_for_K t x)"
-  unfolding local_flow_def local_flow_axioms_def apply safe
-  subgoal apply(rule picard_ivp_linear_system) unfolding entries_K by auto
-  subgoal for x _ \<tau> apply(rule picard_ivp.unique_solution [of "(\<lambda>t. ( *v) K)" "{0..t}" UNIV 
-          "((real CARD(3))\<^sup>2 \<cdot> maxAbs K)" 0])
-    subgoal apply(rule picard_ivp_linear_system) unfolding entries_K by auto 
-         apply(rule flow_for_K_solves_K)
-        apply(simp_all add: vec_eq_iff)
-    using UNIV_3 by fastforce+
-  done
-
 text{* Finally, we compute the wlp of this example and use it to verify the single-evolution ball again.*}
 
 corollary flow_for_K_DS:
   assumes "0 \<le> t" and "t < 1/9"
-  shows " wp {[x\<acute>=\<lambda>s. K *v s]{0..t} UNIV @ 0 & G} \<lceil>Q\<rceil> = 
+  shows " wp {[x\<acute>=\<lambda>t s. K *v s]{0..t} UNIV @ 0 & G} \<lceil>Q\<rceil> = 
     \<lceil>\<lambda> x. \<forall> \<tau> \<in> {0..t}. (\<forall>r\<in>{0--\<tau>}. G (flow_for_K r x)) \<longrightarrow> Q (flow_for_K \<tau> x)\<rceil>"
-  apply(subst wp_g_orbit[of "\<lambda>s. K *v s" _ _ "((real CARD(3))\<^sup>2 \<cdot> maxAbs K)" "(\<lambda> t x. flow_for_K t x)"])
-  using flow_for_K_is_local_flow and assms apply blast by simp 
+  apply(subst picard_ivp.wp_g_orbit[of "\<lambda>t s. K *v s" _ _ "((real CARD(3))\<^sup>2 \<cdot> maxAbs K)" 
+        _ "(\<lambda> t x. flow_for_K t x)"])
+  using K_is_picard_ivp and assms apply blast apply(clarify, rule conjI)
+  using flow_for_K_solves_K apply blast
+   apply(simp add: vec_eq_iff) using exhaust_3 apply force
+  by simp
 
 lemma single_evolution_ball_K:
   assumes "0 \<le> t" and "t < 1/9" 
   shows "\<lceil>\<lambda>s. (0::real) \<le> s $ (0::3) \<and> s $ 0 = H \<and> s $ 1 = 0 \<and> 0 > s $ 2\<rceil> 
-  \<subseteq> wp ({[x\<acute>=\<lambda>s. K *v s]{0..t} UNIV @ 0 & (\<lambda> s. s $ 0 \<ge> 0)})
-        \<lceil>\<lambda>s. 0 \<le> s $ 0 \<and> s $ 0 \<le> H\<rceil>"
+  \<subseteq> wp ({[x\<acute>=\<lambda>t s. K *v s]{0..t} UNIV @ 0 & (\<lambda> s. s $ 0 \<ge> 0)}) \<lceil>\<lambda>s. 0 \<le> s $ 0 \<and> s $ 0 \<le> H\<rceil>"
   apply(subst flow_for_K_DS)
   using assms by(simp_all add: mult_nonneg_nonpos2)
 
@@ -291,7 +272,7 @@ qed
 lemma bouncing_ball:
   assumes "0 \<le> t" and "t < 1/9" 
   shows "\<lceil>\<lambda>s. (0::real) \<le> s $ (0::3) \<and> s $ 0 = H \<and> s $ 1 = 0 \<and> 0 > s $ 2\<rceil> \<subseteq> wp 
-  (({[x\<acute>=\<lambda>s. K *v s]{0..t} UNIV @ 0 & (\<lambda> s. s $ 0 \<ge> 0)};
+  (({[x\<acute>=\<lambda>t s. K *v s]{0..t} UNIV @ 0 & (\<lambda> s. s $ 0 \<ge> 0)};
   (IF (\<lambda> s. s $ 0 = 0) THEN ([1 ::== (\<lambda>s. - s $ 1)]) ELSE Id FI))\<^sup>*)
   \<lceil>\<lambda>s. 0 \<le> s $ 0 \<and> s $ 0 \<le> H\<rceil>"
   apply(rule rel_ad_mka_starI [of _ "\<lceil>\<lambda>s. 0 \<le> s $ (0::3) \<and> 0 > s $ 2 \<and> 
@@ -330,7 +311,7 @@ r \<in> {0..\<tau>} \<Longrightarrow> ((\<lambda>\<tau>. 2 \<cdot> x \<tau> $ 2 
 lemma bouncing_ball_invariants:
   assumes "0 \<le> t" and "t < 1/9" 
   shows"\<lceil>\<lambda>s. (0::real) \<le> s $ (0::3) \<and> s $ 0 = H \<and> s $ 1 = 0 \<and> 0 > s $ 2\<rceil> \<subseteq> wp 
-  (({[x\<acute>=\<lambda>s. K *v s]{0..t} UNIV @ 0 & (\<lambda> s. s $ 0 \<ge> 0)};
+  (({[x\<acute>=\<lambda>t s. K *v s]{0..t} UNIV @ 0 & (\<lambda> s. s $ 0 \<ge> 0)};
   (IF (\<lambda> s. s $ 0 = 0) THEN ([1 ::== (\<lambda>s. - s $ 1)]) ELSE Id FI))\<^sup>*)
   \<lceil>\<lambda>s. 0 \<le> s $ 0 \<and> s $ 0 \<le> H\<rceil>"
   apply(rule_tac I="\<lceil>\<lambda>s. 0 \<le> s$0 \<and> 0 > s$2 \<and> 2 \<cdot> s$2 \<cdot> s$0 = 2 \<cdot> s$2 \<cdot> H + (s$1 \<cdot> s$1)\<rceil>" in rel_ad_mka_starI)
@@ -352,7 +333,7 @@ subsubsection{* Circular motion with invariants *}
 
 lemma two_eq_zero: "(2::2) = 0" by simp
 
-lemma [simp]:"i \<noteq> (0::2) \<longrightarrow> i = 1" using exhaust_2 by fastforce
+lemma [simp]:"i \<noteq> (0::2) \<Longrightarrow> i = 1" using exhaust_2 by fastforce
 
 lemma UNIV_2:"(UNIV::2 set) = {0, 1}"
   apply safe using exhaust_2 two_eq_zero by auto
@@ -371,7 +352,8 @@ lemma entries_Circ:"entries Circ = {0, - 1, 1}"
   subgoal by(rule_tac x="0" in exI, simp)+
   by(rule_tac x="1" in exI, simp)+
 
-lemma "0 \<le> t \<Longrightarrow> t < 1/4 \<Longrightarrow> picard_ivp (\<lambda> t s. Circ *v s) {0..t} UNIV ((real CARD(2))\<^sup>2 \<cdot> maxAbs Circ) 0"
+lemma Circ_is_picard_ivp:"0 \<le> t \<Longrightarrow> t < 1/4 \<Longrightarrow> 
+picard_ivp (\<lambda> t s. Circ *v s) {0..t} UNIV ((real CARD(2))\<^sup>2 \<cdot> maxAbs Circ) 0"
   apply(rule picard_ivp_linear_system)
   unfolding entries_Circ by auto
 
@@ -401,48 +383,20 @@ lemma flow_for_Circ_solves_Circ: "((\<lambda> \<tau>. flow_for_Circ \<tau> s) so
     done
   done
 
-lemma flow_for_Circ_is_local_flow: "0 \<le> t \<Longrightarrow> t < 1/4 \<Longrightarrow> 
-  local_flow (\<lambda> s. Circ *v s) UNIV {0..t} ((real CARD(2))\<^sup>2 \<cdot> maxAbs Circ) (\<lambda> t x. flow_for_Circ t x)"
-  unfolding local_flow_def local_flow_axioms_def apply safe
-  subgoal apply(rule picard_ivp_linear_system) unfolding entries_Circ by auto
-  subgoal for x _ \<tau> apply(rule picard_ivp.unique_solution [of "(\<lambda>t. ( *v) Circ)" "{0..t}" UNIV 
-          "((real CARD(2))\<^sup>2 \<cdot> maxAbs Circ)" 0])
-    subgoal apply(rule picard_ivp_linear_system) unfolding entries_Circ by auto
-         apply(rule flow_for_Circ_solves_Circ)
-        apply(simp_all add: vec_eq_iff)
-    using UNIV_2 by fastforce+
-  done
-
 corollary flow_for_Circ_DS:
   assumes "0 \<le> t" and "t < 1/4"
-  shows " wp {[x\<acute>=\<lambda>s. Circ *v s]{0..t} UNIV @ 0 & G} \<lceil>Q\<rceil> = 
+  shows " wp {[x\<acute>=\<lambda> t s. Circ *v s]{0..t} UNIV @ 0 & G} \<lceil>Q\<rceil> = 
     \<lceil>\<lambda> x. \<forall> \<tau> \<in> {0..t}. (\<forall>r\<in>{0--\<tau>}. G (flow_for_Circ r x)) \<longrightarrow> Q (flow_for_Circ \<tau> x)\<rceil>"
-  apply(subst wp_g_orbit[of "\<lambda>s. Circ *v s" _ _ "((real CARD(2))\<^sup>2 \<cdot> maxAbs Circ)" "(\<lambda> t x. flow_for_Circ t x)"])
-  using flow_for_Circ_is_local_flow and assms apply blast by simp
-
-lemma semiring_factor_left:"a \<cdot> b + a \<cdot> c = a \<cdot> ((b::('a::semiring)) + c)"
-  by(subst Groups.algebra_simps(18), simp)
-
-lemma sin_cos_squared_add3:"(x::('a:: {banach,real_normed_field})) \<cdot> (sin t)\<^sup>2 + x \<cdot> (cos t)\<^sup>2 = x"
-  by(subst semiring_factor_left, subst sin_cos_squared_add, simp)
-
-lemma sin_cos_squared_add4:"(x::('a:: {banach,real_normed_field})) \<cdot> (cos t)\<^sup>2 + x \<cdot> (sin t)\<^sup>2 = x"
-  by(subst semiring_factor_left, subst sin_cos_squared_add2, simp)
-
-lemma [simp]:"((x::real) \<cdot> cos t - y \<cdot> sin t)\<^sup>2 + (x \<cdot> sin t + y \<cdot> cos t)\<^sup>2 = x\<^sup>2 + y\<^sup>2"
-proof-
-  have "(x \<cdot> cos t - y \<cdot> sin t)\<^sup>2 = x\<^sup>2 \<cdot> (cos t)\<^sup>2 + y\<^sup>2 \<cdot> (sin t)\<^sup>2 - 2 \<cdot> (x \<cdot> cos t) \<cdot> (y \<cdot> sin t)"
-    by(simp add: power2_diff power_mult_distrib)
-  also have "(x \<cdot> sin t + y \<cdot> cos t)\<^sup>2 = y\<^sup>2 \<cdot> (cos t)\<^sup>2 + x\<^sup>2 \<cdot> (sin t)\<^sup>2 + 2 \<cdot> (x \<cdot> cos t) \<cdot> (y \<cdot> sin t)"
-    by(simp add: power2_sum power_mult_distrib)
-  ultimately show "(x \<cdot> cos t - y \<cdot> sin t)\<^sup>2 + (x \<cdot> sin t + y \<cdot> cos t)\<^sup>2 = x\<^sup>2 + y\<^sup>2"  
-    by (simp add: Groups.mult_ac(2) Groups.mult_ac(3) right_diff_distrib sin_squared_eq) 
-qed
+  apply(subst picard_ivp.wp_g_orbit[of "\<lambda>t s. Circ *v s" _ _ "((real CARD(2))\<^sup>2 \<cdot> maxAbs Circ)" _ "(\<lambda> t x. flow_for_Circ t x)"])
+  using Circ_is_picard_ivp and assms apply blast apply(clarify, rule conjI)
+  using flow_for_Circ_solves_Circ apply blast
+   apply(simp add: vec_eq_iff) using exhaust_2 two_eq_zero apply force 
+  by simp
 
 lemma circular_motion:
   assumes "0 \<le> t" and "t < 1/4" and "(R::real) > 0"
   shows"\<lceil>\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2\<rceil> \<subseteq> wp 
-  {[x\<acute>=\<lambda>s. Circ *v s]{0..t} UNIV @ 0 & (\<lambda> s. s $ 0 \<ge> 0)}
+  {[x\<acute>=\<lambda>t s. Circ *v s]{0..t} UNIV @ 0 & (\<lambda> s. True)}
   \<lceil>\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2\<rceil>"
   apply(subst flow_for_Circ_DS)
   using assms by simp_all

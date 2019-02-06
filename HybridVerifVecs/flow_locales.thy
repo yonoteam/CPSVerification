@@ -1,6 +1,5 @@
 theory flow_locales
-  imports
-  "Ordinary_Differential_Equations.Initial_Value_Problem"
+  imports "Ordinary_Differential_Equations.Initial_Value_Problem"
 
 begin
 
@@ -102,14 +101,15 @@ end
 text{* The next locale particularizes the previous one to an initial time equal to 0. Thus making
 the function that maps every initial point to its solution a (local) ``flow''. *}
 locale local_flow = picard_ivp "(\<lambda> t. f)" T S L 0 for f::"('a::banach) \<Rightarrow> 'a" and S T L +
-  fixes \<phi> :: "real \<Rightarrow> 'a \<Rightarrow> 'a" (* delete s below *)
-  assumes flow_def:"\<And> x s t. t \<in> T \<Longrightarrow> (x solves_ode (\<lambda> t. f))T S \<Longrightarrow> x 0 = s \<Longrightarrow> \<phi> t s = x t"
+  fixes \<phi> :: "real \<Rightarrow> 'a \<Rightarrow> 'a"
+  assumes ivp:"\<forall>s \<in> S. ((\<lambda>t. \<phi> t s) solves_ode (\<lambda> t. f))T S \<and> \<phi> 0 s = s"
 begin
 
 lemma is_fixed_point:
   assumes "s \<in> S" and "t \<in> T"
   shows "\<phi> t s = phi t s"
-  using flow_def assms fixed_point_solves init_time by simp
+  apply(rule fixed_point_usolves)
+  using ivp assms init_time by simp_all
 
 theorem solves:
   assumes "s \<in> S"
@@ -153,13 +153,10 @@ end
 lemma flow_on_compact_subset:
   assumes flow_from_Y:"local_flow f S T' L \<phi>" and "T \<subseteq> T'" and "compact_interval T" and "0 \<in> T"
   shows "local_flow f S T L \<phi>"
-  unfolding ubc_definitions apply(unfold_locales, safe)
-  prefer 10 using assms and local_flow.solves_on_compact_subset apply blast
-  using assms unfolding local_flow_def picard_ivp_def ubc_definitions 
-    apply(meson Sigma_mono continuous_on_subset subsetI)
-  using assms unfolding local_flow_def picard_ivp_def picard_ivp_axioms_def 
-    local_flow_axioms_def ubc_definitions apply (simp_all add: subset_eq)
-  by blast
+  using assms unfolding local_flow_def picard_ivp_def ubc_definitions apply(unfold_locales, safe)
+     apply(meson Sigma_mono continuous_on_subset subsetI) apply blast
+  unfolding picard_ivp_axioms_def apply(simp add: subset_eq, blast)
+  unfolding local_flow_axioms_def using solves_ode_on_subset by fastforce
 
 text{* The last locale shows that the function introduced in its predecesor is indeed a flow. That
 is, it is a group action on the additive part of the real numbers.*}
@@ -209,8 +206,9 @@ subsection{* Example *}
 text{* Finally, we exemplify a procedure for introducing pairs of vector fields and their respective 
 flows using the previous locales. *}
 
-lemma constant_is_ubc:"0 \<le> t \<Longrightarrow> unique_on_bounded_closed 0 {0..t} s (\<lambda>t s. c) UNIV (1 / (t + 1))"
-  unfolding ubc_definitions by(simp add: nonempty_set_def lipschitz_on_def, safe, simp)
+lemma constant_is_picard_ivp:"0 \<le> t \<Longrightarrow> picard_ivp (\<lambda>t s. c) {0..t} UNIV (1 / (t + 1)) 0"
+  unfolding picard_ivp_def picard_ivp_axioms_def ubc_definitions 
+  by(simp add: nonempty_set_def lipschitz_on_def, clarsimp, simp)
 
 lemma line_solves_constant:"((\<lambda> \<tau>. x + \<tau> *\<^sub>R c) solves_ode (\<lambda>t s. c)) {0..t} UNIV"
   unfolding solves_ode_def apply simp
@@ -220,13 +218,8 @@ lemma line_solves_constant:"((\<lambda> \<tau>. x + \<tau> *\<^sub>R c) solves_o
 
 lemma line_is_local_flow:
 "0 \<le> t \<Longrightarrow> local_flow (\<lambda> s. (c::'a::banach)) UNIV {0..t} (1/(t + 1)) (\<lambda> t x. x + t *\<^sub>R c)"
-  unfolding local_flow_def local_flow_axioms_def picard_ivp_def
-    picard_ivp_axioms_def ubc_definitions
-  apply(simp add: nonempty_set_def lipschitz_on_def del: real_scaleR_def, safe, simp)
-  subgoal for x \<tau>
-    apply(rule unique_on_bounded_closed.unique_solution
-        [of 0 "{0..t}" "x 0" "(\<lambda>t s. c)" UNIV "(1 / (t + 1))" "(\<lambda>a. x 0 + a *\<^sub>R c)"])
-    using constant_is_ubc apply blast
-    using line_solves_constant by(blast, simp_all).
+  unfolding local_flow_def local_flow_axioms_def apply safe
+  using constant_is_picard_ivp apply blast
+  using line_solves_constant by auto
 
 end

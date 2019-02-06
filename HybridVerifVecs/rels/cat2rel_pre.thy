@@ -97,6 +97,25 @@ lemma sqrt_le_itself: "1 \<le> x \<Longrightarrow> sqrt x \<le> x"
 lemma sqrt_real_nat_le:"sqrt (real n) \<le> real n"
   by (metis (full_types) abs_of_nat le_square of_nat_mono of_nat_mult real_sqrt_abs2 real_sqrt_le_iff)
 
+lemma semiring_factor_left:"a \<cdot> b + a \<cdot> c = a \<cdot> ((b::('a::semiring)) + c)"
+  by(subst Groups.algebra_simps(18), simp)
+
+lemma sin_cos_squared_add3:"(x::('a:: {banach,real_normed_field})) \<cdot> (sin t)\<^sup>2 + x \<cdot> (cos t)\<^sup>2 = x"
+  by(subst semiring_factor_left, subst sin_cos_squared_add, simp)
+
+lemma sin_cos_squared_add4:"(x::('a:: {banach,real_normed_field})) \<cdot> (cos t)\<^sup>2 + x \<cdot> (sin t)\<^sup>2 = x"
+  by(subst semiring_factor_left, subst sin_cos_squared_add2, simp)
+
+lemma [simp]:"((x::real) \<cdot> cos t - y \<cdot> sin t)\<^sup>2 + (x \<cdot> sin t + y \<cdot> cos t)\<^sup>2 = x\<^sup>2 + y\<^sup>2"
+proof-
+  have "(x \<cdot> cos t - y \<cdot> sin t)\<^sup>2 = x\<^sup>2 \<cdot> (cos t)\<^sup>2 + y\<^sup>2 \<cdot> (sin t)\<^sup>2 - 2 \<cdot> (x \<cdot> cos t) \<cdot> (y \<cdot> sin t)"
+    by(simp add: power2_diff power_mult_distrib)
+  also have "(x \<cdot> sin t + y \<cdot> cos t)\<^sup>2 = y\<^sup>2 \<cdot> (cos t)\<^sup>2 + x\<^sup>2 \<cdot> (sin t)\<^sup>2 + 2 \<cdot> (x \<cdot> cos t) \<cdot> (y \<cdot> sin t)"
+    by(simp add: power2_sum power_mult_distrib)
+  ultimately show "(x \<cdot> cos t - y \<cdot> sin t)\<^sup>2 + (x \<cdot> sin t + y \<cdot> cos t)\<^sup>2 = x\<^sup>2 + y\<^sup>2"  
+    by (simp add: Groups.mult_ac(2) Groups.mult_ac(3) right_diff_distrib sin_squared_eq) 
+qed
+
 lemma closed_segment_mvt:
   fixes f :: "real \<Rightarrow> real"
   assumes "(\<And>r. r\<in>{a--b} \<Longrightarrow> (f has_derivative f' r) (at r within {a--b}))" and "a \<le> b"
