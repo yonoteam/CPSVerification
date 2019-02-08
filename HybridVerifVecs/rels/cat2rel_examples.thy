@@ -64,9 +64,8 @@ lemma free_fall_kinematics_continuous_on: "continuous_on X free_fall_kinematics"
 
 lemma free_fall_kinematics_is_picard_ivp:"0 \<le> t \<Longrightarrow> t < 1 \<Longrightarrow> 
 picard_ivp (\<lambda> t s. free_fall_kinematics s) {0..t} UNIV 1 0"
-  unfolding picard_ivp_def picard_ivp_axioms_def ubc_definitions
-  apply(simp_all add: nonempty_set_def lipschitz_on_def, safe)
-     apply(rule continuous_on_compose2[of UNIV _ "{0..t} \<times> UNIV" snd])
+  unfolding picard_ivp_def apply(simp add: lipschitz_on_def, safe)
+  apply(rule_tac t="X" and f="snd" in continuous_on_compose2)
   apply(simp_all add: free_fall_kinematics_continuous_on continuous_on_snd)
    apply(simp add: dist_vec_def L2_set_def dist_real_def)
    apply(subst three_univD, subst three_univD)
@@ -150,7 +149,7 @@ lemma picard_ivp_linear_system:
   assumes "0 < ((real CARD('n))\<^sup>2 \<cdot> (maxAbs A))" (is "0 < ?L") 
   assumes "0 \<le> t" and "t < 1/?L"
   shows "picard_ivp (\<lambda> t s. A *v s) {0..t} UNIV ?L 0"
-  apply unfold_locales
+  apply unfold_locales apply(simp add: \<open>0 \<le> t\<close>)
   subgoal by(simp, metis continuous_on_compose2 continuous_on_cong continuous_on_id 
         continuous_on_snd matrix_vector_mult_linear_continuous_on top_greatest) 
   subgoal using matrix_lipschitz_constant maxAbs_ge_0 zero_compare_simps(4,12) 

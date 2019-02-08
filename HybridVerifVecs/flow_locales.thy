@@ -35,10 +35,11 @@ lemma(in unique_on_bounded_closed) unique_on_bounded_closed_on_compact_subset:
 text{* The first locale imposes conditions for applying the Picard-Lindeloef theorem following 
 the people who created the Ordinary Differential Equations entry in the AFP. *}
 
-locale picard_ivp = continuous_rhs T S f + global_lipschitz T S f L 
-  for f::"real \<Rightarrow> ('a::banach) \<Rightarrow> 'a" and T::"real set" and S L + 
-  fixes t0::real
+locale picard_ivp =
+  fixes f::"real \<Rightarrow> ('a::banach) \<Rightarrow> 'a" and T::"real set" and S::"'a set" and L t0::real
   assumes init_time:"t0 \<in> T"
+    and cont_vec_field: "continuous_on (T \<times> X) (\<lambda>(t, x). f t x)"
+    and lipschitz_vec_field: "\<And>t. t \<in> T \<Longrightarrow> L-lipschitz_on X (\<lambda>x. f t x)"
     and nonempty_time: "T \<noteq> {}"
     and interval_time: "is_interval T"
     and compact_time: "compact T"
@@ -72,7 +73,7 @@ lemma is_ubc:
   prefer 6 using solution_in_domain apply simp
   prefer 2 using nonempty_time apply fastforce
   by(auto simp: compact_time interval_time init_time
-      closed_domain lipschitz lipschitz_bound continuous)
+      closed_domain lipschitz_vec_field lipschitz_bound cont_vec_field)
 
 lemma unique_solution:
   assumes "(x solves_ode f)T S" and "x t0 = s"
@@ -151,12 +152,19 @@ qed
 end
 
 lemma flow_on_compact_subset:
-  assumes flow_from_Y:"local_flow f S T' L \<phi>" and "T \<subseteq> T'" and "compact_interval T" and "0 \<in> T"
+  assumes flow_on_big:"local_flow f S T' L \<phi>" and "T \<subseteq> T'" and "compact_interval T" and "0 \<in> T"
   shows "local_flow f S T L \<phi>"
-  using assms unfolding local_flow_def picard_ivp_def ubc_definitions apply(unfold_locales, safe)
-     apply(meson Sigma_mono continuous_on_subset subsetI) apply blast
-  unfolding picard_ivp_axioms_def apply(simp add: subset_eq, blast)
-  unfolding local_flow_axioms_def using solves_ode_on_subset by fastforce
+  unfolding local_flow_def local_flow_axioms_def proof(safe)
+  fix s show "s \<in> S \<Longrightarrow> ((\<lambda>t. \<phi> t s) solves_ode (\<lambda>t. f)) T S" "s \<in> S \<Longrightarrow> \<phi> 0 s = s"
+    using assms solves_ode_on_subset unfolding local_flow_def local_flow_axioms_def by fastforce+
+next
+  show "picard_ivp (\<lambda>t. f) T S L 0"
+    using assms unfolding local_flow_def local_flow_axioms_def 
+      picard_ivp_def ubc_definitions apply safe
+       apply(meson Sigma_mono continuous_on_subset subsetI)
+      apply(simp_all add: subset_eq)
+    by fastforce
+qed
 
 text{* The last locale shows that the function introduced in its predecesor is indeed a flow. That
 is, it is a group action on the additive part of the real numbers.*}
@@ -198,8 +206,7 @@ end
 lemma localize_global_flow:
   assumes "global_flow f L \<phi>" and "compact_interval T" and "closed S"
   shows "local_flow f S T L \<phi>"
-  using assms unfolding global_flow_def local_flow_def 
-    picard_ivp_def picard_ivp_axioms_def by simp
+  using assms unfolding global_flow_def local_flow_def picard_ivp_def by simp
 
 subsection{* Example *}
 
@@ -207,8 +214,7 @@ text{* Finally, we exemplify a procedure for introducing pairs of vector fields 
 flows using the previous locales. *}
 
 lemma constant_is_picard_ivp:"0 \<le> t \<Longrightarrow> picard_ivp (\<lambda>t s. c) {0..t} UNIV (1 / (t + 1)) 0"
-  unfolding picard_ivp_def picard_ivp_axioms_def ubc_definitions 
-  by(simp add: nonempty_set_def lipschitz_on_def, clarsimp, simp)
+  unfolding picard_ivp_def by(simp add: nonempty_set_def lipschitz_on_def, clarsimp, simp)
 
 lemma line_solves_constant:"((\<lambda> \<tau>. x + \<tau> *\<^sub>R c) solves_ode (\<lambda>t s. c)) {0..t} UNIV"
   unfolding solves_ode_def apply simp
