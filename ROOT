@@ -22,11 +22,9 @@ session "CPSVerification" = "Ordinary_Differential_Equations" +
     "HybridVerifLists/VC_diffKAD"
     "HybridVerifLists/VC_diffKAD_auxiliarities"
     "HybridVerifLists/VC_diffKAD_examples"
-    "HybridVerifVecs/flow_locales"
-    "HybridVerifVecs/rels/cat2rel_pre"
+    "HybridVerifVecs/hs_prelims"
     "HybridVerifVecs/rels/cat2rel"
     "HybridVerifVecs/rels/cat2rel_examples"
-    "HybridVerifVecs/nd_funs/cat2funcset_pre"
     "HybridVerifVecs/nd_funs/cat2funcset"
     "HybridVerifVecs/nd_funs/cat2funcset_examples"
   document_files

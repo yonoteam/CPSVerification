@@ -1,9 +1,83 @@
 theory cat2rel
-  imports cat2rel_pre
+  imports
+  "../hs_prelims"
+  "../../afpModified/VC_KAD"
 
 begin
 
 section{* Hybrid System Verification *}
+
+\<comment> \<open>We start by deleting some conflicting notation.\<close>
+no_notation Archimedean_Field.ceiling ("\<lceil>_\<rceil>")
+        and Archimedean_Field.floor_ceiling_class.floor ("\<lfloor>_\<rfloor>")
+        and Range_Semiring.antirange_semiring_class.ars_r ("r")
+
+subsection{* Weakest Liberal Preconditions *}
+
+lemma p2r_IdD:"\<lceil>P\<rceil> = Id \<Longrightarrow> P s"
+  by (metis (full_types) UNIV_I impl_prop p2r_subid top_empty_eq)
+
+definition f2r :: "('a \<Rightarrow> 'b set) \<Rightarrow> ('a \<times> 'b) set" ("\<R>") where
+  "\<R> f = {(x,y). y \<in> f x}"
+
+lemma wp_rel:"wp R \<lceil>P\<rceil> = \<lceil>\<lambda> x. \<forall> y. (x,y) \<in> R \<longrightarrow> P y\<rceil>"
+proof-
+  have "\<lfloor>wp R \<lceil>P\<rceil>\<rfloor> = \<lfloor>\<lceil>\<lambda> x. \<forall> y. (x,y) \<in> R \<longrightarrow> P y\<rceil>\<rfloor>" 
+    by (simp add: wp_trafo pointfree_idE)
+  thus "wp R \<lceil>P\<rceil> = \<lceil>\<lambda> x. \<forall> y. (x,y) \<in> R \<longrightarrow> P y\<rceil>" 
+    by (metis (no_types, lifting) wp_simp d_p2r pointfree_idE prp) 
+qed
+
+corollary wp_relD:"(x,x) \<in> wp R \<lceil>P\<rceil> \<Longrightarrow> \<forall> y. (x,y) \<in> R \<longrightarrow> P y"
+proof-
+  assume "(x,x) \<in> wp R \<lceil>P\<rceil>"
+  hence "(x,x) \<in> \<lceil>\<lambda> x. \<forall> y. (x,y) \<in> R \<longrightarrow> P y\<rceil>" using wp_rel by auto
+  thus "\<forall> y. (x,y) \<in> R \<longrightarrow> P y" by (simp add: p2r_def)
+qed
+
+lemma p2r_r2p_wp_sym:"wp R P = \<lceil>\<lfloor>wp R P\<rfloor>\<rceil>"
+  using d_p2r wp_simp by blast
+
+lemma p2r_r2p_wp:"\<lceil>\<lfloor>wp R P\<rfloor>\<rceil> = wp R P"
+  by(rule sym, subst p2r_r2p_wp_sym, simp)
+
+abbreviation vec_upd :: "('a^'b) \<Rightarrow> 'b \<Rightarrow> 'a \<Rightarrow> 'a^'b" ("_(2[_ :== _])" [70, 65] 61) where 
+"x[i :== a] \<equiv> (\<chi> j. (if j = i then a else (x $ j)))"
+
+abbreviation assign :: "'b \<Rightarrow> ('a^'b \<Rightarrow> 'a) \<Rightarrow> ('a^'b) rel" ("(2[_ ::== _])" [70, 65] 61) where 
+"[x ::== expr]\<equiv> {(s, s[x :== expr s])| s. True}" 
+
+lemma wp_assign [simp]: "wp ([x ::== expr]) \<lceil>Q\<rceil> = \<lceil>\<lambda>s. Q (s[x :== expr s])\<rceil>"
+  by(auto simp: rel_antidomain_kleene_algebra.fbox_def rel_ad_def p2r_def)
+
+lemma wp_assign_var [simp]: "\<lfloor>wp ([x ::== expr]) \<lceil>Q\<rceil>\<rfloor> = (\<lambda>s. Q (s[x :== expr s]))"
+  by(subst wp_assign, simp add: pointfree_idE)
+
+lemma (in antidomain_kleene_algebra) fbox_starI: 
+assumes "d p \<le> d i" and "d i \<le> |x] i" and "d i \<le> d q"
+shows "d p \<le> |x\<^sup>\<star>] q"
+proof-
+from \<open>d i \<le> |x] i\<close> have "d i \<le> |x] (d i)"
+  using local.fbox_simp by auto 
+hence "|1] p \<le> |x\<^sup>\<star>] i" using \<open>d p \<le> d i\<close> by (metis (no_types) 
+  local.dual_order.trans local.fbox_one local.fbox_simp local.fbox_star_induct_var)
+thus ?thesis using \<open>d i \<le> d q\<close> by (metis (full_types)
+  local.fbox_mult local.fbox_one local.fbox_seq_var local.fbox_simp)
+qed
+
+lemma rel_ad_mka_starI:
+assumes "P \<subseteq> I" and "I \<subseteq> wp R I" and "I \<subseteq> Q"
+shows "P \<subseteq> wp (R\<^sup>*) Q"
+proof-
+  have "wp R I \<subseteq> Id"
+    by (simp add: rel_antidomain_kleene_algebra.a_subid rel_antidomain_kleene_algebra.fbox_def)
+  hence "P \<subseteq> Id" using assms(1,2) by blast
+  from this have "rdom P = P" by (metis d_p2r p2r_surj)
+  also have "rdom P \<subseteq> wp (R\<^sup>*) Q"
+    by (metis \<open>wp R I \<subseteq> Id\<close> assms d_p2r p2r_surj 
+        rel_antidomain_kleene_algebra.dka.dom_iso rel_antidomain_kleene_algebra.fbox_starI)
+  ultimately show ?thesis by blast
+qed
 
 subsection{* Verification by providing solutions *}
 

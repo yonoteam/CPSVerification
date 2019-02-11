@@ -278,9 +278,9 @@ lemma bouncing_ball:
   2 \<cdot> s $ 2 \<cdot> s $ 0 = 2 \<cdot> s $ 2 \<cdot> H + (s $ 1 \<cdot> s $ 1)\<rceil>"])
     apply(simp, simp only: rel_antidomain_kleene_algebra.fbox_seq)
    apply(subst p2r_r2p_wp_sym[of "(IF (\<lambda>s. s $ 0 = 0) THEN ([1 ::== (\<lambda>s. - s $ 1)]) ELSE Id FI)"])
-   apply(subst flow_for_K_DS) using assms apply(simp, simp) apply(subst wp_trafo)
-  by(auto simp: p2r_def rel_antidomain_kleene_algebra.cond_def 
-      rel_antidomain_kleene_algebra.ads_d_def rel_ad_def closed_segment_eq_real_ivl bb_real_arith)
+   apply(subst flow_for_K_DS) using assms apply(simp, simp) apply(subst wp_trafo) 
+  unfolding rel_antidomain_kleene_algebra.cond_def rel_antidomain_kleene_algebra.ads_d_def 
+  by(auto simp: p2r_def rel_ad_def bb_real_arith)
 
 subsubsection{* Bouncing Ball with invariants *}
 
