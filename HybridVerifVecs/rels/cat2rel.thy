@@ -94,15 +94,15 @@ context picard_ivp
 begin
 
 lemma orbital_collapses: 
-  assumes ivp:"\<forall>s \<in> S. ((\<lambda>t. \<phi> t s) solves_ode f)T S \<and> \<phi> t0 s = s" and "s \<in> S"
+  assumes ivp:"((\<lambda>t. \<phi> t s) solves_ode f)T S \<and> \<phi> t0 s = s" and "s \<in> S"
   shows "orbital f T S t0 s = {\<phi> t s| t. t \<in> T}"
   apply safe apply(rule_tac x="t" in exI, simp)
-   apply(rule_tac x="xa" and s="xa t0" in unique_solution, simp_all add: assms)
-  apply(rule_tac x="t" in exI, rule_tac x="\<lambda>t. \<phi> t s" in exI)
+  using assms unique_solution apply blast
+  apply(rule_tac x="t" in exI, rule_tac x="\<lambda>t. \<phi> t s" in exI) 
   using assms init_time by auto
 
 lemma g_orbital_collapses: 
-  assumes ivp:"\<forall>s \<in> S. ((\<lambda>t. \<phi> t s) solves_ode f)T S \<and> \<phi> t0 s = s" and "s \<in> S"
+  assumes ivp:"((\<lambda>t. \<phi> t s) solves_ode f)T S \<and> \<phi> t0 s = s" and "s \<in> S"
   shows "g_orbital f T S t0 s G = {\<phi> t s| t. t \<in> T \<and> (\<forall> r \<in> {t0--t}. G (\<phi> r s))}"
   apply safe apply(rule_tac x="t" in exI, simp) 
   using assms unique_solution apply(metis closed_segment_subset_domainI)
@@ -169,8 +169,8 @@ theorem DW:
   by fastforce+
 
 theorem dWeakening: 
-assumes "\<lceil>G\<rceil> \<subseteq> \<lceil>Q\<rceil>"
-shows "\<lceil>P\<rceil> \<subseteq> wp ({[x\<acute>=f]T S @ t0 & G}) \<lceil>Q\<rceil>"
+  assumes "\<lceil>G\<rceil> \<subseteq> \<lceil>Q\<rceil>"
+  shows "\<lceil>P\<rceil> \<subseteq> wp ({[x\<acute>=f]T S @ t0 & G}) \<lceil>Q\<rceil>"
   using assms apply(subst wp_rel)
   by(auto simp: f2r_def)
 
@@ -240,7 +240,7 @@ corollary dCut_interval:
   apply(rule_tac C="C" in dCut)
   using assms by(simp_all add: interval_def)
 
-subsubsection{* Differential Invariant *}
+subsubsection{* Differential Invariant *}(* MODIFICATIONS REQUIRED: remove inf T*)
 
 lemma DI_sufficiency:
   assumes picard:"picard_ivp f T S L t0"
@@ -261,7 +261,6 @@ definition pderivative :: "'a pred \<Rightarrow> 'a pred \<Rightarrow> (real \<R
 I (x (Inf T)) \<longrightarrow> (\<forall> t \<in> T. (\<forall>r\<in>{(Inf T)--t}. I' (x r)) \<longrightarrow> (I (x t))))"
 
 lemma dInvariant:
-  fixes \<theta>::"'a::banach \<Rightarrow> real"
   assumes "\<lceil>G\<rceil> \<subseteq> \<lceil>I'\<rceil>" and "I' is_pderivative_of I with_respect_to f T S"
   shows "\<lceil>I\<rceil> \<subseteq> wp ({[x\<acute>=f]T S @ (Inf T) & G}) \<lceil>I\<rceil>"
   using assms unfolding pderivative_def apply(subst wp_rel)
@@ -276,6 +275,15 @@ proof(simp add: p2r_def, clarsimp)
     by (auto simp: p2r_def)
   thus "I y" using xtHyp x_ivp sHyp and prime by blast 
 qed
+
+lemma dInvariant':
+  assumes "I' is_pderivative_of I with_respect_to f T S" and "Inf T \<in> T" and "interval T"
+    and "\<lceil>P\<rceil> \<le> \<lceil>I\<rceil>" and "\<lceil>G\<rceil> \<le> \<lceil>I'\<rceil>" and "\<lceil>I\<rceil> \<le> \<lceil>Q\<rceil>"
+  shows "\<lceil>P\<rceil> \<le> wp ({[x\<acute>=f]T S @ (Inf T) & G}) \<lceil>Q\<rceil>"
+  apply(rule_tac C="I" in dCut) using assms(2,3) apply(simp, simp)
+   apply(subgoal_tac "\<lceil>I\<rceil> \<subseteq> wp ({[x\<acute>=f]T S @ (Inf T) & G}) \<lceil>I\<rceil>") using \<open>\<lceil>P\<rceil> \<le> \<lceil>I\<rceil>\<close> apply blast 
+  using assms(1,5) apply(rule_tac I'="I'" in dInvariant, simp, simp)
+  apply(rule dWeakening) using \<open>\<lceil>I\<rceil> \<le> \<lceil>Q\<rceil>\<close> by auto
 
 lemma invariant_eq_0:
   fixes \<theta>::"'a::banach \<Rightarrow> real"

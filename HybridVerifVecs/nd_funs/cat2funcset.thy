@@ -99,6 +99,12 @@ qed
 lemma p2ndf_le_eta[simp]:"\<lceil>P\<rceil> \<le> \<eta>\<^sup>\<bullet>"
   by(transfer, simp add: le_fun_def, clarify)
 
+lemma ads_d_p2ndf[simp]:"d \<lceil>P\<rceil> = \<lceil>P\<rceil>"
+  unfolding ads_d_def antidomain_op_nd_fun_def by(rule nd_fun_ext, auto)
+
+lemma ad_p2ndf[simp]:"ad \<lceil>P\<rceil> = \<lceil>\<lambda>s. \<not> P s\<rceil>"
+  unfolding antidomain_op_nd_fun_def by(rule nd_fun_ext, auto)
+
 abbreviation ndf2p :: "'a nd_fun \<Rightarrow> 'a \<Rightarrow> bool" ("(1\<lfloor>_\<rfloor>)")
   where "\<lfloor>f\<rfloor> \<equiv> (\<lambda>x. x \<in> Domain (\<R> (f\<^sub>\<bullet>)))"
 
@@ -131,7 +137,7 @@ lemma p2ndf_ndf2p_wp:"\<lceil>\<lfloor>wp R P\<rfloor>\<rceil> = wp R P"
 lemma p2ndf_ndf2p_wp_sym:"wp R P = \<lceil>\<lfloor>wp R P\<rfloor>\<rceil>"
   by(rule sym, simp add: p2ndf_ndf2p_wp)
 
-lemma wp_trafo: "\<lfloor>wp F \<lceil>Q\<rceil>\<rfloor> = (\<lambda>s. \<forall>s'. s' \<in> (F\<^sub>\<bullet>) s \<longrightarrow> Q s')"  
+lemma wp_trafo: "\<lfloor>wp F \<lceil>Q\<rceil>\<rfloor> s = (\<forall>s'. s' \<in> (F\<^sub>\<bullet>) s \<longrightarrow> Q s')"  
   apply(subgoal_tac "F = (F\<^sub>\<bullet>)\<^sup>\<bullet>")
   apply(rule ssubst[of F "(F\<^sub>\<bullet>)\<^sup>\<bullet>"], simp)
   apply(subst wp_nd_fun)
@@ -273,8 +279,6 @@ This is done mainly to prove that there are minimal requirements in Isabelle to 
 Then we prove the inference rules which are used in verification proofs.*}
 
 subsubsection{* Differential Weakening *}
-
-thm kcomp_def kcomp_prop le_fun_def
         
 theorem DW:
   shows "wp ({[x\<acute>=f]T S @ t0 & G}) \<lceil>Q\<rceil> = wp ({[x\<acute>=f]T S @ t0 & G}) \<lceil>\<lambda> s. G s \<longrightarrow> Q s\<rceil>"
@@ -375,7 +379,7 @@ corollary dCut_interval:
   apply(rule_tac C="C" in dCut)
   using assms by(simp_all add: interval_def)
 
-subsubsection{* Differential Invariant *}
+subsubsection{* Differential Invariant *}(* MODIFICATIONS REQUIRED: remove inf T*)
 
 lemma DI_sufficiency:
   assumes "picard_ivp f T S L t0"
@@ -407,7 +411,15 @@ lemma dInvariant:
   shows "\<lceil>I\<rceil> \<le> wp ({[x\<acute>=f]T S @ (Inf T) & G}) \<lceil>I\<rceil>"
   using assms unfolding pderivative_def apply(subst wp_nd_fun)
   apply(subst le_p2ndf_iff)
-  apply(clarify) by simp
+  by clarsimp
+
+lemma dInvariant':
+  assumes "I' is_pderivative_of I with_respect_to f T S"
+    and "\<lceil>P\<rceil> \<le> \<lceil>I\<rceil>" and "\<lceil>G\<rceil> \<le> \<lceil>I'\<rceil>" and "\<lceil>I\<rceil> \<le> \<lceil>Q\<rceil>"
+  shows "\<lceil>P\<rceil> \<le> wp ({[x\<acute>=f]T S @ (Inf T) & G}) \<lceil>Q\<rceil>"
+  using assms unfolding pderivative_def apply(subst wp_nd_fun)
+  apply(subst le_p2ndf_iff)
+  by clarsimp
 
 lemma invariant_eq_0:
   fixes \<theta>::"'a::banach \<Rightarrow> real"

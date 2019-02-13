@@ -155,7 +155,7 @@ lemma picard_ivp_linear_system:
   subgoal using matrix_lipschitz_constant maxAbs_ge_0 zero_compare_simps(4,12) 
     unfolding lipschitz_on_def by blast
   apply(simp_all add: assms)
-  subgoal for r s apply(subgoal_tac "\<bar>r - s\<bar> < 1/((real CARD('n))\<^sup>2 \<cdot> maxAbs A)")
+  subgoal for r s apply(subgoal_tac "\<bar>r - s\<bar> < 1/?L")
      apply(subst (asm) pos_less_divide_eq[of ?L "\<bar>r - s\<bar>" 1])
     using assms by auto
   done
@@ -324,9 +324,9 @@ lemma bouncing_ball_invariants:
    apply(rule_tac \<theta>="\<lambda>s. 2 \<cdot> s$2 \<cdot> s$0 - 2 \<cdot> s$2 \<cdot> H - s$1 \<cdot> s$1" and \<nu>="\<lambda> s. 0" in dInvariant_eq_0)
   using bouncing_ball_invariant apply force
   apply(simp, simp, simp, simp add: \<open>0 \<le> t\<close>)
-  apply(rule dWeakening, subst p2r_r2p_wp)
-  by(auto simp: bb_real_arith p2r_def rel_antidomain_kleene_algebra.cond_def
-      rel_antidomain_kleene_algebra.fbox_def rel_antidomain_kleene_algebra.ads_d_def rel_ad_def)
+   apply(rule dWeakening, subst p2r_r2p_wp)
+  unfolding rel_antidomain_kleene_algebra.cond_def rel_antidomain_kleene_algebra.ads_d_def
+  by(auto simp: bb_real_arith p2r_def rel_antidomain_kleene_algebra.fbox_def rel_ad_def)
 
 subsubsection{* Circular motion with invariants *}
 
@@ -386,7 +386,8 @@ corollary flow_for_Circ_DS:
   assumes "0 \<le> t" and "t < 1/4"
   shows " wp {[x\<acute>=\<lambda> t s. Circ *v s]{0..t} UNIV @ 0 & G} \<lceil>Q\<rceil> = 
     \<lceil>\<lambda> x. \<forall> \<tau> \<in> {0..t}. (\<forall>r\<in>{0--\<tau>}. G (flow_for_Circ r x)) \<longrightarrow> Q (flow_for_Circ \<tau> x)\<rceil>"
-  apply(subst picard_ivp.wp_g_orbit[of "\<lambda>t s. Circ *v s" _ _ "((real CARD(2))\<^sup>2 \<cdot> maxAbs Circ)" _ "(\<lambda> t x. flow_for_Circ t x)"])
+  apply(subst picard_ivp.wp_g_orbit[of "\<lambda>t s. Circ *v s" _ _ "((real CARD(2))\<^sup>2 \<cdot> maxAbs Circ)" _ 
+"(\<lambda> t x. flow_for_Circ t x)"])
   using Circ_is_picard_ivp and assms apply blast apply(clarify, rule conjI)
   using flow_for_Circ_solves_Circ apply blast
    apply(simp add: vec_eq_iff) using exhaust_2 two_eq_zero apply force 
@@ -399,5 +400,28 @@ lemma circular_motion:
   \<lceil>\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2\<rceil>"
   apply(subst flow_for_Circ_DS)
   using assms by simp_all
+
+lemma circular_motion_invariants:
+  assumes "0 \<le> t" and "t < 1/4" and "(R::real) > 0"
+  shows"\<lceil>\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2\<rceil> \<le> wp 
+  {[x\<acute>=\<lambda>t s. Circ *v s]{0..t} UNIV @ 0 & (\<lambda> s. s $ 0 \<ge> 0)}
+  \<lceil>\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2\<rceil>"
+  using assms(1) apply(rule_tac C="\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2" in dCut_interval, simp)
+   apply(subgoal_tac "(\<lambda>s. (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2 - R\<^sup>2 = 0) = (\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2)")
+    apply(rule ssubst[of "(\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2)" "\<lambda>s. (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2 - R\<^sup>2 = 0"], simp) 
+    apply(rule_tac \<theta>="\<lambda>s. (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2 - R\<^sup>2" and \<nu>="\<lambda>s. 0" in dInvariant_eq_0)
+  subgoal apply clarify
+    apply(frule_tac i="0" in solves_vec_nth, drule_tac i="1" in solves_vec_nth)
+    apply(unfold solves_ode_def has_vderiv_on_def has_vector_derivative_def, clarsimp)
+    apply(erule_tac x="r" in ballE, simp_all add: matrix_vector_mult_def)+
+    apply(rule_tac f'1="\<lambda>t. 0" and g'1="\<lambda>t. 0" in derivative_eq_intros(11))
+      apply(rule_tac f'1="\<lambda>t. - 2 \<cdot> (x r $ 0) \<cdot> (t \<cdot> x r $ 1)" and 
+        g'1="\<lambda>t. 2 \<cdot> (x r $ 1) \<cdot> t \<cdot> x r $ 0" in derivative_eq_intros(8))
+        apply(rule_tac f'1="\<lambda>t. - (t \<cdot> x r $ 1)" in derivative_eq_intros(15))
+         apply (simp add: has_derivative_within_subset, force)
+       apply(rule_tac f'1="\<lambda>t. (t \<cdot> x r $ 0)" in derivative_eq_intros(15))
+        apply (simp add: has_derivative_within_subset) by auto
+  apply(simp, simp, simp, simp add: \<open>0 \<le> t\<close>) apply auto[1]
+  by(rule dWeakening, simp)
 
 end

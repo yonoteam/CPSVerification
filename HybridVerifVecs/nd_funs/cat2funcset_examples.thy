@@ -155,7 +155,7 @@ lemma picard_ivp_linear_system:
   subgoal using matrix_lipschitz_constant maxAbs_ge_0 zero_compare_simps(4,12) 
     unfolding lipschitz_on_def by blast
   apply(simp_all add: assms)
-  subgoal for r s apply(subgoal_tac "\<bar>r - s\<bar> < 1/((real CARD('n))\<^sup>2 \<cdot> maxAbs A)")
+  subgoal for r s apply(subgoal_tac "\<bar>r - s\<bar> < 1/?L")
      apply(subst (asm) pos_less_divide_eq[of ?L "\<bar>r - s\<bar>" 1])
     using assms by auto
   done
@@ -195,7 +195,8 @@ corollary flow_for_K_DS:
   assumes "0 \<le> t" and "t < 1/9"
   shows " wp {[x\<acute>=\<lambda>t s. K *v s]{0..t} UNIV @ 0 & G} \<lceil>Q\<rceil> = 
     \<lceil>\<lambda> x. \<forall> \<tau> \<in> {0..t}. (\<forall>r\<in>{0--\<tau>}. G (flow_for_K r x)) \<longrightarrow> Q (flow_for_K \<tau> x)\<rceil>"
-  apply(subst picard_ivp.wp_g_orbit[of "\<lambda>t s. K *v s" _ _ "((real CARD(3))\<^sup>2 \<cdot> maxAbs K)" _ "(\<lambda> t x. flow_for_K t x)"])
+  apply(subst picard_ivp.wp_g_orbit[of "\<lambda>t s. K *v s" _ _ "((real CARD(3))\<^sup>2 \<cdot> maxAbs K)" _ 
+"(\<lambda> t x. flow_for_K t x)"])
   using K_is_picard_ivp and assms apply blast apply(clarify, rule conjI)
   using flow_for_K_solves_K apply blast
    apply(simp add: vec_eq_iff) using exhaust_3 apply force
@@ -268,11 +269,6 @@ proof-
   ultimately show ?thesis by auto
 qed
 
-lemma "\<lfloor>wp (IF (\<lambda>s. s $ 0 = 0) THEN ((\<lambda>s. \<eta> (s[1 :== - s $ 1]))\<^sup>\<bullet>) ELSE \<eta>\<^sup>\<bullet> FI) 
-\<lceil>\<lambda>s. 0 \<le> s $ 0 \<and> s $ 2 < 0 \<and> 2 \<cdot> s $ 2 \<cdot> s $ 0 = 2 \<cdot> s $ 2 \<cdot> H + s $ 1 \<cdot> s $ 1\<rceil>\<rfloor> = Q"
-  apply(subst wp_trafo) thm wp_trafo
-  oops
-
 lemma bouncing_ball:
   assumes "0 \<le> t" and "t < 1/9" 
   shows "\<lceil>\<lambda>s. (0::real) \<le> s $ (0::3) \<and> s $ 0 = H \<and> s $ 1 = 0 \<and> 0 > s $ 2\<rceil> \<le> wp 
@@ -283,8 +279,10 @@ lemma bouncing_ball:
   2 \<cdot> s $ 2 \<cdot> s $ 0 = 2 \<cdot> s $ 2 \<cdot> H + (s $ 1 \<cdot> s $ 1)\<rceil>"])
     apply(simp, simp only: fbox_seq)
    apply(subst p2ndf_ndf2p_wp_sym[of "(IF (\<lambda>s. s $ 0 = 0) THEN ([1 ::== (\<lambda>s. - s $ 1)]) ELSE \<eta>\<^sup>\<bullet> FI)"])
-   apply(subst flow_for_K_DS) using assms apply(simp, simp)
-  oops
+   apply(subst flow_for_K_DS) using assms apply(simp, simp) apply(subst wp_trafo)
+  unfolding cond_def apply clarsimp
+   apply(transfer, simp add: kcomp_def) 
+  by(auto simp: bb_real_arith)
 
 subsubsection{* Bouncing Ball with invariants *}
 
@@ -330,7 +328,9 @@ rule_tac I="\<lceil>\<lambda>s. 0 \<le> s$0 \<and> 0 > s$2 \<and> 2 \<cdot> s$2 
   using bouncing_ball_invariant apply force
   apply(simp, simp, simp, simp add: \<open>0 \<le> t\<close>)
    apply(rule dWeakening, subst p2ndf_ndf2p_wp)
-  oops
+  unfolding cond_def fbox_def apply clarsimp
+   apply(transfer, simp add: kcomp_def) 
+  by(auto simp: bb_real_arith le_fun_def)
 
 subsubsection{* Circular motion with invariants *}
 
@@ -390,7 +390,8 @@ corollary flow_for_Circ_DS:
   assumes "0 \<le> t" and "t < 1/4"
   shows " wp {[x\<acute>=\<lambda>t s. Circ *v s]{0..t} UNIV @ 0 & G} \<lceil>Q\<rceil> = 
     \<lceil>\<lambda> x. \<forall> \<tau> \<in> {0..t}. (\<forall>r\<in>{0--\<tau>}. G (flow_for_Circ r x)) \<longrightarrow> Q (flow_for_Circ \<tau> x)\<rceil>"
-  apply(subst picard_ivp.wp_g_orbit[of "\<lambda>t s. Circ *v s" _ _ "((real CARD(2))\<^sup>2 \<cdot> maxAbs Circ)" _ "(\<lambda> t x. flow_for_Circ t x)"])
+  apply(subst picard_ivp.wp_g_orbit[of "\<lambda>t s. Circ *v s" _ _ "((real CARD(2))\<^sup>2 \<cdot> maxAbs Circ)" _ 
+"(\<lambda> t x. flow_for_Circ t x)"])
   using Circ_is_picard_ivp and assms apply blast apply(clarify, rule conjI)
   using flow_for_Circ_solves_Circ apply blast
    apply(simp add: vec_eq_iff) using exhaust_2 two_eq_zero apply force 
@@ -417,7 +418,13 @@ lemma circular_motion_invariants:
     apply(frule_tac i="0" in solves_vec_nth, drule_tac i="1" in solves_vec_nth)
     apply(unfold solves_ode_def has_vderiv_on_def has_vector_derivative_def, clarsimp)
     apply(erule_tac x="r" in ballE, simp_all add: matrix_vector_mult_def)+
-    sorry
+    apply(rule_tac f'1="\<lambda>t. 0" and g'1="\<lambda>t. 0" in derivative_eq_intros(11))
+      apply(rule_tac f'1="\<lambda>t. - 2 \<cdot> (x r $ 0) \<cdot> (t \<cdot> x r $ 1)" and 
+        g'1="\<lambda>t. 2 \<cdot> (x r $ 1) \<cdot> t \<cdot> x r $ 0" in derivative_eq_intros(8))
+        apply(rule_tac f'1="\<lambda>t. - (t \<cdot> x r $ 1)" in derivative_eq_intros(15))
+         apply (simp add: has_derivative_within_subset, force)
+       apply(rule_tac f'1="\<lambda>t. (t \<cdot> x r $ 0)" in derivative_eq_intros(15))
+        apply (simp add: has_derivative_within_subset) by auto
   apply(simp, simp, simp, simp add: \<open>0 \<le> t\<close>) apply auto[1]
   by(rule dWeakening, simp)
 

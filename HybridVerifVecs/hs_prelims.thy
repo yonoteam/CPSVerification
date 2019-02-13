@@ -58,14 +58,7 @@ lemma sgn_is_unit_vec:"sgn x = 1 / norm x *s x"
   unfolding sgn_vec_def scaleR_vec_def by(simp add: vector_scalar_mult_def divide_inverse_commute)
 
 lemma norm_sgn_unit:"(x::real^'n) \<noteq> 0 \<Longrightarrow> norm (sgn x) = 1"
-proof(subst sgn_is_unit_vec, unfold norm_vec_def L2_set_def, simp add: power_divide)
-  assume "x \<noteq> 0"
-  have "(\<Sum>i\<in>UNIV. (x $ i)\<^sup>2 / (norm x)\<^sup>2) = 1 / (norm x)\<^sup>2 * (\<Sum>i\<in>UNIV. (x $ i)\<^sup>2)"
-    by (simp add: sum_divide_distrib)
-  also have "(\<Sum>i\<in>UNIV. (x $ i)\<^sup>2) = (norm x)\<^sup>2" by(subst squared_norm_vec, simp)
-  ultimately show "(\<Sum>i\<in>UNIV. (x $ i)\<^sup>2 / (sqrt (\<Sum>i\<in>UNIV. (x $ i)\<^sup>2))\<^sup>2) = 1"
-    using \<open>x \<noteq> 0\<close> by simp
-qed
+  by(simp add: sgn_vec_def)
 
 lemma norm_matrix_sgn:"norm (A *v (x::real^'n)) = norm (A *v (sgn x)) * norm x"
   unfolding sgn_is_unit_vec vector_scalar_commute norm_scalar_mult by simp 
