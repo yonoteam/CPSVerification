@@ -73,10 +73,8 @@ picard_ivp (\<lambda> t s. free_fall_kinematics s) {0..t} UNIV 1 0"
 
 lemma free_fall_flow_solves_free_fall_kinematics:
   "((\<lambda> \<tau>. free_fall_flow \<tau> s) solves_ode (\<lambda>t s. free_fall_kinematics s)) {0..t} UNIV"
-  apply (rule solves_vec_lambda)
-  apply(simp add: solves_ode_def)
-  unfolding has_vderiv_on_def has_vector_derivative_def apply(auto simp: Abs_three_inject)
-  using poly_derivatives(3, 4) unfolding has_vderiv_on_def has_vector_derivative_def by auto
+  apply (rule solves_vec_lambda) using poly_derivatives(3, 4) unfolding solves_ode_def 
+    has_vderiv_on_def has_vector_derivative_def by(auto simp: Abs_three_inject)
 
 text{* We end the first example by computing the wlp of the kinematics for the single-evolution
 ball and then using it to verify "its safety".*}
@@ -95,7 +93,7 @@ lemma single_evolution_ball:
   shows 
  "\<lceil>\<lambda>s. (0::real) \<le> s $ (Abs_three 0) \<and> s $ (Abs_three 0) = H \<and> s $ (Abs_three 1) = 0 \<and> 0 > s $ (Abs_three 2)\<rceil> 
   \<le> wp ({[x\<acute>=\<lambda>t s. free_fall_kinematics s]{0..t} UNIV @ 0 & (\<lambda> s. s $ (Abs_three 0) \<ge> 0)})
-         \<lceil>\<lambda>s. 0 \<le> s $ (Abs_three 0) \<and> s $ (Abs_three 0) \<le> H\<rceil>"
+  \<lceil>\<lambda>s. 0 \<le> s $ (Abs_three 0) \<and> s $ (Abs_three 0) \<le> H\<rceil>"
   apply(subst free_fall_flow_DS)
   by(simp_all add: assms mult_nonneg_nonpos2)
 
@@ -209,6 +207,102 @@ lemma single_evolution_ball_K:
         \<lceil>\<lambda>s. 0 \<le> s $ 0 \<and> s $ 0 \<le> H\<rceil>"
   apply(subst flow_for_K_DS)
   using assms by(simp_all add: mult_nonneg_nonpos2)
+
+subsubsection{* Circular motion with invariants *}
+
+lemma two_eq_zero: "(2::2) = 0" by simp
+
+lemma [simp]:"i \<noteq> (0::2) \<longrightarrow> i = 1" using exhaust_2 by fastforce
+
+lemma UNIV_2:"(UNIV::2 set) = {0, 1}"
+  apply safe using exhaust_2 two_eq_zero by auto
+
+lemma sum_axis_UNIV_2[simp]:"(\<Sum>j\<in>(UNIV::2 set). axis i r $ j \<cdot> f j) = r \<cdot> (f::2 \<Rightarrow> real) i"
+  unfolding axis_def UNIV_2 by simp
+
+abbreviation "Circ \<equiv> (\<chi> i. if i= (0::2) then axis (1::2) (- 1::real) else axis 0 1)"
+
+abbreviation "flow_for_Circ t s \<equiv> (\<chi> i. if i= (0::2) then 
+s$0 \<cdot> cos t - s$1 \<cdot> sin t else s$0 \<cdot> sin t + s$1 \<cdot> cos t)"
+
+lemma entries_Circ:"entries Circ = {0, - 1, 1}"
+  apply (simp_all add: axis_def, safe)
+  subgoal by(rule_tac x="0" in exI, simp)+
+  subgoal by(rule_tac x="0" in exI, simp)+
+  by(rule_tac x="1" in exI, simp)+
+
+lemma Circ_is_picard_ivp:"0 \<le> t \<Longrightarrow> t < 1/4 \<Longrightarrow> 
+picard_ivp (\<lambda> t s. Circ *v s) {0..t} UNIV ((real CARD(2))\<^sup>2 \<cdot> maxAbs Circ) 0"
+  apply(rule picard_ivp_linear_system)
+  unfolding entries_Circ by auto
+
+lemma flow_for_Circ_solves_Circ: "((\<lambda> \<tau>. flow_for_Circ \<tau> s) solves_ode (\<lambda>t s.  Circ *v s)) {0..t} UNIV"
+  apply (rule solves_vec_lambda, clarsimp)
+  subgoal for i apply(cases "i=0")
+     apply(simp_all add: matrix_vector_mult_def)
+    unfolding solves_ode_def has_vderiv_on_def has_vector_derivative_def apply auto
+    subgoal for x
+      apply(rule_tac f'1="\<lambda>t. - s$0 \<cdot> (t \<cdot> sin x)" and g'1="\<lambda>t. s$1 \<cdot> (t \<cdot> cos x)"in derivative_eq_intros(11))
+      apply(rule derivative_eq_intros(6)[of cos "(\<lambda>xa. - (xa \<cdot> sin x))"])
+       apply(rule_tac Db1="1" in derivative_eq_intros(58))
+          apply(rule ssubst[of "(\<cdot>) 1" id], force, simp, force, force)
+       apply(rule derivative_eq_intros(6)[of sin "(\<lambda>xa. (xa \<cdot> cos x))"])
+        apply(rule_tac Db1="1" in derivative_eq_intros(55))
+         apply(rule ssubst[of "(\<cdot>) 1" id], force, simp, force, force)
+      by (simp add: Groups.mult_ac(3) Rings.ring_distribs(4))
+    subgoal for x
+      apply(rule_tac f'1="\<lambda>t. s$0 \<cdot> (t \<cdot> cos x)" and g'1="\<lambda>t. - s$1 \<cdot> (t \<cdot> sin x)"in derivative_eq_intros(8))
+      apply(rule derivative_eq_intros(6)[of sin "(\<lambda>xa. xa \<cdot> cos x)"])
+       apply(rule_tac Db1="1" in derivative_eq_intros(55))
+          apply(rule ssubst[of "(\<cdot>) 1" id], force, simp, force, force)
+       apply(rule derivative_eq_intros(6)[of cos "(\<lambda>xa. - (xa \<cdot> sin x))"])
+        apply(rule_tac Db1="1" in derivative_eq_intros(58))
+         apply(rule ssubst[of "(\<cdot>) 1" id], force, simp, force, force)
+      by (simp add: Groups.mult_ac(3) Rings.ring_distribs(4))
+    done
+  done
+
+corollary flow_for_Circ_DS:
+  assumes "0 \<le> t" and "t < 1/4"
+  shows " wp {[x\<acute>=\<lambda>t s. Circ *v s]{0..t} UNIV @ 0 & G} \<lceil>Q\<rceil> = 
+    \<lceil>\<lambda> x. \<forall> \<tau> \<in> {0..t}. (\<forall>r\<in>{0--\<tau>}. G (flow_for_Circ r x)) \<longrightarrow> Q (flow_for_Circ \<tau> x)\<rceil>"
+  apply(subst picard_ivp.wp_g_orbit[of "\<lambda>t s. Circ *v s" _ _ "((real CARD(2))\<^sup>2 \<cdot> maxAbs Circ)" _ 
+"(\<lambda> t x. flow_for_Circ t x)"])
+  using Circ_is_picard_ivp and assms apply blast apply(clarify, rule conjI)
+  using flow_for_Circ_solves_Circ apply blast
+   apply(simp add: vec_eq_iff) using exhaust_2 two_eq_zero apply force 
+  by simp
+
+lemma circular_motion:
+  assumes "0 \<le> t" and "t < 1/4" and "(R::real) > 0"
+  shows"\<lceil>\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2\<rceil> \<le> wp 
+  {[x\<acute>=\<lambda>t s. Circ *v s]{0..t} UNIV @ 0 & (\<lambda> s. s $ 0 \<ge> 0)}
+  \<lceil>\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2\<rceil>"
+  apply(subst flow_for_Circ_DS)
+  using assms by simp_all
+
+lemma circular_motion_invariants:
+  assumes "0 \<le> t" and "t < 1/4" and "(R::real) > 0"
+  shows"\<lceil>\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2\<rceil> \<le> wp 
+  {[x\<acute>=\<lambda>t s. Circ *v s]{0..t} UNIV @ 0 & (\<lambda> s. s $ 0 \<ge> 0)}
+  \<lceil>\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2\<rceil>"
+  using assms(1) apply(rule_tac C="\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2" in dCut_interval, simp)
+   apply(subgoal_tac "(\<lambda>s. (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2 - R\<^sup>2 = 0) = (\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2)")
+    apply(rule ssubst[of "(\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2)" "\<lambda>s. (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2 - R\<^sup>2 = 0"], simp) 
+    apply(rule_tac \<theta>="\<lambda>s. (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2 - R\<^sup>2" and \<nu>="\<lambda>s. 0" in dInvariant_eq_0)
+  subgoal apply clarify
+    apply(frule_tac i="0" in solves_vec_nth, drule_tac i="1" in solves_vec_nth)
+    apply(unfold solves_ode_def has_vderiv_on_def has_vector_derivative_def, clarsimp)
+    apply(erule_tac x="r" in ballE, simp_all add: matrix_vector_mult_def)+
+    apply(rule_tac f'1="\<lambda>t. 0" and g'1="\<lambda>t. 0" in derivative_eq_intros(11))
+      apply(rule_tac f'1="\<lambda>t. - 2 \<cdot> (x r $ 0) \<cdot> (t \<cdot> x r $ 1)" and 
+        g'1="\<lambda>t. 2 \<cdot> (x r $ 1) \<cdot> t \<cdot> x r $ 0" in derivative_eq_intros(8))
+        apply(rule_tac f'1="\<lambda>t. - (t \<cdot> x r $ 1)" in derivative_eq_intros(15))
+         apply (simp add: has_derivative_within_subset, force)
+       apply(rule_tac f'1="\<lambda>t. (t \<cdot> x r $ 0)" in derivative_eq_intros(15))
+        apply (simp add: has_derivative_within_subset) by auto
+  apply(simp, simp, simp, simp add: \<open>0 \<le> t\<close>) apply auto[1]
+  by(rule dWeakening, simp)
 
 subsubsection{* Bouncing Ball with solution *}
 text{* Armed now with two vector fields for free-fall kinematics and their respective flows, proving
@@ -331,101 +425,5 @@ rule_tac I="\<lceil>\<lambda>s. 0 \<le> s$0 \<and> 0 > s$2 \<and> 2 \<cdot> s$2 
   unfolding cond_def fbox_def apply clarsimp
    apply(transfer, simp add: kcomp_def) 
   by(auto simp: bb_real_arith le_fun_def)
-
-subsubsection{* Circular motion with invariants *}
-
-lemma two_eq_zero: "(2::2) = 0" by simp
-
-lemma [simp]:"i \<noteq> (0::2) \<longrightarrow> i = 1" using exhaust_2 by fastforce
-
-lemma UNIV_2:"(UNIV::2 set) = {0, 1}"
-  apply safe using exhaust_2 two_eq_zero by auto
-
-lemma sum_axis_UNIV_2[simp]:"(\<Sum>j\<in>(UNIV::2 set). axis i r $ j \<cdot> f j) = r \<cdot> (f::2 \<Rightarrow> real) i"
-  unfolding axis_def UNIV_2 by simp
-
-abbreviation "Circ \<equiv> (\<chi> i. if i= (0::2) then axis (1::2) (- 1::real) else axis 0 1)"
-
-abbreviation "flow_for_Circ t s \<equiv> (\<chi> i. if i= (0::2) then 
-s$0 \<cdot> cos t - s$1 \<cdot> sin t else s$0 \<cdot> sin t + s$1 \<cdot> cos t)"
-
-lemma entries_Circ:"entries Circ = {0, - 1, 1}"
-  apply (simp_all add: axis_def, safe)
-  subgoal by(rule_tac x="0" in exI, simp)+
-  subgoal by(rule_tac x="0" in exI, simp)+
-  by(rule_tac x="1" in exI, simp)+
-
-lemma Circ_is_picard_ivp:"0 \<le> t \<Longrightarrow> t < 1/4 \<Longrightarrow> 
-picard_ivp (\<lambda> t s. Circ *v s) {0..t} UNIV ((real CARD(2))\<^sup>2 \<cdot> maxAbs Circ) 0"
-  apply(rule picard_ivp_linear_system)
-  unfolding entries_Circ by auto
-
-lemma flow_for_Circ_solves_Circ: "((\<lambda> \<tau>. flow_for_Circ \<tau> s) solves_ode (\<lambda>t s.  Circ *v s)) {0..t} UNIV"
-  apply (rule solves_vec_lambda, clarsimp)
-  subgoal for i apply(cases "i=0")
-     apply(simp_all add: matrix_vector_mult_def)
-    unfolding solves_ode_def has_vderiv_on_def has_vector_derivative_def apply auto
-    subgoal for x
-      apply(rule_tac f'1="\<lambda>t. - s$0 \<cdot> (t \<cdot> sin x)" and g'1="\<lambda>t. s$1 \<cdot> (t \<cdot> cos x)"in derivative_eq_intros(11))
-      apply(rule derivative_eq_intros(6)[of cos "(\<lambda>xa. - (xa \<cdot> sin x))"])
-       apply(rule_tac Db1="1" in derivative_eq_intros(58))
-          apply(rule ssubst[of "(\<cdot>) 1" id], force, simp, force, force)
-       apply(rule derivative_eq_intros(6)[of sin "(\<lambda>xa. (xa \<cdot> cos x))"])
-        apply(rule_tac Db1="1" in derivative_eq_intros(55))
-         apply(rule ssubst[of "(\<cdot>) 1" id], force, simp, force, force)
-      by (simp add: Groups.mult_ac(3) Rings.ring_distribs(4))
-    subgoal for x
-      apply(rule_tac f'1="\<lambda>t. s$0 \<cdot> (t \<cdot> cos x)" and g'1="\<lambda>t. - s$1 \<cdot> (t \<cdot> sin x)"in derivative_eq_intros(8))
-      apply(rule derivative_eq_intros(6)[of sin "(\<lambda>xa. xa \<cdot> cos x)"])
-       apply(rule_tac Db1="1" in derivative_eq_intros(55))
-          apply(rule ssubst[of "(\<cdot>) 1" id], force, simp, force, force)
-       apply(rule derivative_eq_intros(6)[of cos "(\<lambda>xa. - (xa \<cdot> sin x))"])
-        apply(rule_tac Db1="1" in derivative_eq_intros(58))
-         apply(rule ssubst[of "(\<cdot>) 1" id], force, simp, force, force)
-      by (simp add: Groups.mult_ac(3) Rings.ring_distribs(4))
-    done
-  done
-
-corollary flow_for_Circ_DS:
-  assumes "0 \<le> t" and "t < 1/4"
-  shows " wp {[x\<acute>=\<lambda>t s. Circ *v s]{0..t} UNIV @ 0 & G} \<lceil>Q\<rceil> = 
-    \<lceil>\<lambda> x. \<forall> \<tau> \<in> {0..t}. (\<forall>r\<in>{0--\<tau>}. G (flow_for_Circ r x)) \<longrightarrow> Q (flow_for_Circ \<tau> x)\<rceil>"
-  apply(subst picard_ivp.wp_g_orbit[of "\<lambda>t s. Circ *v s" _ _ "((real CARD(2))\<^sup>2 \<cdot> maxAbs Circ)" _ 
-"(\<lambda> t x. flow_for_Circ t x)"])
-  using Circ_is_picard_ivp and assms apply blast apply(clarify, rule conjI)
-  using flow_for_Circ_solves_Circ apply blast
-   apply(simp add: vec_eq_iff) using exhaust_2 two_eq_zero apply force 
-  by simp
-
-lemma circular_motion:
-  assumes "0 \<le> t" and "t < 1/4" and "(R::real) > 0"
-  shows"\<lceil>\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2\<rceil> \<le> wp 
-  {[x\<acute>=\<lambda>t s. Circ *v s]{0..t} UNIV @ 0 & (\<lambda> s. s $ 0 \<ge> 0)}
-  \<lceil>\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2\<rceil>"
-  apply(subst flow_for_Circ_DS)
-  using assms by simp_all
-
-lemma circular_motion_invariants:
-  assumes "0 \<le> t" and "t < 1/4" and "(R::real) > 0"
-  shows"\<lceil>\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2\<rceil> \<le> wp 
-  {[x\<acute>=\<lambda>t s. Circ *v s]{0..t} UNIV @ 0 & (\<lambda> s. s $ 0 \<ge> 0)}
-  \<lceil>\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2\<rceil>"
-  using assms(1) apply(rule_tac C="\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2" in dCut_interval, simp)
-   apply(subgoal_tac "(\<lambda>s. (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2 - R\<^sup>2 = 0) = (\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2)")
-    apply(rule ssubst[of "(\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2)" "\<lambda>s. (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2 - R\<^sup>2 = 0"], simp) 
-    apply(rule_tac \<theta>="\<lambda>s. (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2 - R\<^sup>2" and \<nu>="\<lambda>s. 0" in dInvariant_eq_0)
-  subgoal apply clarify
-    apply(frule_tac i="0" in solves_vec_nth, drule_tac i="1" in solves_vec_nth)
-    apply(unfold solves_ode_def has_vderiv_on_def has_vector_derivative_def, clarsimp)
-    apply(erule_tac x="r" in ballE, simp_all add: matrix_vector_mult_def)+
-    apply(rule_tac f'1="\<lambda>t. 0" and g'1="\<lambda>t. 0" in derivative_eq_intros(11))
-      apply(rule_tac f'1="\<lambda>t. - 2 \<cdot> (x r $ 0) \<cdot> (t \<cdot> x r $ 1)" and 
-        g'1="\<lambda>t. 2 \<cdot> (x r $ 1) \<cdot> t \<cdot> x r $ 0" in derivative_eq_intros(8))
-        apply(rule_tac f'1="\<lambda>t. - (t \<cdot> x r $ 1)" in derivative_eq_intros(15))
-         apply (simp add: has_derivative_within_subset, force)
-       apply(rule_tac f'1="\<lambda>t. (t \<cdot> x r $ 0)" in derivative_eq_intros(15))
-        apply (simp add: has_derivative_within_subset) by auto
-  apply(simp, simp, simp, simp add: \<open>0 \<le> t\<close>) apply auto[1]
-  by(rule dWeakening, simp)
 
 end
