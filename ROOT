@@ -23,9 +23,11 @@ session "CPSVerification" = "Ordinary_Differential_Equations" +
     "HybridVerifLists/VC_diffKAD_auxiliarities"
     "HybridVerifLists/VC_diffKAD_examples"
     "HybridVerifVecs/hs_prelims"
+    "HybridVerifVecs/funcsets/cat2funcset"
+    "HybridVerifVecs/funcsets/cat2funcset_examples"
     "HybridVerifVecs/rels/cat2rel"
     "HybridVerifVecs/rels/cat2rel_examples"
-    "HybridVerifVecs/nd_funs/cat2funcset"
-    "HybridVerifVecs/nd_funs/cat2funcset_examples"
+    "HybridVerifVecs/nd_funs/cat2ndfun"
+    "HybridVerifVecs/nd_funs/cat2ndfun_examples"
   document_files
     "root.tex"

@@ -2,8 +2,6 @@ theory cat2funcset
   imports "../hs_prelims" "Transformer_Semantics.Kleisli_Quantale" "KAD.Modal_Kleene_Algebra"
                         
 begin
-
-
 section{* Hybrid System Verification *}
 
 \<comment> \<open>We start by deleting some conflicting notation and introducing some new.\<close>
@@ -151,8 +149,8 @@ theorem ffb_g_orbit:
 
 end
 
-text{* This last theorem allows us to compute wlps for known systems of ODEs. We can also implement
-a version of it as an inference rule. A simple computation of a wlp is shown immmediately below.*}
+text{* The previous theorem allows us to compute wlps for known systems of ODEs. We can also implement
+a version of it as an inference rule. A simple computation of a wlp is shown immmediately after.*}
 
 lemma dSolution:
   assumes "picard_ivp f T S L t0" and ivp:"\<forall>s \<in> S. ((\<lambda>t. \<phi> t s) solves_ode f)T S \<and> \<phi> t0 s = s"
@@ -226,8 +224,7 @@ next show "\<And> a. g_orbital f T S t0 a (\<lambda> s. G s \<and> C s) \<subset
 qed
 
 theorem dCut:
-  assumes "t0 \<le> t"
-    and ffb_C:"P \<le> fb\<^sub>\<F> ({[x\<acute>=f]{t0..t} S @ t0 & G}) {s. C s}"
+  assumes "t0 \<le> t" and ffb_C:"P \<le> fb\<^sub>\<F> ({[x\<acute>=f]{t0..t} S @ t0 & G}) {s. C s}"
     and ffb_Q:"P \<le> fb\<^sub>\<F> ({[x\<acute>=f]{t0..t} S @ t0 & (\<lambda> s. G s \<and> C s)}) Q"
   shows "P \<le> fb\<^sub>\<F> ({[x\<acute>=f]{t0..t} S @ t0 & G}) Q"
 proof(subst ffb_wlp, clarsimp)

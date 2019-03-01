@@ -3,7 +3,6 @@ theory cat2ndfun_examples
 
 begin
 
-
 subsection{* Examples *}
 
 text{* Here we do our first verification example: the single-evolution ball. We do it in two ways.
@@ -282,28 +281,34 @@ lemma circular_motion:
   apply(subst flow_for_Circ_DS)
   using assms by simp_all
 
+lemma circle_invariant:
+  assumes "0 \<le> t" and "0 < R"
+  shows "(\<lambda>s. R\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2) is_ode_invariant_of (\<lambda>a. ( *v) Circ) {0..t} UNIV"
+  apply(rule_tac ode_invariant_rules, clarsimp)
+  apply(frule_tac i="0" in solves_vec_nth, drule_tac i="1" in solves_vec_nth)
+  apply(unfold solves_ode_def has_vderiv_on_def has_vector_derivative_def, clarsimp)
+  apply(erule_tac x="r" in ballE)+
+    apply(simp add: matrix_vector_mult_def)
+  subgoal for x \<tau> r apply(rule_tac f'1="\<lambda>t. 0" and g'1="\<lambda>t. 0" in derivative_eq_intros(11), simp_all)
+     apply(rule_tac f'1="\<lambda>t. - 2 \<cdot> (x r $ 0) \<cdot> (t \<cdot> x r $ 1)" 
+        and g'1="\<lambda>t. 2 \<cdot> (x r $ 1) \<cdot> t \<cdot> x r $ 0" in derivative_eq_intros(8), simp_all)
+       apply(rule_tac f'1="\<lambda>t. - (t \<cdot> x r $ 1)" in derivative_eq_intros(15))
+        apply(rule_tac t="{0--\<tau>}" and s="{0..t}" in has_derivative_within_subset)
+         apply(simp, simp add: closed_segment_eq_real_ivl, force)
+       apply(rule_tac f'1="\<lambda>t. (t \<cdot> x r $ 0)" in derivative_eq_intros(15))
+        apply(rule_tac t="{0--\<tau>}" and s="{0..t}" in has_derivative_within_subset)
+    by(simp, simp add: closed_segment_eq_real_ivl, force)
+  by(auto simp: closed_segment_eq_real_ivl)
+
 lemma circular_motion_invariants:
   assumes "0 \<le> t" and "t < 1/4" and "(R::real) > 0"
   shows"\<lceil>\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2\<rceil> \<le> wp 
   {[x\<acute>=\<lambda>t s. Circ *v s]{0..t} UNIV @ 0 & (\<lambda> s. s $ 0 \<ge> 0)}
   \<lceil>\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2\<rceil>"
-  using assms(1) apply(rule_tac C="\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2" in dCut_interval, simp)
-   apply(subgoal_tac "(\<lambda>s. (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2 - R\<^sup>2 = 0) = (\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2)")
-    apply(rule ssubst[of "(\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2)" "\<lambda>s. (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2 - R\<^sup>2 = 0"], simp) 
-    apply(rule_tac \<theta>="\<lambda>s. (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2 - R\<^sup>2" and \<nu>="\<lambda>s. 0" in dInvariant_eq_0)
-  subgoal apply clarify
-    apply(frule_tac i="0" in solves_vec_nth, drule_tac i="1" in solves_vec_nth)
-    apply(unfold solves_ode_def has_vderiv_on_def has_vector_derivative_def, clarsimp)
-    apply(erule_tac x="r" in ballE, simp_all add: matrix_vector_mult_def)+
-    apply(rule_tac f'1="\<lambda>t. 0" and g'1="\<lambda>t. 0" in derivative_eq_intros(11))
-      apply(rule_tac f'1="\<lambda>t. - 2 \<cdot> (x r $ 0) \<cdot> (t \<cdot> x r $ 1)" and 
-        g'1="\<lambda>t. 2 \<cdot> (x r $ 1) \<cdot> t \<cdot> x r $ 0" in derivative_eq_intros(8))
-        apply(rule_tac f'1="\<lambda>t. - (t \<cdot> x r $ 1)" in derivative_eq_intros(15))
-         apply (simp add: has_derivative_within_subset, force)
-       apply(rule_tac f'1="\<lambda>t. (t \<cdot> x r $ 0)" in derivative_eq_intros(15))
-        apply (simp add: has_derivative_within_subset) by auto
-  apply(simp, simp, simp, simp add: \<open>0 \<le> t\<close>) apply auto[1]
-  by(rule dWeakening, simp)
+  using assms(1) apply(rule_tac C="\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2" in dCut, simp)
+     apply(rule_tac I="\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2" in dInvariant')
+  using circle_invariant \<open>R > 0\<close> apply(blast, blast, force, force)
+  by(rule dWeakening, auto)
 
 subsubsection{* Bouncing Ball with solution *}
 text{* Armed now with two vector fields for free-fall kinematics and their respective flows, proving
@@ -328,6 +333,7 @@ lemma [bb_real_arith]:
   assumes invar:"2 \<cdot> g \<cdot> x = 2 \<cdot> g \<cdot> H + v \<cdot> v"
     and pos:"g \<cdot> \<tau>\<^sup>2 / 2 + v \<cdot> \<tau> + (x::real) = 0"
   shows "2 \<cdot> g \<cdot> H + (- (g \<cdot> \<tau>) - v) \<cdot> (- (g \<cdot> \<tau>) - v) = 0"
+and "2 \<cdot> g \<cdot> H + (g \<cdot> \<tau> \<cdot> (g \<cdot> \<tau> + v) + v \<cdot> (g \<cdot> \<tau> + v)) = 0"
 proof-
   from pos have "g \<cdot> \<tau>\<^sup>2  + 2 \<cdot> v \<cdot> \<tau> + 2 \<cdot> x = 0" by auto
   then have "g\<^sup>2  \<cdot> \<tau>\<^sup>2  + 2 \<cdot> g \<cdot> v \<cdot> \<tau> + 2 \<cdot> g \<cdot> x = 0"
@@ -335,12 +341,14 @@ proof-
         monoid_mult_class.power2_eq_square semiring_class.distrib_left)
   hence "g\<^sup>2 \<cdot> \<tau>\<^sup>2 + 2 \<cdot> g \<cdot> v \<cdot> \<tau> + v\<^sup>2 + 2 \<cdot> g \<cdot> H = 0"
     using invar by (simp add: monoid_mult_class.power2_eq_square) 
-  from this have "(g \<cdot> \<tau> + v)\<^sup>2 + 2 \<cdot> g \<cdot> H = 0"
+  from this have *:"(g \<cdot> \<tau> + v)\<^sup>2 + 2 \<cdot> g \<cdot> H = 0"
     apply(subst power2_sum) by (metis (no_types, hide_lams) Groups.add_ac(2, 3) 
         Groups.mult_ac(2, 3) monoid_mult_class.power2_eq_square nat_distrib(2))
   hence "2 \<cdot> g \<cdot> H + (- ((g \<cdot> \<tau>) + v))\<^sup>2 = 0"
     by (metis Groups.add_ac(2) power2_minus)
-  thus ?thesis
+  thus "2 \<cdot> g \<cdot> H + (- (g \<cdot> \<tau>) - v) \<cdot> (- (g \<cdot> \<tau>) - v) = 0"
+    by (simp add: monoid_mult_class.power2_eq_square)
+  from * show "2 \<cdot> g \<cdot> H + (g \<cdot> \<tau> \<cdot> (g \<cdot> \<tau> + v) + v \<cdot> (g \<cdot> \<tau> + v)) = 0"
     by (simp add: monoid_mult_class.power2_eq_square)
 qed
     
@@ -375,23 +383,24 @@ lemma bouncing_ball:
   2 \<cdot> s $ 2 \<cdot> s $ 0 = 2 \<cdot> s $ 2 \<cdot> H + (s $ 1 \<cdot> s $ 1)\<rceil>"])
     apply(simp, simp only: fbox_mult)
    apply(subst p2ndf_ndf2p_wp_sym[of "(IF (\<lambda>s. s $ 0 = 0) THEN ([1 ::== (\<lambda>s. - s $ 1)]) ELSE \<eta>\<^sup>\<bullet> FI)"])
-   apply(subst flow_for_K_DS) using assms apply(simp, simp) apply(subst wp_trafo)
+   apply(subst flow_for_K_DS) using assms apply(simp, simp) apply(subst ndf2p_wpD)
   unfolding cond_def apply clarsimp
    apply(transfer, simp add: kcomp_def)
   by(auto simp: bb_real_arith)
 
 subsubsection{* Bouncing Ball with invariants *}
 
-lemma gravity_is_invariant:"(x solves_ode (\<lambda>t. ( *v) K)) {0..t} UNIV \<Longrightarrow> \<tau> \<in> {0..t} \<Longrightarrow> r \<in> {0..\<tau>} \<Longrightarrow> 
-((\<lambda>\<tau>. x \<tau> $ 2) has_derivative (\<lambda>\<tau>. \<tau> *\<^sub>R 0)) (at r within {0..\<tau>})"
+lemma gravity_is_invariant:"(x solves_ode (\<lambda>t. ( *v) K)) {0..t} UNIV \<Longrightarrow> \<tau> \<in> {0..t} \<Longrightarrow> r \<in> {0--\<tau>} \<Longrightarrow> 
+((\<lambda>\<tau>. - x \<tau> $ 2) has_derivative (\<lambda>\<tau>. \<tau> *\<^sub>R 0)) (at r within {0--\<tau>})"
   apply(drule_tac i="2" in solves_vec_nth)
   apply(unfold solves_ode_def has_vderiv_on_def has_vector_derivative_def, clarify)
   apply(erule_tac x="r" in ballE, simp add: matrix_vector_mult_def)
-  by (simp_all add: has_derivative_within_subset)
+   apply(rule_tac f'1="\<lambda>s. 0" in derivative_eq_intros(10))
+  by(auto simp: closed_segment_eq_real_ivl has_derivative_within_subset)
 
 lemma bouncing_ball_invariant:"(x solves_ode (\<lambda>t. ( *v) K)) {0..t} UNIV \<Longrightarrow> \<tau> \<in> {0..t} \<Longrightarrow> 
-r \<in> {0..\<tau>} \<Longrightarrow> ((\<lambda>\<tau>. 2 \<cdot> x \<tau> $ 2 \<cdot> x \<tau> $ 0 - 2 \<cdot> x \<tau> $ 2 \<cdot> H - x \<tau> $ 1 \<cdot> x \<tau> $ 1) has_derivative 
-(\<lambda>\<tau>. \<tau> *\<^sub>R 0)) (at r within {0..\<tau>})"
+r \<in> {0--\<tau>} \<Longrightarrow> ((\<lambda>\<tau>. 2 \<cdot> x \<tau> $ 2 \<cdot> x \<tau> $ 0 - 2 \<cdot> x \<tau> $ 2 \<cdot> H - x \<tau> $ 1 \<cdot> x \<tau> $ 1) has_derivative 
+(\<lambda>\<tau>. \<tau> *\<^sub>R 0)) (at r within {0--\<tau>})"
   apply(frule_tac i="2" in solves_vec_nth,frule_tac i="1" in solves_vec_nth,drule_tac i="0" in solves_vec_nth)
   apply(unfold solves_ode_def has_vderiv_on_def has_vector_derivative_def, clarify)
   apply(erule_tac x="r" in ballE, simp_all add: matrix_vector_mult_def)+
@@ -399,7 +408,8 @@ r \<in> {0..\<tau>} \<Longrightarrow> ((\<lambda>\<tau>. 2 \<cdot> x \<tau> $ 2 
       and g'1="\<lambda>t. 2 \<cdot> (t \<cdot> (x r $ 1 \<cdot> x r $ 2))" in derivative_eq_intros(11))
     apply(rule_tac f'1="\<lambda>t. 2 \<cdot> x r $ 2 \<cdot> (t \<cdot> x r $ 1)" and g'1="\<lambda>t. 0" in derivative_eq_intros(11))
       apply(rule_tac f'1="\<lambda>t. 0" and g'1="(\<lambda>xa. xa \<cdot> x r $ 1)" in derivative_eq_intros(12))
-        apply(rule_tac g'1="\<lambda>t. 0" in derivative_eq_intros(6), simp_all add: has_derivative_within_subset)
+           apply(rule_tac g'1="\<lambda>t. 0" in derivative_eq_intros(6))
+            apply(simp_all add: has_derivative_within_subset closed_segment_eq_real_ivl)
   apply(rule_tac g'1="\<lambda>t. 0" in derivative_eq_intros(7))
     apply(rule_tac g'1="\<lambda>t. 0" in derivative_eq_intros(6), simp_all add: has_derivative_within_subset)
   by(rule_tac f'1="(\<lambda>xa. xa \<cdot> x r $ 2)" and g'1="(\<lambda>xa. xa \<cdot> x r $ 2)" in derivative_eq_intros(12), 
@@ -411,21 +421,20 @@ lemma bouncing_ball_invariants:
   (({[x\<acute>=\<lambda>t s. K *v s]{0..t} UNIV @ 0 & (\<lambda> s. s $ 0 \<ge> 0)} \<cdot>
   (IF (\<lambda> s. s $ 0 = 0) THEN ([1 ::== (\<lambda>s. - s $ 1)]) ELSE \<eta>\<^sup>\<bullet> FI))\<^sup>\<star>)
   \<lceil>\<lambda>s. 0 \<le> s $ 0 \<and> s $ 0 \<le> H\<rceil>"
-  apply(subst star_nd_fun.abs_eq, 
-rule_tac I="\<lceil>\<lambda>s. 0 \<le> s$0 \<and> 0 > s$2 \<and> 2 \<cdot> s$2 \<cdot> s$0 = 2 \<cdot> s$2 \<cdot> H + (s$1 \<cdot> s$1)\<rceil>" in wp_starI)
+  apply(subst star_nd_fun.abs_eq)
+  apply(rule_tac I="\<lceil>\<lambda>s. 0 \<le> s$0 \<and> 0 > s$2 \<and> 2 \<cdot> s$2 \<cdot> s$0 = 2 \<cdot> s$2 \<cdot> H + (s$1 \<cdot> s$1)\<rceil>" in wp_starI)
     apply(simp, simp only: fbox_mult)
    apply(subst p2ndf_ndf2p_wp_sym[of "(IF (\<lambda>s. s $ 0 = 0) THEN ([1 ::== (\<lambda>s. - s $ 1)]) ELSE \<eta>\<^sup>\<bullet> FI)"])
-  using assms(1) apply(rule dCut_interval[of _ _ _ _ _ _ "\<lambda> s. s $ 2 < 0"])
-   apply(rule_tac \<theta>="\<lambda>s. s $ 2" and \<nu>="\<lambda>s. 0" in dInvariant_below_0)
-  using gravity_is_invariant apply force
-  apply(simp, simp, simp, simp add: \<open>0 \<le> t\<close>)
-   apply(rule_tac C="\<lambda> s. 2 \<cdot> s$2 \<cdot> s$0 - 2 \<cdot> s$2 \<cdot> H - s$1 \<cdot> s$1 = 0" in dCut_interval, simp add: \<open>0 \<le> t\<close>)
-   apply(rule_tac \<theta>="\<lambda>s. 2 \<cdot> s$2 \<cdot> s$0 - 2 \<cdot> s$2 \<cdot> H - s$1 \<cdot> s$1" and \<nu>="\<lambda> s. 0" in dInvariant_eq_0)
-  using bouncing_ball_invariant apply force
-  apply(simp, simp, simp, simp add: \<open>0 \<le> t\<close>)
+  using assms(1) apply(rule dCut[of _ _ _ _ _ _ "\<lambda> s. s $ 2 < 0"])
+    apply(rule_tac I="\<lambda> s. s $ 2 < 0" in dInvariant')
+       apply(rule_tac \<theta>'="\<lambda>s. 0" and \<nu>'="\<lambda>s. 0" in ode_invariant_rules(3))
+  using gravity_is_invariant apply(force, simp add: \<open>0 \<le> t\<close>, force, simp)
+   apply(rule_tac C="\<lambda> s. 2 \<cdot> s$2 \<cdot> s$0 - 2 \<cdot> s$2 \<cdot> H - s$1 \<cdot> s$1 = 0" in dCut, simp add: \<open>0 \<le> t\<close>)
+    apply(rule_tac I="\<lambda> s. 2 \<cdot> s$2 \<cdot> s$0 - 2 \<cdot> s$2 \<cdot> H - s$1 \<cdot> s$1 = 0" in dInvariant')
+  apply(rule ode_invariant_rules)
+  using bouncing_ball_invariant apply(force, simp add: \<open>0 \<le> t\<close>, force, simp)
    apply(rule dWeakening, subst p2ndf_ndf2p_wp)
-  unfolding cond_def fbox_def apply clarsimp
-   apply(transfer, simp add: kcomp_def) 
+   apply(rule wp_if_then_else)
   by(auto simp: bb_real_arith le_fun_def)
 
 end
