@@ -1,7 +1,7 @@
 theory cat2rel
   imports
   "../hs_prelims"
-  "../../afpModified/VC_KAD"
+  "../../../afpModified/VC_KAD"
 
 begin
 

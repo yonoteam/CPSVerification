@@ -1,7 +1,8 @@
-theory cat2funcset
+theory cat2ndfun
   imports "../hs_prelims" "Transformer_Semantics.Kleisli_Quantale" "KAD.Modal_Kleene_Algebra"
                         
 begin
+
 
 section{* Hybrid System Verification *}
 
@@ -11,8 +12,8 @@ no_notation Archimedean_Field.ceiling ("\<lceil>_\<rceil>")
         and Range_Semiring.antirange_semiring_class.ars_r ("r")
         and Isotone_Transformers.bqtran ("\<lfloor>_\<rfloor>")
 
-notation Abs_nd_fun ("_\<^sup>\<bullet>" [101] 100) and Rep_nd_fun ("_\<^sub>\<bullet>" [101] 100)
 type_synonym 'a pred = "'a \<Rightarrow> bool"
+notation Abs_nd_fun ("_\<^sup>\<bullet>" [101] 100) and Rep_nd_fun ("_\<^sub>\<bullet>" [101] 100)
 
 subsection{* Nondeterministic Functions *}
 
@@ -119,6 +120,10 @@ lemma wp_nd_fun:"wp (F\<^sup>\<bullet>) \<lceil>P\<rceil> = \<lceil>\<lambda> x.
   apply(simp add: fbox_def, transfer, simp)
   by(rule nd_fun_ext, auto simp: kcomp_def)
 
+lemma wp_nd_fun2:"wp F \<lceil>P\<rceil> = \<lceil>\<lambda> x. \<forall> y. y \<in> ((F\<^sub>\<bullet>) x) \<longrightarrow> P y\<rceil>"
+  apply(simp add: fbox_def antidomain_op_nd_fun_def)
+  by(rule nd_fun_ext, auto simp: Rep_comp_hom kcomp_prop)
+
 lemma wp_nd_fun_etaD:"wp (F\<^sup>\<bullet>) \<lceil>P\<rceil> = \<eta>\<^sup>\<bullet> \<Longrightarrow>  (\<forall>y. y \<in> (F x) \<longrightarrow> P y)"
 proof
   fix y assume "wp (F\<^sup>\<bullet>) \<lceil>P\<rceil> = (\<eta>\<^sup>\<bullet>)"
@@ -143,6 +148,32 @@ lemma wp_trafo: "\<lfloor>wp F \<lceil>Q\<rceil>\<rfloor> s = (\<forall>s'. s' \
   apply(subst wp_nd_fun)
   by(simp_all add: f2r_def)
 
+\<comment> \<open>Another characterization of the wp operator in terms of the forward box operator.\<close>
+lemma ffb_is_wp:"fb\<^sub>\<F> (F\<^sub>\<bullet>) {x. P x} = {s. \<lfloor>wp F \<lceil>P\<rceil>\<rfloor> s}"
+  unfolding ffb_def unfolding map_dual_def klift_def kop_def fbox_def
+  unfolding r2f_def f2r_def apply clarsimp
+  unfolding antidomain_op_nd_fun_def unfolding dual_set_def 
+  unfolding times_nd_fun_def kcomp_def by force
+
+lemma wp_is_ffb:"wp F \<lceil>P\<rceil> = (\<lambda>x. {x} \<inter> fb\<^sub>\<F> (F\<^sub>\<bullet>) {s. P s})\<^sup>\<bullet>"
+  apply(rule nd_fun_ext, simp)
+  apply(subgoal_tac "F = (F\<^sub>\<bullet>)\<^sup>\<bullet>")
+   apply(rule ssubst[of F "(F\<^sub>\<bullet>)\<^sup>\<bullet>"], simp)
+  apply(subst wp_nd_fun)
+   apply(subst ffb_is_wp)
+   apply(subst wp_trafo)
+  by auto
+
+lemma wp_is_ffb2:"wp F P = (\<lambda>x. {x} \<inter> fb\<^sub>\<F> (F\<^sub>\<bullet>) {s. \<lfloor>P\<rfloor> s})\<^sup>\<bullet>"
+  apply(rule nd_fun_ext, simp)
+  unfolding ffb_def unfolding map_dual_def klift_def kop_def fbox_def
+  unfolding r2f_def f2r_def apply clarsimp
+  unfolding antidomain_op_nd_fun_def unfolding dual_set_def 
+  unfolding times_nd_fun_def apply auto
+  unfolding kcomp_prop apply auto
+  by (metis (full_types, lifting) Int_Collect UnCI empty_not_insert ex_in_conv image_eqI)
+
+
 abbreviation vec_upd :: "('a^'b) \<Rightarrow> 'b \<Rightarrow> 'a \<Rightarrow> 'a^'b" ("_(2[_ :== _])" [70, 65] 61) where 
 "x[i :== a] \<equiv> (\<chi> j. (if j = i then a else (x $ j)))"
 
@@ -152,9 +183,6 @@ abbreviation assign :: "'b \<Rightarrow> ('a^'b \<Rightarrow> 'a) \<Rightarrow> 
 lemma wp_assign[simp]: "wp ([x ::== expr]) \<lceil>Q\<rceil> = \<lceil>\<lambda>s. Q (s[x :== expr s])\<rceil>"
   by(subst wp_nd_fun, rule nd_fun_ext, simp)
 
-lemma fbox_seq [simp]: "|x \<cdot> y] q = |x] |y] q"
-  by (simp add: fbox_mult) 
-
 definition (in antidomain_kleene_algebra) cond :: "'a \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> 'a" 
 ("if _ then _ else _ fi" [64,64,64] 63) where "if p then x else y fi = d p \<cdot> x + ad p \<cdot> y"
 
@@ -162,13 +190,19 @@ abbreviation cond_sugar :: "'a pred \<Rightarrow> 'a nd_fun \<Rightarrow> 'a nd_
 ("IF _ THEN _ ELSE _ FI" [64,64,64] 63) where
   "IF P THEN X ELSE Y FI \<equiv> cond \<lceil>P\<rceil> X Y"
 
+lemma ffb_if_then_else:
+  assumes "\<lceil>\<lambda>s. P s \<and> T s\<rceil> \<le> wp X \<lceil>Q\<rceil>"
+    and "\<lceil>\<lambda>s. P s \<and> \<not> T s\<rceil> \<le> wp Y \<lceil>Q\<rceil>"
+  shows "\<lceil>P\<rceil> \<le> wp (IF T THEN X ELSE Y FI) \<lceil>Q\<rceil>"
+  using assms apply(subst wp_nd_fun2)
+  apply(subst (asm) wp_nd_fun2)+
+  unfolding cond_def apply(clarsimp, transfer)
+  by(auto simp: kcomp_prop)
+
 lemma (in antidomain_kleene_algebra) fbox_starI: 
 assumes "d p \<le> d i" and "d i \<le> |x] i" and "d i \<le> d q"
 shows "d p \<le> |x\<^sup>\<star>] q"
   by (meson assms local.dual_order.trans local.fbox_iso local.fbox_star_induct_var)
-
-lemma bot_pres_del:"bot_pres (If (\<not> Q x) (\<eta> x)) \<Longrightarrow> Q x"
-  using empty_not_insert by fastforce thm empty_not_insert
 
 lemma nd_fun_ads_d_def:"d (f::'a nd_fun) = (\<lambda>x. if (f\<^sub>\<bullet>) x = {} then {} else \<eta> x )\<^sup>\<bullet>"
   unfolding ads_d_def apply(rule nd_fun_ext, simp)
@@ -183,7 +217,7 @@ lemma nd_fun_top_ads_d:"(x::'a nd_fun) \<le> 1 \<Longrightarrow> d x = x"
   apply(subst (asm) le_fun_def)
   by auto
 
-lemma rel_ad_mka_starI:
+lemma wp_starI:
 assumes "P \<le> I" and "I \<le> wp F I" and "I \<le> Q"
 shows "P \<le> wp (qstar F) Q"
 proof-
@@ -198,6 +232,16 @@ proof-
     by(simp add: fbox_starI[of _ I])
   then show "P \<le> wp (qstar F) Q"
     using \<open>d P = P\<close> by (transfer, simp)
+qed
+
+lemma ffb_starI:
+assumes "{x. P x} \<le> {x. I x}" and "{x. I x} \<le> fb\<^sub>\<F> (F\<^sub>\<bullet>) {x. I x}" and "{x. I x} \<le> {x. Q x}"
+shows "{x. P x} \<le> fb\<^sub>\<F> ((qstar F)\<^sub>\<bullet>) {x. Q x}"
+proof-
+  from assms(1,3) have "\<lceil>P\<rceil> \<le> \<lceil>I\<rceil> \<and> \<lceil>I\<rceil> \<le> \<lceil>Q\<rceil>" by auto
+  also from assms(2) have "\<lceil>I\<rceil> \<le> wp F \<lceil>I\<rceil>" by(subst wp_is_ffb, transfer, auto simp: le_fun_def)
+  ultimately have "\<lceil>P\<rceil> \<le> wp (qstar F) \<lceil>Q\<rceil>" using wp_starI by blast
+  from this show ?thesis by(subst (asm) wp_is_ffb, transfer, auto simp: le_fun_def)
 qed
 
 subsection{* Verification by providing solutions *}
@@ -282,29 +326,9 @@ subsubsection{* Differential Weakening *}
         
 theorem DW:
   shows "wp ({[x\<acute>=f]T S @ t0 & G}) \<lceil>Q\<rceil> = wp ({[x\<acute>=f]T S @ t0 & G}) \<lceil>\<lambda> s. G s \<longrightarrow> Q s\<rceil>"
-  unfolding fbox_def apply(rule nd_fun_ext) apply transfer apply simp
-proof(subst kcomp_prop)+
-  fix x::'a and T f S t0 G Q 
-  let ?Y = "g_orbital f T S t0 x G"
-  have *:"\<forall>y \<in> ?Y. G y" by blast
-  {assume "(\<Union>y\<in>?Y . if \<not> Q y then \<eta> y else {}) = {}"
-    then have "\<forall>y\<in>?Y . (if \<not> Q y then \<eta> y else {}) = {}" by blast
-    hence "\<forall>y\<in>?Y . Q y" by (metis (mono_tags, lifting) bot_pres_del) 
-    then have "\<forall>y\<in>?Y . (if G y \<and> \<not> Q y then \<eta> y else {}) = {}" by auto
-    from this have "(\<Union>y\<in>?Y . if G y \<and> \<not> Q y then \<eta> y else {}) = {}" by blast}
-  moreover
-  {assume "(\<Union>y\<in>?Y .  if \<not> Q y then \<eta> y else {}) \<noteq> {}"
-    then have "\<exists>y\<in>?Y. (if \<not> Q y then \<eta> y else {}) \<noteq> {}" by blast
-    hence "\<exists>y\<in>?Y. \<not> Q y" by (metis (mono_tags, lifting)) 
-    then have "\<exists>y\<in>?Y. (if G y \<and> \<not> Q y then \<eta> y else {}) \<noteq> {}"
-      by (metis (mono_tags, lifting) * bot_pres_del) 
-    from this have "(\<Union>y\<in>?Y. if G y \<and> \<not> Q y then \<eta> y else {}) \<noteq> {}" by blast}
-  ultimately show "((\<Union>y\<in>?Y. if \<not> Q y then \<eta> y else {}) = {} \<longrightarrow>
-        (\<Union>y\<in>?Y. if G y \<and> \<not> Q y then \<eta> y else {}) = {}) \<and>
-       ((\<Union>y\<in>?Y. if \<not> Q y then \<eta> y else {}) \<noteq> {} \<longrightarrow>
-        (\<Union>y\<in>?Y. if G y \<and> \<not> Q y then \<eta> y else {}) \<noteq> {})"
-    by blast
-qed
+  apply(subst wp_nd_fun)+
+  apply(rule nd_fun_ext)
+  by auto
 
 theorem dWeakening: 
 assumes "\<lceil>G\<rceil> \<le> \<lceil>Q\<rceil>"

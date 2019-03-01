@@ -1,7 +1,8 @@
-theory cat2funcset_examples
-  imports cat2funcset
+theory cat2ndfun_examples
+  imports cat2ndfun
 
 begin
+
 
 subsection{* Examples *}
 
@@ -369,13 +370,14 @@ lemma bouncing_ball:
   (({[x\<acute>=\<lambda>t s. K *v s]{0..t} UNIV @ 0 & (\<lambda> s. s $ 0 \<ge> 0)} \<cdot>
   (IF (\<lambda> s. s $ 0 = 0) THEN ([1 ::== (\<lambda>s. - s $ 1)]) ELSE \<eta>\<^sup>\<bullet> FI))\<^sup>\<star>)
   \<lceil>\<lambda>s. 0 \<le> s $ 0 \<and> s $ 0 \<le> H\<rceil>"
-  apply(subst star_nd_fun.abs_eq, rule rel_ad_mka_starI [of _ "\<lceil>\<lambda>s. 0 \<le> s $ (0::3) \<and> 0 > s $ 2 \<and> 
+  apply(subst star_nd_fun.abs_eq)
+  apply(rule wp_starI[of _ "\<lceil>\<lambda>s. 0 \<le> s $ (0::3) \<and> 0 > s $ 2 \<and> 
   2 \<cdot> s $ 2 \<cdot> s $ 0 = 2 \<cdot> s $ 2 \<cdot> H + (s $ 1 \<cdot> s $ 1)\<rceil>"])
-    apply(simp, simp only: fbox_seq)
+    apply(simp, simp only: fbox_mult)
    apply(subst p2ndf_ndf2p_wp_sym[of "(IF (\<lambda>s. s $ 0 = 0) THEN ([1 ::== (\<lambda>s. - s $ 1)]) ELSE \<eta>\<^sup>\<bullet> FI)"])
    apply(subst flow_for_K_DS) using assms apply(simp, simp) apply(subst wp_trafo)
   unfolding cond_def apply clarsimp
-   apply(transfer, simp add: kcomp_def) 
+   apply(transfer, simp add: kcomp_def)
   by(auto simp: bb_real_arith)
 
 subsubsection{* Bouncing Ball with invariants *}
@@ -410,8 +412,8 @@ lemma bouncing_ball_invariants:
   (IF (\<lambda> s. s $ 0 = 0) THEN ([1 ::== (\<lambda>s. - s $ 1)]) ELSE \<eta>\<^sup>\<bullet> FI))\<^sup>\<star>)
   \<lceil>\<lambda>s. 0 \<le> s $ 0 \<and> s $ 0 \<le> H\<rceil>"
   apply(subst star_nd_fun.abs_eq, 
-rule_tac I="\<lceil>\<lambda>s. 0 \<le> s$0 \<and> 0 > s$2 \<and> 2 \<cdot> s$2 \<cdot> s$0 = 2 \<cdot> s$2 \<cdot> H + (s$1 \<cdot> s$1)\<rceil>" in rel_ad_mka_starI)
-    apply(simp, simp only: fbox_seq)
+rule_tac I="\<lceil>\<lambda>s. 0 \<le> s$0 \<and> 0 > s$2 \<and> 2 \<cdot> s$2 \<cdot> s$0 = 2 \<cdot> s$2 \<cdot> H + (s$1 \<cdot> s$1)\<rceil>" in wp_starI)
+    apply(simp, simp only: fbox_mult)
    apply(subst p2ndf_ndf2p_wp_sym[of "(IF (\<lambda>s. s $ 0 = 0) THEN ([1 ::== (\<lambda>s. - s $ 1)]) ELSE \<eta>\<^sup>\<bullet> FI)"])
   using assms(1) apply(rule dCut_interval[of _ _ _ _ _ _ "\<lambda> s. s $ 2 < 0"])
    apply(rule_tac \<theta>="\<lambda>s. s $ 2" and \<nu>="\<lambda>s. 0" in dInvariant_below_0)
