@@ -283,7 +283,7 @@ lemma circular_motion:
   using assms by simp_all
 
 lemma circle_invariant:
-  assumes "0 \<le> t" and "0 < R"
+  assumes "0 < R"
   shows "(\<lambda>s. R\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2) is_ode_invariant_of (\<lambda>a. ( *v) Circ) {0..t} UNIV"
   apply(rule_tac ode_invariant_rules, clarsimp)
   apply(frule_tac i="0" in solves_vec_nth, drule_tac i="1" in solves_vec_nth)
@@ -302,13 +302,13 @@ lemma circle_invariant:
   by(auto simp: closed_segment_eq_real_ivl)
 
 lemma circular_motion_invariants:
-  assumes "0 \<le> t" and "t < 1/4" and "(R::real) > 0"
+  assumes "(R::real) > 0"
   shows"\<lceil>\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2\<rceil> \<le> wp 
   {[x\<acute>=\<lambda>t s. Circ *v s]{0..t} UNIV @ 0 & (\<lambda> s. s $ 0 \<ge> 0)}
   \<lceil>\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2\<rceil>"
-  using assms(1) apply(rule_tac C="\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2" in dCut, simp)
+  using assms(1) apply(rule_tac C="\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2" in dCut)
      apply(rule_tac I="\<lambda>s. R\<^sup>2 = (s $ (0::2))\<^sup>2 + (s $ 1)\<^sup>2" in dInvariant')
-  using circle_invariant \<open>R > 0\<close> apply(blast, blast, force, force)
+  using circle_invariant \<open>R > 0\<close> apply(blast, force, force)
   by(rule dWeakening, auto)
 
 subsubsection{* Bouncing Ball with solution *}
@@ -412,7 +412,6 @@ r \<in> {0--\<tau>} \<Longrightarrow> ((\<lambda>\<tau>. 2 \<cdot> x \<tau> $ 2 
       simp_all add: has_derivative_within_subset)
 
 lemma bouncing_ball_invariants:
-  assumes "0 \<le> t" and "t < 1/9" 
   shows"\<lceil>\<lambda>s. (0::real) \<le> s $ (0::3) \<and> s $ 0 = H \<and> s $ 1 = 0 \<and> 0 > s $ 2\<rceil> \<subseteq> wp 
   (({[x\<acute>=\<lambda>t s. K *v s]{0..t} UNIV @ 0 & (\<lambda> s. s $ 0 \<ge> 0)};
   (IF (\<lambda> s. s $ 0 = 0) THEN ([1 ::== (\<lambda>s. - s $ 1)]) ELSE Id FI))\<^sup>*)
@@ -420,14 +419,14 @@ lemma bouncing_ball_invariants:
   apply(rule_tac I="\<lceil>\<lambda>s. 0 \<le> s$0 \<and> 0 > s$2 \<and> 2 \<cdot> s$2 \<cdot> s$0 = 2 \<cdot> s$2 \<cdot> H + (s$1 \<cdot> s$1)\<rceil>" in rel_ad_mka_starI)
     apply(simp, simp only: rel_antidomain_kleene_algebra.fbox_seq)
    apply(subst p2r_r2p_wp_sym[of "(IF (\<lambda>s. s $ 0 = 0) THEN ([1 ::== (\<lambda>s. - s $ 1)]) ELSE Id FI)"])
- using assms(1) apply(rule dCut[of _ _ _ _ _ _ "\<lambda> s. s $ 2 < 0"])
+   apply(rule dCut[of _ _ _ _ _ _ "\<lambda> s. s $ 2 < 0"])
     apply(rule_tac I="\<lambda> s. s $ 2 < 0" in dInvariant')
        apply(rule_tac \<theta>'="\<lambda>s. 0" and \<nu>'="\<lambda>s. 0" in ode_invariant_rules(3))
-  using gravity_is_invariant apply(force, simp add: \<open>0 \<le> t\<close>, simp, simp)
-   apply(rule_tac C="\<lambda> s. 2 \<cdot> s$2 \<cdot> s$0 - 2 \<cdot> s$2 \<cdot> H - s$1 \<cdot> s$1 = 0" in dCut, simp add: \<open>0 \<le> t\<close>)
+  using gravity_is_invariant apply(force, simp, simp)
+   apply(rule_tac C="\<lambda> s. 2 \<cdot> s$2 \<cdot> s$0 - 2 \<cdot> s$2 \<cdot> H - s$1 \<cdot> s$1 = 0" in dCut)
     apply(rule_tac I="\<lambda> s. 2 \<cdot> s$2 \<cdot> s$0 - 2 \<cdot> s$2 \<cdot> H - s$1 \<cdot> s$1 = 0" in dInvariant')
   apply(rule ode_invariant_rules)
-  using bouncing_ball_invariant apply(force, simp add: \<open>0 \<le> t\<close>, simp, simp)
+  using bouncing_ball_invariant apply(force, simp, simp)
    apply(rule dWeakening, subst p2r_r2p_wp)
   apply(simp add: rel_antidomain_kleene_algebra.fbox_def)
   unfolding rel_antidomain_kleene_algebra.cond_def p2r_def

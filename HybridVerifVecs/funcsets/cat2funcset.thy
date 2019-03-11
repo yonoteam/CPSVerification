@@ -2,6 +2,7 @@ theory cat2funcset
   imports "../hs_prelims" "Transformer_Semantics.Kleisli_Quantale" "KAD.Modal_Kleene_Algebra"
                         
 begin
+
 section{* Hybrid System Verification *}
 
 \<comment> \<open>We start by deleting some conflicting notation and introducing some new.\<close>
@@ -224,14 +225,13 @@ next show "\<And> a. g_orbital f T S t0 a (\<lambda> s. G s \<and> C s) \<subset
 qed
 
 theorem dCut:
-  assumes "t0 \<le> t" and ffb_C:"P \<le> fb\<^sub>\<F> ({[x\<acute>=f]{t0..t} S @ t0 & G}) {s. C s}"
+  assumes ffb_C:"P \<le> fb\<^sub>\<F> ({[x\<acute>=f]{t0..t} S @ t0 & G}) {s. C s}"
     and ffb_Q:"P \<le> fb\<^sub>\<F> ({[x\<acute>=f]{t0..t} S @ t0 & (\<lambda> s. G s \<and> C s)}) Q"
   shows "P \<le> fb\<^sub>\<F> ({[x\<acute>=f]{t0..t} S @ t0 & G}) Q"
 proof(subst ffb_wlp, clarsimp)
   fix \<tau>::real and x::"real \<Rightarrow> 'a" assume "(x t0) \<in> P" and "t0 \<le> \<tau>" and "\<tau> \<le> t" and "x t0 \<in> S"
     and x_solves:"(x solves_ode f){t0..t} S " and guard_x:"(\<forall> r \<in> {t0--\<tau>}. G (x r))"
-  hence "{t0--\<tau>} \<subseteq> {t0--t}" using closed_segment_eq_real_ivl by auto
-  from this and guard_x have "\<forall>r\<in>{t0--\<tau>}.\<forall>\<tau>\<in>{t0--r}. G (x \<tau>)"
+  from guard_x have "\<forall>r\<in>{t0--\<tau>}.\<forall>\<tau>\<in>{t0--r}. G (x \<tau>)"
     using closed_segment_closed_segment_subset by blast
   then have "\<forall>r\<in>{t0--\<tau>}. x r \<in> {[x\<acute>=f]{t0..t} S @ t0 & G} (x t0)"
     using x_solves \<open>x t0 \<in> S\<close> \<open>t0 \<le> \<tau>\<close> \<open>\<tau> \<le> t\<close> closed_segment_eq_real_ivl by fastforce 
@@ -263,10 +263,10 @@ lemma dInvariant:
   by(clarify, erule_tac x="xa" in allE, clarsimp)
 
 lemma dInvariant':
-assumes "I is_ode_invariant_of f {t0..t} S" and "t0 \<le> t"
+assumes "I is_ode_invariant_of f {t0..t} S"
     and "P \<le> {s. I s}" and "{s. I s} \<le> Q"
   shows "P \<le> fb\<^sub>\<F> ({[x\<acute>=f]{t0..t} S @ t0 & G}) Q"
-  apply(rule_tac C="I" in dCut, simp add: \<open>t0 \<le> t\<close>)
+  apply(rule_tac C="I" in dCut)
   using dInvariant assms apply blast
   apply(rule dWeakening)
   using assms by auto

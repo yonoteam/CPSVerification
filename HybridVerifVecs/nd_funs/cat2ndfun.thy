@@ -389,7 +389,7 @@ next show "\<And> a. g_orbital f T S t0 a (\<lambda> s. G s \<and> C s) \<subset
 qed
 
 theorem dCut:
-  assumes "t0 \<le> t" and wp_C:"\<lceil>P\<rceil> \<le> wp ({[x\<acute>=f]{t0..t} S @ t0 & G}) \<lceil>C\<rceil>"
+  assumes wp_C:"\<lceil>P\<rceil> \<le> wp ({[x\<acute>=f]{t0..t} S @ t0 & G}) \<lceil>C\<rceil>"
     and wp_Q:"\<lceil>P\<rceil> \<le> wp ({[x\<acute>=f]{t0..t} S @ t0 & (\<lambda> s. G s \<and> C s)}) \<lceil>Q\<rceil>"
   shows "\<lceil>P\<rceil> \<le> wp ({[x\<acute>=f]{t0..t} S @ t0 & G}) \<lceil>Q\<rceil>"
 proof(subst wp_nd_fun, clarsimp)
@@ -431,12 +431,11 @@ lemma dInvariant:
 
 lemma dInvariant':
   assumes "I is_ode_invariant_of f {t0..t} S" 
-    and "t0 \<le> t" and "\<lceil>P\<rceil> \<le> \<lceil>I\<rceil>" and "\<lceil>I\<rceil> \<le> \<lceil>Q\<rceil>"
+    and "\<lceil>P\<rceil> \<le> \<lceil>I\<rceil>" and "\<lceil>I\<rceil> \<le> \<lceil>Q\<rceil>"
   shows "\<lceil>P\<rceil> \<le> wp ({[x\<acute>=f]{t0..t} S @ t0 & G}) \<lceil>Q\<rceil>"
   using assms(1) apply(rule_tac C="I" in dCut)
-    apply(simp add: \<open>t0 \<le> t\<close>)
    apply(drule_tac G="G" in dInvariant)
-  using assms(3,4) dual_order.trans apply blast 
+  using assms(2,3) dual_order.trans apply blast 
   apply(rule dWeakening)
   using assms by auto
 
