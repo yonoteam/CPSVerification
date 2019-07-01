@@ -49,7 +49,7 @@ abbreviation vec_upd :: "('a^'b) \<Rightarrow> 'b \<Rightarrow> 'a \<Rightarrow>
 "x[i :== a] \<equiv> (\<chi> j. (if j = i then a else (x $ j)))"
 
 abbreviation assign :: "'b \<Rightarrow> ('a^'b \<Rightarrow> 'a) \<Rightarrow> ('a^'b) rel" ("(2[_ ::== _])" [70, 65] 61) where 
-"[x ::== expr]\<equiv> {(s, s[x :== expr s])| s. True}" 
+"[x ::== expr]\<equiv> {(s, s[x :== expr s])| s. True}"
 
 lemma wp_assign [simp]: "wp ([x ::== expr]) \<lceil>Q\<rceil> = \<lceil>\<lambda>s. Q (s[x :== expr s])\<rceil>"
   by(auto simp: rel_antidomain_kleene_algebra.fbox_def rel_ad_def p2r_def)
@@ -155,8 +155,8 @@ lemma dSolution:
   assumes "picard_ivp f T S L t0" and ivp:"\<forall>s \<in> S. ((\<lambda>t. \<phi> t s) solves_ode f)T S \<and> \<phi> t0 s = s"
     and "\<forall>s. P s \<longrightarrow> (\<forall> t \<in> T. s \<in> S \<longrightarrow> (\<forall> r \<in> {t0..t}.G (\<phi> r s)) \<longrightarrow> Q (\<phi> t s))"
   shows "\<lceil>P\<rceil> \<subseteq> wp ({[x\<acute>=f]T S @ t0 & G}) \<lceil>Q\<rceil>"
-  using assms apply(subst picard_ivp.wp_g_orbit, auto)
-  by (simp add: Starlike.closed_segment_eq_real_ivl)
+  using assms apply(subst picard_ivp.wp_g_orbit)
+  by(auto simp: Starlike.closed_segment_eq_real_ivl)
 
 corollary line_DS: "0 \<le> t \<Longrightarrow> wp {[x\<acute>=\<lambda>t s. c]{0..t} UNIV @ 0 & G} \<lceil>Q\<rceil> =  
 \<lceil>\<lambda> x. \<forall> \<tau> \<in> {0..t}. (\<forall>r\<in>{0--\<tau>}. G (x + r *\<^sub>R c)) \<longrightarrow> Q (x + \<tau> *\<^sub>R c)\<rceil>"

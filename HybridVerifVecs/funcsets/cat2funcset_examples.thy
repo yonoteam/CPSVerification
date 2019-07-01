@@ -379,8 +379,7 @@ lemma bouncing_ball:
   (kstar ({[x\<acute>=\<lambda>t s. K *v s]{0..t} UNIV @ 0 & (\<lambda> s. s $ 0 \<ge> 0)} \<circ>\<^sub>K
   (IF (\<lambda> s. s $ 0 = 0) THEN ([1 ::== (\<lambda>s. - s $ 1)]) ELSE \<eta> FI)))
   {s. 0 \<le> s $ 0 \<and> s $ 0 \<le> H}"
-  apply(subst ffb_starI[of _ "{s. 0 \<le> s $ (0::3) \<and> 0 > s $ 2 \<and> 
-  2 \<cdot> s $ 2 \<cdot> s $ 0 = 2 \<cdot> s $ 2 \<cdot> H + (s $ 1 \<cdot> s $ 1)}"])
+  apply(subst ffb_starI[of _ "{s. 0 \<le> s $ (0::3) \<and> 0 > s $ 2 \<and>   2 \<cdot> s $ 2 \<cdot> s $ 0 = 2 \<cdot> s $ 2 \<cdot> H + (s $ 1 \<cdot> s $ 1)}"])
   apply(clarsimp, simp only: ffb_kcomp)
     apply(subst flow_for_K_DS)
   using assms apply(simp, simp, clarsimp)
