@@ -1,13 +1,13 @@
 # CPSVerification
 A repository for Isabelle modules to implement verification of Cyber-Physical Systems
 
-As of 2019, there are four different formalizations of similar results. They depend on the codification of systems of Ordinary Differential Equations and on the implementation of the semantics. These are:
-* Relational semantics with list representation.
-* Relational semantics with vector codification.
-* Nondeterministic functions semantics with vector representation.
-* Semantics using generalized functions with a vector codification.
+As of mid 2019, there are various different formalizations of similar results. The differences depend on the codification of systems of Ordinary Differential Equations and on the implementation of the semantics. Generally, the implementations are:
+* Relational semantics with list representation (in folder HybridVerifLists).
+* Relational semantics with vector codification (in folder HybridVerifVecs/rels).
+* Nondeterministic functions semantics with vector representation (in folder HybridVerifVecs/nd_funs).
+* Semantics using generalized functions with a vector codification (in folder HybridVerifLinear). This one is extended to work with linear systems of ODEs.
 
-To run all these versions smoothly you need to have [Isabelle2018 (August 2018)](https://isabelle.in.tum.de/) installed in your computer. Moreover, they all depend on the [AFP](https://www.isa-afp.org/) entry on [Ordinary Differential Equations](https://www.isa-afp.org/entries/Ordinary_Differential_Equations.html). The theory stack behind this entry is enormous as it uses many theorems from [Analysis](http://isabelle.in.tum.de/dist/library/HOL/HOL-Analysis/index.html). As a consequence, the verification of this stack takes about 40 minutes which is the reason why we recommend pre-loading them, i.e. building a heap for those files. In order to do that in a Unix system just:
+Only the latest in HybridVerifLinear runs smoothly with [Isabelle2019 (August 2019)](https://isabelle.in.tum.de/). Moreover, they all depend on the [AFP](https://www.isa-afp.org/) entry on [Ordinary Differential Equations](https://www.isa-afp.org/entries/Ordinary_Differential_Equations.html). The theory stack behind this entry is enormous as it uses many theorems from [Analysis](http://isabelle.in.tum.de/dist/library/HOL/HOL-Analysis/index.html). As a consequence, the verification of this stack takes about 40 minutes which is the reason why we recommend pre-loading them, i.e. building a heap for those files. In order to do that in a Unix system just:
 1. Open Terminal.
 2. Add the Isabelle bin directory to your path, e.g., $ export PATH=$PATH:/Apps/.../Isabelle2017/bin (replace the ... with the actual path to the Isabelle installation directory).
 3. Then execute: $ isabelle build -b Ordinary_Differential_Equations
