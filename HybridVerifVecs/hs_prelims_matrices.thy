@@ -3,9 +3,15 @@ theory hs_prelims_matrices
 
 begin
 
-section \<open> Linear Algebra for Hybrid Systems \<close>
+chapter\<open> Linear Algebra for Hybrid Systems \<close>
 
-subsection\<open> Vector operations \<close>
+text\<open> Linear systems of ordinary differential equations (ODEs) are those whose vector fields are a 
+linear operator. That is, there is a matrix @{term A} such that the system @{term "x' t = f (x t)"} 
+can be rewritten as @{term "x' t = A *v (x t)"}. The end goal of this section is to prove that every 
+linear system of ODEs has a unique solution, and to obtain a characterization of said solution. For 
+that we start by formalising various properties of vector spaces.\<close>
+
+section\<open> Vector operations \<close>
 
 abbreviation "\<e> k \<equiv> axis k 1"
 
@@ -14,11 +20,11 @@ abbreviation "entries (A::'a^'n^'m) \<equiv> {A $ i $ j | i j. i \<in> UNIV \<an
 abbreviation kronecker_delta :: "'a \<Rightarrow> 'a \<Rightarrow> 'b \<Rightarrow> ('b::zero)" ("\<delta>\<^sub>K _ _ _" [55, 55, 55] 55)
   where "\<delta>\<^sub>K i j q \<equiv> (if i = j then q else 0)"
 
-lemma finite_sum_univ_singleton:"(sum g UNIV) = sum g {i} + sum g (UNIV - {i})" for i::"'a::finite"
+lemma finite_sum_univ_singleton: "(sum g UNIV) = sum g {i} + sum g (UNIV - {i})" for i::"'a::finite"
   by (metis add.commute finite_class.finite_UNIV sum.subset_diff top_greatest)
 
 lemma kronecker_delta_simps[simp]:
-  fixes q::"('b::semiring_0)" and i::"'a::finite"
+  fixes q::"('a::semiring_0)" and i::"'n::finite"
   shows "(\<Sum>j\<in>UNIV. f j * (\<delta>\<^sub>K j i q)) = f i * q"
     and "(\<Sum>j\<in>UNIV. f j * (\<delta>\<^sub>K i j q)) = f i * q"
     and "(\<Sum>j\<in>UNIV. (\<delta>\<^sub>K i j q) * f j) = q * f i"
@@ -26,12 +32,12 @@ lemma kronecker_delta_simps[simp]:
   by (auto simp: finite_sum_univ_singleton[of _ i])
 
 lemma sum_axis[simp]:
-  fixes q::"('b::semiring_0)"
+  fixes q::"('a::semiring_0)"
   shows "(\<Sum>j\<in>UNIV. f j * axis i q $ j) = f i * q"
     and "(\<Sum>j\<in>UNIV. axis i q $ j * f j) = q * f i"
   unfolding axis_def by(auto simp: vec_eq_iff)
 
-lemma sum_scalar_nth_axis:"sum (\<lambda>i. (x $ i) *s \<e> i) UNIV = x" for x :: "('a::semiring_1)^'m"
+lemma sum_scalar_nth_axis: "sum (\<lambda>i. (x $ i) *s \<e> i) UNIV = x" for x :: "('a::semiring_1)^'n"
   unfolding vec_eq_iff axis_def by simp
 
 lemma scalar_eq_scaleR[simp]: "c *s x = c *\<^sub>R x" for c :: real
@@ -40,7 +46,7 @@ lemma scalar_eq_scaleR[simp]: "c *s x = c *\<^sub>R x" for c :: real
 lemma matrix_add_rdistrib: "((B + C) ** A) = (B ** A) + (C ** A)"
   by (vector matrix_matrix_mult_def sum.distrib[symmetric] field_simps)
 
-lemma vec_mult_inner:"(A *v v) \<bullet> w = v \<bullet> (transpose A *v w)" for A::"real ^'a^'a"
+lemma vec_mult_inner: "(A *v v) \<bullet> w = v \<bullet> (transpose A *v w)" for A::"real ^'n^'n"
   unfolding matrix_vector_mult_def transpose_def inner_vec_def
   apply(simp add: sum_distrib_right sum_distrib_left)
   apply(subst sum.swap)
@@ -56,13 +62,13 @@ proof(simp add: axis_def norm_vec_def L2_set_def)
 qed
 
 lemma matrix_axis_0: 
-  fixes A :: "('a::idom) ^ 'b ^ 'c"
-  shows "k \<noteq> 0 \<Longrightarrow> \<forall>i. (A *v (axis i k)) = 0 \<Longrightarrow> A = 0"  
+  fixes A :: "('a::idom)^'n^'m"
+  assumes "k \<noteq> 0 " and h:"\<forall>i. (A *v (axis i k)) = 0"
+  shows "A = 0"  
 proof-
-  assume "k \<noteq> 0" and hyp:"\<forall>i. (A *v (axis i k)) = 0"
-  {fix i::'b
+  {fix i::'n
     have "0 = (\<Sum>j\<in>UNIV. (axis i k) $ j *s column j A)" 
-      using hyp matrix_mult_sum[of A "axis i k"] by simp
+      using h matrix_mult_sum[of A "axis i k"] by simp
     also have "... = k *s column i A" 
       by(simp add: axis_def vector_scalar_mult_def column_def vec_eq_iff mult.commute)
     finally have "k *s column i A = 0"
@@ -76,10 +82,10 @@ qed
 lemma scaleR_norm_sgn_eq: "(\<parallel>x\<parallel>) *\<^sub>R sgn x = x"
   by (metis divideR_right norm_eq_zero scale_eq_0_iff sgn_div_norm)
 
-lemma vector_scaleR_commute:"A *v c *\<^sub>R x = c *\<^sub>R (A *v x)" for x :: "('a::real_normed_algebra_1)^'n"
+lemma vector_scaleR_commute: "A *v c *\<^sub>R x = c *\<^sub>R (A *v x)" for x :: "('a::real_normed_algebra_1)^'n"
   unfolding scaleR_vec_def matrix_vector_mult_def by(auto simp: vec_eq_iff scaleR_right.sum)
 
-lemma scaleR_vector_assoc:"c *\<^sub>R (A *v x) = (c *\<^sub>R A) *v x" for x :: "('a::real_normed_algebra_1)^'n"
+lemma scaleR_vector_assoc: "c *\<^sub>R (A *v x) = (c *\<^sub>R A) *v x" for x :: "('a::real_normed_algebra_1)^'n"
   unfolding matrix_vector_mult_def by(auto simp: vec_eq_iff scaleR_right.sum)
 
 lemma mult_norm_matrix_sgn_eq:
@@ -92,6 +98,11 @@ proof-
     by(simp add: vector_scaleR_commute)
   finally show ?thesis ..
 qed
+
+section\<open> Matrix norms \<close>
+
+text\<open> Here we develop the foundations for obtaining the Lipschitz constant for every linear system
+of ODEs @{term "x' t = A *v (x t)"}. For that we derive some properties of two matrix norms.\<close>
 
 subsection\<open> Matrix operator norm \<close>
 
@@ -136,13 +147,13 @@ lemma op_norm_set_proptys:
 lemma norm_matrix_le_op_norm: "\<parallel>x\<parallel> = 1 \<Longrightarrow> \<parallel>A *v x\<parallel> \<le> \<parallel>A\<parallel>\<^sub>o\<^sub>p"
   by(rule cSup_upper, auto simp: op_norm_set_proptys)
 
-lemma norm_matrix_le_op_norm_ge_0:"0 \<le> \<parallel>A\<parallel>\<^sub>o\<^sub>p"
+lemma norm_matrix_le_op_norm_ge_0: "0 \<le> \<parallel>A\<parallel>\<^sub>o\<^sub>p"
   using ex_norm_eq_1 norm_ge_zero norm_matrix_le_op_norm basic_trans_rules(23) by blast
 
-lemma norm_sgn_le_op_norm:"\<parallel>A *v sgn x\<parallel> \<le> \<parallel>A\<parallel>\<^sub>o\<^sub>p"
+lemma norm_sgn_le_op_norm: "\<parallel>A *v sgn x\<parallel> \<le> \<parallel>A\<parallel>\<^sub>o\<^sub>p"
   by(cases "x=0", simp_all add: norm_sgn norm_matrix_le_op_norm norm_matrix_le_op_norm_ge_0)
 
-lemma norm_matrix_le_mult_op_norm:"\<parallel>A *v x\<parallel> \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>x\<parallel>)" for A :: "real^'n^'m"
+lemma norm_matrix_le_mult_op_norm: "\<parallel>A *v x\<parallel> \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>x\<parallel>)" for A :: "real^'n^'m"
 proof-
   have "\<parallel>A *v x\<parallel> = (\<parallel>A *v sgn x\<parallel>) * (\<parallel>x\<parallel>)"
     by(simp add: mult_norm_matrix_sgn_eq)
@@ -193,7 +204,7 @@ proof(cases "c = 0", simp add: ex_norm_eq_1)
 qed
 
 lemma op_norm_le_sum_column:
-  "\<parallel>A\<parallel>\<^sub>o\<^sub>p \<le> (\<Sum>i\<in>UNIV. \<parallel>column i A\<parallel>)" for A::"real^'m^('m::finite)"
+  "\<parallel>A\<parallel>\<^sub>o\<^sub>p \<le> (\<Sum>i\<in>UNIV. \<parallel>column i A\<parallel>)" for A::"real^'n^'m"
   using op_norm_set_proptys(3) proof(rule cSup_least)
   fix m assume "m \<in> {\<parallel>A *v x\<parallel> | x. \<parallel>x\<parallel> = 1}"
     then obtain x where x_def:"\<parallel>x\<parallel> = 1 \<and> m = (\<parallel>A *v x\<parallel>)" by blast
@@ -247,7 +258,7 @@ lemma op_norm_triangle:
       using \<open>m = \<parallel>(A + B) *v x\<parallel>\<close> by blast
 qed
 
-lemma op_norm_scaleR:"\<parallel>c *\<^sub>R A\<parallel>\<^sub>o\<^sub>p = \<bar>c\<bar> * (\<parallel>A\<parallel>\<^sub>o\<^sub>p)"
+lemma op_norm_scaleR: "\<parallel>c *\<^sub>R A\<parallel>\<^sub>o\<^sub>p = \<bar>c\<bar> * (\<parallel>A\<parallel>\<^sub>o\<^sub>p)"
 proof-
   let ?N= "{\<bar>c\<bar> * (\<parallel>A *v x\<parallel>) |x. \<parallel>x\<parallel> = 1}"
   have "{\<parallel>(c *\<^sub>R A) *v x\<parallel> | x. \<parallel>x\<parallel> = 1} = ?N" 
@@ -258,7 +269,7 @@ proof-
     by auto
 qed
 
-lemma op_norm_matrix_matrix_mult_le:"\<parallel>A ** B\<parallel>\<^sub>o\<^sub>p \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>B\<parallel>\<^sub>o\<^sub>p)" for A::"real^'n^'m"
+lemma op_norm_matrix_matrix_mult_le: "\<parallel>A ** B\<parallel>\<^sub>o\<^sub>p \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>B\<parallel>\<^sub>o\<^sub>p)" for A::"real^'n^'m"
 using op_norm_set_proptys(3)[of "A ** B"]
 proof(rule cSup_least)
   have "0 \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p)" using norm_matrix_le_op_norm_ge_0 by force 
@@ -315,7 +326,7 @@ proof-
     using finite_subset by blast
 qed
 
-lemma max_norm_ge_0:"0 \<le> \<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x"
+lemma max_norm_ge_0: "0 \<le> \<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x"
 proof-
   have "\<And> i j. \<bar>A $ i $ j\<bar> \<ge> 0" by simp
   also have "\<And> i j. \<bar>A $ i $ j\<bar> \<le> \<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x"
@@ -370,8 +381,51 @@ proof(rule cSup_least)
     by blast
 qed
 
+section\<open> Picard Lindeloef for linear systems \<close>
 
-section\<open> Squared matrices with real valued entries \<close>
+text\<open> Now we prove our first objective. First we obtain the Lipschitz constant for linear systems
+of ODEs, and then we prove that IVPs arising from these satisfy the conditions for Picard-Lindeloef 
+theorem (hence, they have a unique solution). \<close>
+
+lemma matrix_lipschitz_constant:
+  fixes A::"real^('n::finite)^'n"
+  shows "dist (A *v x) (A *v y) \<le> (real CARD('n))\<^sup>2 * (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x) * dist x y"
+  unfolding dist_norm matrix_vector_mult_diff_distrib[symmetric]
+proof(subst mult_norm_matrix_sgn_eq[symmetric])
+  have "\<parallel>A\<parallel>\<^sub>o\<^sub>p \<le> (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x) * (real CARD('n) * real CARD('n))"
+    by (metis (no_types) Groups.mult_ac(2) op_norm_le_max_norm)
+  then have "(\<parallel>A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>x - y\<parallel>) \<le> (real CARD('n))\<^sup>2 * (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x) * (\<parallel>x - y\<parallel>)"
+    by (simp add: cross3_simps(11) mult_left_mono semiring_normalization_rules(29))
+  also have "(\<parallel>A *v sgn (x - y)\<parallel>) * (\<parallel>x - y\<parallel>) \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>x - y\<parallel>)"
+    by (simp add: norm_sgn_le_op_norm cross3_simps(11) mult_left_mono) 
+  ultimately show "(\<parallel>A *v sgn (x - y)\<parallel>) * (\<parallel>x - y\<parallel>) \<le> (real CARD('n))\<^sup>2 * (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x) * (\<parallel>x - y\<parallel>)"
+    using order_trans_rules(23) by blast
+qed
+
+lemma picard_lindeloef_linear_system:
+  fixes A::"real^('n::finite)^'n" 
+  assumes "0 < ((real CARD('n))\<^sup>2 * (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x))" (is "0 < ?L") 
+  assumes "0 \<le> t" and "t < 1/?L"
+  shows "picard_lindeloef (\<lambda> t s. A *v s) {0..t} ?L 0"
+  apply unfold_locales apply(simp add: \<open>0 \<le> t\<close>)
+  subgoal by(simp, metis continuous_on_compose2 continuous_on_cong continuous_on_id 
+        continuous_on_snd matrix_vector_mult_linear_continuous_on top_greatest) 
+  subgoal using matrix_lipschitz_constant max_norm_ge_0 zero_compare_simps(4,12) 
+    unfolding lipschitz_on_def by blast
+  apply(simp_all add: assms)
+  subgoal for r s apply(subgoal_tac "\<bar>r - s\<bar> < 1/?L")
+     apply(subst (asm) pos_less_divide_eq[of ?L "\<bar>r - s\<bar>" 1])
+    using assms by auto
+  done
+
+section\<open> Matrix Exponential \<close>
+
+text\<open> The general solution for linear systems of ODEs is an exponential function. Unfortunately, 
+this operation is only available in Isabelle for Banach spaces which are formalised as a class. 
+Hence we need to prove that a specific type is an instance of this class. We define the type and 
+build towards this instantiation in this section.\<close>
+
+subsection\<open> Squared matrices operations \<close>
 
 typedef 'm sqrd_matrix = "UNIV::(real^'m^'m) set"
   morphisms to_vec sq_mtx_chi by simp
@@ -406,6 +460,28 @@ lift_definition sq_mtx_rows::"('m::finite) sqrd_matrix \<Rightarrow> (real^'m) s
 
 lift_definition sq_mtx_cols::"('m::finite) sqrd_matrix \<Rightarrow> (real^'m) set" is columns .
 
+lemma sq_mtx_eq_iff:
+  shows "(\<And>i. A $$ i = B $$ i) \<Longrightarrow> A = B"
+    and "(\<And>i j. A $$ i $ j = B $$ i $ j) \<Longrightarrow> A = B"
+  by(transfer, simp add: vec_eq_iff)+
+
+lemma sq_mtx_vec_prod_eq: "m *\<^sub>V x = (\<chi> i. sum (\<lambda>j. ((m$$i)$j) * (x$j)) UNIV)"
+  by(transfer, simp add: matrix_vector_mult_def)
+
+lemma sq_mtx_transpose_transpose[simp]:"(A\<^sup>\<dagger>)\<^sup>\<dagger> = A"
+  by(transfer, simp)
+
+lemma transpose_mult_vec_canon_row[simp]:"(A\<^sup>\<dagger>) *\<^sub>V (\<e> i) = \<r>\<o>\<w> i A"
+  by transfer (simp add: row_def transpose_def axis_def matrix_vector_mult_def)
+
+lemma row_ith[simp]:"\<r>\<o>\<w> i A = A $$ i"
+  by transfer (simp add: row_def)
+
+lemma mtx_vec_prod_canon:"A *\<^sub>V (\<e> i) = \<c>\<o>\<l> i A" 
+  by (transfer, simp add: matrix_vector_mult_basis)
+
+subsection\<open> Squared matrices form Banach space \<close>
+
 instantiation sqrd_matrix :: (finite) ring 
 begin
 
@@ -426,6 +502,25 @@ instance apply intro_classes
   by(transfer, simp add: algebra_simps matrix_mul_assoc matrix_add_rdistrib matrix_add_ldistrib)+
 
 end
+
+lemma sq_mtx_plus_ith[simp]:"(A + B) $$ i = A $$ i + B $$ i"
+  by(unfold plus_sqrd_matrix_def, transfer, simp)
+
+lemma sq_mtx_minus_ith[simp]:"(A - B) $$ i = A $$ i - B $$ i"
+  by(unfold minus_sqrd_matrix_def, transfer, simp)
+
+lemma mtx_vec_prod_add_rdistr:"(A + B) *\<^sub>V x = A *\<^sub>V x + B *\<^sub>V x"
+  unfolding plus_sqrd_matrix_def apply(transfer)
+  by (simp add: matrix_vector_mult_add_rdistrib)
+
+lemma mtx_vec_prod_minus_rdistrib:"(A - B) *\<^sub>V x = A *\<^sub>V x - B *\<^sub>V x"
+  unfolding minus_sqrd_matrix_def by(transfer, simp add: matrix_vector_mult_diff_rdistrib)
+
+lemma sq_mtx_times_vec_assoc: "(A * B) *\<^sub>V x0 = A *\<^sub>V (B *\<^sub>V x0)"
+  by (transfer, simp add: matrix_vector_mul_assoc)
+
+lemma sq_mtx_vec_mult_sum_cols:"A *\<^sub>V x = sum (\<lambda>i. x $ i *\<^sub>R \<c>\<o>\<l> i A) UNIV"
+  by(transfer) (simp add: matrix_mult_sum scalar_mult_eq_scaleR)
 
 instantiation sqrd_matrix :: (finite) real_normed_vector 
 begin
@@ -454,20 +549,61 @@ instance apply intro_classes
 
 end
 
+lemma sq_mtx_scaleR_ith[simp]: "(c *\<^sub>R A) $$ i = (c  *\<^sub>R (A $$ i))"
+  by(unfold scaleR_sqrd_matrix_def, transfer, simp)
+
+lemma le_mtx_norm: "m \<in> {\<parallel>A *\<^sub>V x\<parallel> |x. \<parallel>x\<parallel> = 1} \<Longrightarrow> m \<le> \<parallel>A\<parallel>"
+  using cSup_upper[of _ "{\<parallel>(to_vec A) *v x\<parallel> | x. \<parallel>x\<parallel> = 1}"]
+  by (simp add: op_norm_set_proptys(2) norm_sqrd_matrix_def sq_mtx_vec_prod.rep_eq)
+
+lemma norm_vec_mult_le: "\<parallel>A *\<^sub>V x\<parallel> \<le> (\<parallel>A\<parallel>) * (\<parallel>x\<parallel>)"
+  by (simp add: norm_matrix_le_mult_op_norm norm_sqrd_matrix_def sq_mtx_vec_prod.rep_eq)
+
+lemma sq_mtx_norm_le_sum_col: "\<parallel>A\<parallel> \<le> (\<Sum>i\<in>UNIV. \<parallel>\<c>\<o>\<l> i A\<parallel>)"
+  using op_norm_le_sum_column[of "to_vec A"] apply(simp add: norm_sqrd_matrix_def)
+  by(transfer, simp add: op_norm_le_sum_column)
+
+lemma norm_le_transpose: "\<parallel>A\<parallel> \<le> \<parallel>A\<^sup>\<dagger>\<parallel>"
+  apply(simp add: norm_sqrd_matrix_def, transfer, simp add: transpose_def)
+  using op_norm_set_proptys(3) apply(rule cSup_least)
+proof(clarsimp)
+  fix A::"real^'a^'a" and x::"real ^ 'a" assume "\<parallel>x\<parallel> = 1"
+  have obs:"\<forall>x. \<parallel>x\<parallel> = 1 \<longrightarrow> (\<parallel>A *v x\<parallel>) \<le> sqrt ((\<parallel>transpose A ** A\<parallel>\<^sub>o\<^sub>p)) * (\<parallel>x\<parallel>)"
+    using norm_matrix_vec_mult_le_transpose by blast
+  have "(\<parallel>A\<parallel>\<^sub>o\<^sub>p) \<le> sqrt ((\<parallel>transpose A ** A\<parallel>\<^sub>o\<^sub>p))"
+    using op_norm_set_proptys(3) apply(rule cSup_least) using obs by clarsimp
+  then have "((\<parallel>A\<parallel>\<^sub>o\<^sub>p))\<^sup>2 \<le> (\<parallel>transpose A ** A\<parallel>\<^sub>o\<^sub>p)"
+    using power_mono[of "(\<parallel>A\<parallel>\<^sub>o\<^sub>p)" _ 2] norm_matrix_le_op_norm_ge_0 by force
+  also have "... \<le> (\<parallel>transpose A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>A\<parallel>\<^sub>o\<^sub>p)"
+    using op_norm_matrix_matrix_mult_le by blast
+  finally have "((\<parallel>A\<parallel>\<^sub>o\<^sub>p))\<^sup>2 \<le> (\<parallel>transpose A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>A\<parallel>\<^sub>o\<^sub>p)"  by linarith
+  hence "(\<parallel>A\<parallel>\<^sub>o\<^sub>p) \<le> (\<parallel>transpose A\<parallel>\<^sub>o\<^sub>p)"
+    using sq_le_cancel[of "(\<parallel>A\<parallel>\<^sub>o\<^sub>p)"] norm_matrix_le_op_norm_ge_0 by blast
+  thus "(\<parallel>A *v x\<parallel>) \<le> op_norm (\<chi> i j. A $ j $ i)"
+    unfolding transpose_def using \<open>\<parallel>x\<parallel> = 1\<close> order_trans norm_matrix_le_op_norm by blast 
+qed
+
+lemma norm_eq_norm_transpose[simp]: "\<parallel>A\<^sup>\<dagger>\<parallel> = \<parallel>A\<parallel>"
+  using norm_le_transpose[of A] and norm_le_transpose[of "A\<^sup>\<dagger>"] by simp
+
+lemma norm_column_le_norm: "\<parallel>A $$ i\<parallel> \<le> \<parallel>A\<parallel>"
+  using norm_vec_mult_le[of "A\<^sup>\<dagger>" "\<e> i"] by simp
+
+
 instantiation sqrd_matrix :: (finite) real_normed_algebra_1
 begin
 
 lift_definition one_sqrd_matrix :: "'a sqrd_matrix" is "sq_mtx_chi (mat 1)" .
 
-lemma sq_mtx_one_idty:"1 * A = A" "A * 1 = A" for A::"'a sqrd_matrix"
+lemma sq_mtx_one_idty: "1 * A = A" "A * 1 = A" for A::"'a sqrd_matrix"
   by(transfer, transfer, unfold mat_def matrix_matrix_mult_def, simp add: vec_eq_iff)+
 
-lemma sq_mtx_norm_1:"\<parallel>(1::'a sqrd_matrix)\<parallel> = 1"
+lemma sq_mtx_norm_1: "\<parallel>(1::'a sqrd_matrix)\<parallel> = 1"
   unfolding one_sqrd_matrix_def norm_sqrd_matrix_def apply simp
   apply(subst cSup_eq[of _ 1])
   using ex_norm_eq_1 by auto
 
-lemma sq_mtx_norm_times:"\<parallel>A * B\<parallel> \<le> (\<parallel>A\<parallel>) * (\<parallel>B\<parallel>)" for A::"'a sqrd_matrix"
+lemma sq_mtx_norm_times: "\<parallel>A * B\<parallel> \<le> (\<parallel>A\<parallel>) * (\<parallel>B\<parallel>)" for A::"'a sqrd_matrix"
   unfolding norm_sqrd_matrix_def times_sqrd_matrix_def by(simp add: op_norm_matrix_matrix_mult_le)
 
 instance apply intro_classes 
@@ -480,20 +616,6 @@ end
 lemma sq_mtx_one_vec: "1 *\<^sub>V s = s"
   by (auto simp: sq_mtx_vec_prod_def one_sqrd_matrix_def 
       mat_def vec_eq_iff matrix_vector_mult_def)
-
-lemma mtx_vec_prod_canon:"A *\<^sub>V (\<e> i) = \<c>\<o>\<l> i A" 
-  by (transfer, simp add: matrix_vector_mult_basis)
-
-lemma le_mtx_norm:"m \<in> {\<parallel>A *\<^sub>V x\<parallel> |x. \<parallel>x\<parallel> = 1} \<Longrightarrow> m \<le> \<parallel>A\<parallel>"
-  using cSup_upper[of _ "{\<parallel>(to_vec A) *v x\<parallel> | x. \<parallel>x\<parallel> = 1}"]
-  by (simp add: op_norm_set_proptys(2) norm_sqrd_matrix_def sq_mtx_vec_prod.rep_eq)
-
-lemma mtx_vec_prod_add_rdistr:"(A + B) *\<^sub>V x = A *\<^sub>V x + B *\<^sub>V x"
-  unfolding plus_sqrd_matrix_def apply(transfer)
-  by (simp add: matrix_vector_mult_add_rdistrib)
-
-lemma mtx_vec_prod_minus_rdistrib:"(A - B) *\<^sub>V x = A *\<^sub>V x - B *\<^sub>V x"
-  unfolding minus_sqrd_matrix_def by(transfer, simp add: matrix_vector_mult_diff_rdistrib)
 
 lemma Cauchy_cols:
   fixes X :: "nat \<Rightarrow> ('a::finite) sqrd_matrix" 
@@ -517,35 +639,6 @@ proof(unfold Cauchy_def dist_norm, clarsimp)
   thus "\<exists>M. \<forall>m\<ge>M. \<forall>n\<ge>M. \<parallel>\<c>\<o>\<l> i (X m) - \<c>\<o>\<l> i (X n)\<parallel> < \<epsilon>" 
     by blast
 qed
-
-lemma finite_nat_minimal_witness:
-  fixes P :: "('a::finite) \<Rightarrow> nat \<Rightarrow> bool"
-  assumes "\<forall>i. \<exists>N::nat. \<forall>n \<ge> N. P i n"
-  shows "\<exists>N. \<forall>i. \<forall>n \<ge> N. P i n" 
-proof-
-  let "?bound i" = "(LEAST N. \<forall>n \<ge> N. P i n)"
-  let ?N = "Max {?bound i |i. i \<in> UNIV}"
-  {fix n::nat and i::'a 
-    obtain M where "\<forall>n \<ge> M. P i n" 
-      using assms by blast
-    hence obs: "\<forall> m \<ge> ?bound i. P i m"
-      using LeastI[of "\<lambda>N. \<forall>n \<ge> N. P i n"] by blast
-    assume "n \<ge> ?N" 
-    have "finite {?bound i |i. i \<in> UNIV}"
-      using finite_Atleast_Atmost_nat by fastforce
-    hence "?N \<ge> ?bound i"
-      using Max_ge by blast
-    hence "n \<ge> ?bound i" 
-      using \<open>n \<ge> ?N\<close> by linarith
-    hence "P i n" 
-      using obs by blast}
-  thus "\<exists>N. \<forall>i n. N \<le> n \<longrightarrow> P i n" 
-    by blast
-qed
-
-lemma sq_mtx_norm_le_sum_col:"\<parallel>A\<parallel> \<le> (\<Sum>i\<in>UNIV. \<parallel>\<c>\<o>\<l> i A\<parallel>)"
-  using op_norm_le_sum_column[of "to_vec A"] apply(simp add: norm_sqrd_matrix_def)
-  by(transfer, simp add: op_norm_le_sum_column)
 
 lemma col_convergent:
   assumes "\<forall>i. (\<lambda>n. \<c>\<o>\<l> i (X n)) \<longlonglongrightarrow> L $ i" 
@@ -600,8 +693,11 @@ proof(standard)
     using col_convergent by blast
 qed
 
-lemma sq_mtx_vec_mult_sum_cols:"A *\<^sub>V x = sum (\<lambda>i. x $ i *\<^sub>R \<c>\<o>\<l> i A) UNIV"
-  by(transfer) (simp add: matrix_mult_sum scalar_mult_eq_scaleR)
+section\<open> Flow for squared matrix systems \<close>
+
+text\<open>Finally, we can use the @{term exp} operation to characterize the general solutions for linear 
+systems of ODEs. After this, we show that IVPs with these systems have a unique solution (using the 
+Picard Lindeloef locale) and explicitly write it via the local flow locale.\<close>
 
 lemma mtx_vec_prod_has_derivative_mtx_vec_prod:
   assumes "\<And> i j. D (\<lambda>t. (A t) $$ i $ j) \<mapsto> (\<lambda>\<tau>. \<tau> *\<^sub>R (A' t) $$ i $ j) (at t within s)"
@@ -615,76 +711,6 @@ lemma mtx_vec_prod_has_derivative_mtx_vec_prod:
   using assms unfolding sq_mtx_col_def column_def apply(transfer, simp)
   apply(rule has_derivative_vec_lambda)
   by(simp add: scaleR_vec_def)
-
-lemma exp_scaleR_has_derivative_right[derivative_intros]: (* by Fabian Immler *)
-  fixes f::"real \<Rightarrow> real"
-  assumes "D f \<mapsto> f' at x within s" and "(\<lambda>h. f' h *\<^sub>R (exp (f x *\<^sub>R A) * A)) = g'"
-  shows "D (\<lambda>x. exp (f x *\<^sub>R A)) \<mapsto> g' at x within s"
-proof -
-  from assms have "bounded_linear f'" by auto
-  with real_bounded_linear obtain m where f': "f' = (\<lambda>h. h * m)" by blast
-  show ?thesis
-    using vector_diff_chain_within[OF _ exp_scaleR_has_vector_derivative_right, of f m x s A] assms f'
-    by (auto simp: has_vector_derivative_def o_def)
-qed
-
-lemma sq_mtx_eq_iff:
-  shows "(\<And>i. A $$ i = B $$ i) \<Longrightarrow> A = B"
-    and "(\<And>i j. A $$ i $ j = B $$ i $ j) \<Longrightarrow> A = B"
-  by(transfer, simp add: vec_eq_iff)+
-
-lemma transpose_mult_vec_canon_row[simp]:"(A\<^sup>\<dagger>) *\<^sub>V (\<e> i) = \<r>\<o>\<w> i A"
-  by transfer (simp add: row_def transpose_def axis_def matrix_vector_mult_def)
-
-lemma row_ith[simp]:"\<r>\<o>\<w> i A = A $$ i"
-  by transfer (simp add: row_def)
-
-lemma norm_vec_mult_le:"\<parallel>A *\<^sub>V x\<parallel> \<le> (\<parallel>A\<parallel>) * (\<parallel>x\<parallel>)"
-  by (simp add: norm_matrix_le_mult_op_norm norm_sqrd_matrix_def sq_mtx_vec_prod.rep_eq)
-
-lemma sq_mtx_transpose_transpose[simp]:"(A\<^sup>\<dagger>)\<^sup>\<dagger> = A"
-  by(transfer, simp)
-
-lemma sq_le_cancel:
-  shows "(a::real) \<ge> 0 \<Longrightarrow> b \<ge> 0 \<Longrightarrow> a^2 \<le> b * a \<Longrightarrow> a \<le> b"
-  and "(a::real) \<ge> 0 \<Longrightarrow> b \<ge> 0 \<Longrightarrow> a^2 \<le> a * b \<Longrightarrow> a \<le> b"
-   apply(metis less_eq_real_def mult.commute mult_le_cancel_left semiring_normalization_rules(29))
-  by(metis less_eq_real_def mult_le_cancel_left semiring_normalization_rules(29))
-
-lemma norm_le_transpose: "\<parallel>A\<parallel> \<le> \<parallel>A\<^sup>\<dagger>\<parallel>"
-  apply(simp add: norm_sqrd_matrix_def, transfer, simp add: transpose_def)
-  using op_norm_set_proptys(3) apply(rule cSup_least)
-proof(clarsimp)
-  fix A::"real^'a^'a" and x::"real ^ 'a" assume "\<parallel>x\<parallel> = 1"
-  have obs:"\<forall>x. \<parallel>x\<parallel> = 1 \<longrightarrow> (\<parallel>A *v x\<parallel>) \<le> sqrt ((\<parallel>transpose A ** A\<parallel>\<^sub>o\<^sub>p)) * (\<parallel>x\<parallel>)"
-    using norm_matrix_vec_mult_le_transpose by blast
-  have "(\<parallel>A\<parallel>\<^sub>o\<^sub>p) \<le> sqrt ((\<parallel>transpose A ** A\<parallel>\<^sub>o\<^sub>p))"
-    using op_norm_set_proptys(3) apply(rule cSup_least) using obs by clarsimp
-  then have "((\<parallel>A\<parallel>\<^sub>o\<^sub>p))\<^sup>2 \<le> (\<parallel>transpose A ** A\<parallel>\<^sub>o\<^sub>p)"
-    using power_mono[of "(\<parallel>A\<parallel>\<^sub>o\<^sub>p)" _ 2] norm_matrix_le_op_norm_ge_0 by force
-  also have "... \<le> (\<parallel>transpose A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>A\<parallel>\<^sub>o\<^sub>p)"
-    using op_norm_matrix_matrix_mult_le by blast
-  finally have "((\<parallel>A\<parallel>\<^sub>o\<^sub>p))\<^sup>2 \<le> (\<parallel>transpose A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>A\<parallel>\<^sub>o\<^sub>p)"  by linarith
-  hence "(\<parallel>A\<parallel>\<^sub>o\<^sub>p) \<le> (\<parallel>transpose A\<parallel>\<^sub>o\<^sub>p)"
-    using sq_le_cancel[of "(\<parallel>A\<parallel>\<^sub>o\<^sub>p)"] norm_matrix_le_op_norm_ge_0 by blast
-  thus "(\<parallel>A *v x\<parallel>) \<le> op_norm (\<chi> i j. A $ j $ i)"
-    unfolding transpose_def using \<open>\<parallel>x\<parallel> = 1\<close> order_trans norm_matrix_le_op_norm by blast 
-qed
-
-lemma norm_eq_norm_transpose[simp]:"\<parallel>A\<^sup>\<dagger>\<parallel> = \<parallel>A\<parallel>"
-  using norm_le_transpose[of A] and norm_le_transpose[of "A\<^sup>\<dagger>"] by simp
-
-lemma norm_column_le_norm:"\<parallel>A $$ i\<parallel> \<le> \<parallel>A\<parallel>"
-  using norm_vec_mult_le[of "A\<^sup>\<dagger>" "\<e> i"] by simp
-
-lemma sq_mtx_minus_ith[simp]:"(A - B) $$ i = A $$ i - B $$ i"
-  by(unfold minus_sqrd_matrix_def, transfer, simp)
-
-lemma sq_mtx_plus_ith[simp]:"(A + B) $$ i = A $$ i + B $$ i"
-  by(unfold plus_sqrd_matrix_def, transfer, simp)
-
-lemma sq_mtx_scaleR_ith[simp]:"(c *\<^sub>R A) $$ i = (c  *\<^sub>R (A $$ i))"
-  by(unfold scaleR_sqrd_matrix_def, transfer, simp)
 
 lemma has_derivative_mtx_ith:
   assumes "D A \<mapsto> (\<lambda>h. h *\<^sub>R A' x) at x within s"
@@ -717,12 +743,9 @@ proof(clarsimp)
   qed
 qed
 
-lemma sq_mtx_times_vec_assoc: "(A * B) *\<^sub>V x0 = A *\<^sub>V (B *\<^sub>V x0)"
-  by (transfer, simp add: matrix_vector_mul_assoc)
-
 lemma exp_has_vderiv_on_linear:
   fixes A::"(('a::finite) sqrd_matrix)"
-  shows "\<nabla> (\<lambda>t. exp ((t - t0) *\<^sub>R A) *\<^sub>V x0) = (\<lambda>t. A *\<^sub>V (exp ((t - t0) *\<^sub>R A) *\<^sub>V x0)) on T"
+  shows "D (\<lambda>t. exp ((t - t0) *\<^sub>R A) *\<^sub>V x0) = (\<lambda>t. A *\<^sub>V (exp ((t - t0) *\<^sub>R A) *\<^sub>V x0)) on T"
   unfolding has_vderiv_on_def has_vector_derivative_def apply clarsimp
   apply(rule_tac A'="\<lambda>t. A * exp ((t - t0) *\<^sub>R A)" in mtx_vec_prod_has_derivative_mtx_vec_prod)
    apply(rule has_derivative_vec_nth)
@@ -731,5 +754,31 @@ lemma exp_has_vderiv_on_linear:
     apply(rule_tac f'1="id" and g'1="\<lambda>x. 0" in derivative_eq_intros(11))
       apply(rule derivative_eq_intros)
   by(simp_all add: fun_eq_iff exp_times_scaleR_commute sq_mtx_times_vec_assoc)
+
+lemma picard_lindeloef_sq_mtx:
+  fixes A::"('n::finite) sqrd_matrix"
+  assumes "0 < ((real CARD('n))\<^sup>2 * (\<parallel>to_vec A\<parallel>\<^sub>m\<^sub>a\<^sub>x))" (is "0 < ?L") 
+  assumes "0 \<le> t" and "t < 1/?L"
+  shows "picard_lindeloef (\<lambda> t s. A *\<^sub>V s) {0..t} ?L 0"
+  apply unfold_locales apply(simp add: \<open>0 \<le> t\<close>)
+  subgoal by(transfer, simp, metis continuous_on_compose2 continuous_on_cong continuous_on_id 
+        continuous_on_snd matrix_vector_mult_linear_continuous_on top_greatest) 
+  subgoal apply transfer using matrix_lipschitz_constant max_norm_ge_0 zero_compare_simps(4,12)
+    unfolding lipschitz_on_def by blast
+  apply(simp_all add: assms)
+  subgoal for r s apply(subgoal_tac "\<bar>r - s\<bar> < 1/?L")
+     apply(subst (asm) pos_less_divide_eq[of ?L "\<bar>r - s\<bar>" 1])
+    using assms by auto
+  done
+
+lemma local_flow_exp:
+  fixes A::"('n::finite) sqrd_matrix"
+  assumes "0 < ((real CARD('n))\<^sup>2 * (\<parallel>to_vec A\<parallel>\<^sub>m\<^sub>a\<^sub>x))" (is "0 < ?L") 
+  assumes "0 \<le> t" and "t < 1/?L"
+  shows "local_flow (\<lambda>s. A *\<^sub>V s) {0..t} ((real CARD('n))\<^sup>2 * (\<parallel>to_vec A\<parallel>\<^sub>m\<^sub>a\<^sub>x)) ((\<lambda>t s. exp (t *\<^sub>R A) *\<^sub>V s))"
+  unfolding local_flow_def local_flow_axioms_def apply safe
+  using picard_lindeloef_sq_mtx assms apply blast
+  using exp_has_vderiv_on_linear[of 0] apply force
+  by(auto simp: sq_mtx_one_vec)
 
 end

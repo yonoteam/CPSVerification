@@ -2,8 +2,9 @@ theory VC_diffKAD_examples
 imports "VC_diffKAD"
 
 begin
-subsection{* Rules Testing *}
-text{* In this section we test the recently developed rules with simple dynamical systems. *}
+
+subsection\<open> Rules Testing \<close>
+text\<open> In this section we test the recently developed rules with simple dynamical systems. \<close>
 
 \<comment> \<open>Example of hybrid program verified with the rule dSolve and a single differential equation: $x'=v$.\<close>
 lemma motion_with_constant_velocity:
@@ -14,12 +15,12 @@ apply(rule_tac uInput="[\<lambda> t s. s ''v'' \<cdot> t + s ''x'']" in dSolve_t
 prefer 9 subgoal by(simp add: wp_trafo vdiff_def add_strict_increasing2)
 apply(simp_all add: vdiff_def varDiffs_def)
 prefer 2 apply(simp add: solvesStoreIVP_def vdiff_def varDiffs_def)
-apply(clarify, rule_tac f'1="\<lambda> x. s ''v''" and g'1="\<lambda> x. 0" in derivative_intros(190))
-apply(rule_tac f'1="\<lambda> x.0" and g'1="\<lambda> x.1" in derivative_intros(193))
+apply(clarify, rule_tac f'1="\<lambda> x. s ''v''" and g'1="\<lambda> x. 0" in derivative_intros(191))
+apply(rule_tac f'1="\<lambda> x.0" and g'1="\<lambda> x.1" in derivative_intros(194))
 by(auto intro: derivative_intros)
 
-text{*Same hybrid program verified with dSolve and the system of ODEs: $x'=v, v'= a$. The uniqueness
-part of the proof requires a preliminary lemma.*}
+text\<open>Same hybrid program verified with dSolve and the system of ODEs: $x'=v, v'= a$. The uniqueness
+part of the proof requires a preliminary lemma.\<close>
 lemma flow_vel_is_galilean_vel:
 assumes solHyp:"\<phi>\<^sub>s solvesTheStoreIVP [(x, \<lambda>s. s v), (v, \<lambda>s. s a)] withInitState s"
     and tHyp:"r \<le> t" and rHyp:"0 \<le> r" and distinct:"x \<noteq> v \<and> v \<noteq> a \<and> x \<noteq> a \<and> a \<notin> varDiffs"
@@ -65,8 +66,8 @@ prefer 6 subgoal (* UNIQUENESS *)
     apply(simp add: solvesStoreIVP_def vdiff_def varDiffs_def) done
 by(auto simp: varDiffs_def vdiff_def)
 
-text{* Example of a hybrid system with two modes verified with the equality dS. 
-We also need to provide a previous (similar) lemma.*}
+text\<open> Example of a hybrid system with two modes verified with the equality dS. 
+We also need to provide a previous (similar) lemma.\<close>
 lemma flow_vel_is_galilean_vel2:
 assumes solHyp:"\<phi>\<^sub>s solvesTheStoreIVP [(x, \<lambda>s. s v), (v, \<lambda>s. - s a)] withInitState s"
     and tHyp:"r \<le> t" and rHyp:"0 \<le> r" and distinct:"x \<noteq> v \<and> v \<noteq> a \<and> x \<noteq> a \<and> a \<notin> varDiffs"

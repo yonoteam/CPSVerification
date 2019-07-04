@@ -2,7 +2,7 @@ theory VC_diffKAD
 imports "VC_diffKAD_auxiliarities"
 
 begin
-subsection{* Phase Space Relational Semantics *}
+subsection\<open> Phase Space Relational Semantics \<close>
 
 definition solvesStoreIVP :: "(real \<Rightarrow> real store) \<Rightarrow> (string \<times> (real store \<Rightarrow> real)) list \<Rightarrow> 
 real store \<Rightarrow> bool" 
@@ -96,9 +96,9 @@ definition guarDiffEqtn :: "(string \<times> (real store \<Rightarrow> real)) li
 real store rel" ("ODEsystem _ with _ " [70, 70] 61) where
 "ODEsystem xfList with G = {(s,\<phi>\<^sub>S t) |s t \<phi>\<^sub>S. t \<ge> 0 \<and> (\<forall> r \<in> {0..t}. G (\<phi>\<^sub>S r)) \<and> solvesStoreIVP \<phi>\<^sub>S xfList s}"
 
-subsection{* Derivation of Differential Dynamic Logic Rules *}
+subsection\<open> Derivation of Differential Dynamic Logic Rules \<close>
 
-subsubsection{*"Differential Weakening"*}
+subsubsection\<open>"Differential Weakening"\<close>
 lemma wlp_evol_guard:"Id \<subseteq> wp (ODEsystem xfList with G) \<lceil>G\<rceil>"
 by(simp add: rel_antidomain_kleene_algebra.fbox_def rel_ad_def guarDiffEqtn_def p2r_def, force)
 
@@ -112,7 +112,7 @@ theorem dW: "wp (ODEsystem xfList with G) \<lceil>Q\<rceil> = wp (ODEsystem xfLi
 unfolding rel_antidomain_kleene_algebra.fbox_def rel_ad_def guarDiffEqtn_def
 by(simp add: relcomp.simps p2r_def, fastforce)
 
-subsubsection{*"Differential Cut"*}
+subsubsection\<open>"Differential Cut"\<close>
 
 lemma all_interval_guarDiffEqtn:
 assumes "solvesStoreIVP \<phi>\<^sub>S xfList s \<and> (\<forall> r \<in> {0..t}. G (\<phi>\<^sub>S r)) \<and> 0 \<le> t"
@@ -173,7 +173,7 @@ next
 qed
 
 
-subsubsection{*"Solve Differential Equation"*}
+subsubsection\<open>Solve Differential Equation\<close>
 lemma prelim_dSolve:
 assumes solHyp:"(\<lambda>t. sol s[xfList\<leftarrow>uInput] t) solvesTheStoreIVP xfList withInitState s"
 and uniqHyp:"\<forall> X. solvesStoreIVP X xfList s \<longrightarrow> (\<forall> t \<ge> 0. (sol s[xfList\<leftarrow>uInput] t) = X t)"
@@ -456,7 +456,7 @@ using contHyp apply simp
 apply(rule allI, rule_tac uInput="uInput" in conds4storeIVP_on_toSol)
 using assms by auto
 
-subsubsection{*"Differential Invariant."*}
+subsubsection \<open>"Differential Invariant."\<close>
 lemma solvesStoreIVP_couldBeModified:
 fixes F::"real \<Rightarrow> real store"
 assumes vars:"\<forall>t\<ge>0. \<forall>xf\<in>set xfList. ((\<lambda>t. F t (\<pi>\<^sub>1 xf)) solves_ode (\<lambda>t r. \<pi>\<^sub>2 xf (F t))) {0..t} UNIV"

@@ -1,4 +1,4 @@
-section {* VC\_diffKAD *}
+section \<open> VC\_diffKAD \<close>
 theory VC_diffKAD_auxiliarities
 imports
 Main
@@ -7,9 +7,9 @@ Main
 
 begin
 
-subsection{* Stack Theories Preliminaries: VC\_KAD and ODEs *}
+subsection \<open> Stack Theories Preliminaries: VC\_KAD and ODEs \<close>
 
-text {* To make our notation less code-like and more mathematical we declare: *}
+text \<open> To make our notation less code-like and more mathematical we declare: \<close>
 no_notation Archimedean_Field.ceiling ("\<lceil>_\<rceil>")
      and Archimedean_Field.floor ("\<lfloor>_\<rfloor>")
      and Set.image (" ` ")
@@ -23,7 +23,7 @@ notation p2r ("\<lceil>_\<rceil>")
      and List.zip (infixl "\<otimes>" 63)
      and rel_ad ("\<Delta>\<^sup>c\<^sub>1")
 
-text {* This and more notation is explained by the following lemmata. *}
+text \<open> This and more notation is explained by the following lemmata. \<close>
 lemma shows "\<lceil>P\<rceil> = {(s, s) |s. P s}"
     and "\<lfloor>R\<rfloor> = (\<lambda>x. x \<in> r2s R)"
     and "r2s R = {x |x. \<exists> y. (x,y) \<in> R}"
@@ -44,7 +44,7 @@ apply(simp_all add: p2r_def r2p_def rel_ad_def rel_antidomain_kleene_algebra.fbo
 apply(blast, fastforce, fastforce)
 using has_vector_derivative_def by auto
 
-text {* Observe also, the following consequences and facts:*}
+text \<open> Observe also, the following consequences and facts: \<close>
 proposition "\<pi>\<^sub>1\<lparr>R\<rparr> = r2s R" 
 by (simp add: fst_eq_Domain)
 
@@ -109,11 +109,11 @@ done
 
 declare zip_map_fst_snd [simp]
 
-subsection{* VC\_diffKAD Preliminaries *}
+subsection\<open> VC\_diffKAD Preliminaries \<close>
 
-text {* In dL, the set of possible program variables is split in two, the set of variables $V$ and 
+text \<open> In dL, the set of possible program variables is split in two, the set of variables $V$ and 
 their primed counterparts $V'$. To implement this, we use Isabelle's string-type and define a 
-function that primes a given string. We then define the set of primed-strings based on it. *}
+function that primes a given string. We then define the set of primed-strings based on it. \<close>
 
 definition vdiff ::"string \<Rightarrow> string" ("\<partial> _" [55] 70) where
 "(\<partial> x) = ''d[''@x@'']''" (* Alternatively, we could have use: "''d''@x@''/dt''" *)
@@ -138,11 +138,11 @@ using assms unfolding varDiffs_def vdiff_def by auto
 proposition vdiff_invarDiffs:"(\<partial> x) \<in> varDiffs"
 by (simp add: varDiffsI)
 
-subsubsection{* (primed) dSolve preliminaries *}
+subsubsection\<open> (primed) dSolve preliminaries \<close>
 
-text {* This subsubsection is to define a function that takes a system of ODEs (expressed 
+text \<open> This subsubsection is to define a function that takes a system of ODEs (expressed 
 as a list $xfList$), a presumed solution $uInput = [u_1,\dots,u_n]$, a state $s$ and a 
-time $t$, and outputs the induced flow $sol\, s[xfList\leftarrow uInput]\, t$. *}
+time $t$, and outputs the induced flow $sol\, s[xfList\leftarrow uInput]\, t$. \<close>
 
 abbreviation varDiffs_to_zero ::"real store \<Rightarrow> real store" ("sol") where
 "sol a \<equiv> (override_on a (\<lambda> x. 0) varDiffs)" 
@@ -385,9 +385,9 @@ shows "(s[xfList\<leftarrow>uInput] t) (\<partial> x) = vderiv_of (\<lambda> r. 
 using assms apply(induct xfList uInput rule: list_induct2', simp, simp, simp, clarify)
 by(rule_tac f="f" in inductive_to_sol_greater_than_zero_its_dvars, auto)
 
-subsubsection{* dInv preliminaries *}
+subsubsection\<open> dInv preliminaries \<close>
 
-text {* Here, we introduce syntactic notation to talk about differential invariants. *}
+text \<open> Here, we introduce syntactic notation to talk about differential invariants. \<close>
 
 no_notation Antidomain_Semiring.antidomain_left_monoid_class.am_add_op (infixl "\<oplus>" 65)
 no_notation Dioid.times_class.opp_mult (infixl "\<odot>" 70)
@@ -481,10 +481,10 @@ primrec subspList :: "(string \<times> trms) list \<Rightarrow> props \<Rightarr
 "xtList\<restriction>\<phi> \<sqinter> \<psi>\<restriction> = ((xtList\<restriction>\<phi>\<restriction>) \<sqinter> (xtList\<restriction>\<psi>\<restriction>))"|
 "xtList\<restriction>\<phi> \<squnion> \<psi>\<restriction> = ((xtList\<restriction>\<phi>\<restriction>) \<squnion> (xtList\<restriction>\<psi>\<restriction>))"
 
-subsubsection{* ODE Extras *}
+subsubsection\<open> ODE Extras \<close>
 
-text{* For exemplification purposes, we compile some concrete derivatives used commonly in classical
-mechanics. A more general approach should be taken that generates this theorems as instantiations. *}
+text\<open> For exemplification purposes, we compile some concrete derivatives used commonly in classical
+mechanics. A more general approach should be taken that generates this theorems as instantiations. \<close>
 
 named_theorems ubc_definitions "definitions used in the locale unique_on_bounded_closed"
 
@@ -529,8 +529,8 @@ using quadratic_monomial_derivative2 by (simp add: mult_commute_abs)
 
 lemma galilean_position[galilean_transform]:
 "((\<lambda>t. a \<cdot> t\<^sup>2 / 2 + v \<cdot> t + x) has_vderiv_on (\<lambda>t. a \<cdot> t + v)) T"
-apply(rule_tac f'="\<lambda> x. a \<cdot> x + v" and g'1="\<lambda> x. 0" in derivative_intros(190))
-apply(rule_tac f'1="\<lambda> x. a \<cdot> x" and g'1="\<lambda> x. v" in derivative_intros(190))
+apply(rule_tac f'="\<lambda> x. a \<cdot> x + v" and g'1="\<lambda> x. 0" in derivative_intros(191))
+apply(rule_tac f'1="\<lambda> x. a \<cdot> x" and g'1="\<lambda> x. v" in derivative_intros(191))
 using poly_deriv(2) by(auto intro: derivative_intros)
 
 lemma [poly_deriv]:
@@ -564,7 +564,7 @@ apply(simp_all add: galilean_position)
 oops
 
 lemma galilean_velocity[galilean_transform]:"((\<lambda>r. a \<cdot> r + v) has_vderiv_on (\<lambda>t. a)) T"
-apply(rule_tac f'1="\<lambda> x. a" and g'1="\<lambda> x. 0" in derivative_intros(190))
+apply(rule_tac f'1="\<lambda> x. a" and g'1="\<lambda> x. 0" in derivative_intros(191))
 unfolding has_vderiv_on_def by(auto intro: derivative_eq_intros)
 
 lemma [galilean_transform_eq]:
