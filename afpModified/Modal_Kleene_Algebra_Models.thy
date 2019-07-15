@@ -22,8 +22,9 @@ text \<open>
 definition rel_ad :: "'a rel \<Rightarrow> 'a rel" where
   "rel_ad R = {(x,x) | x. \<not> (\<exists>y. (x,y) \<in> R)}"
 
-interpretation rel_antidomain_kleene_algebra: antidomain_kleene_algebra rel_ad "(\<union>)" "(O)" Id "{}" "(\<subseteq>)" "(\<subset>)" rtrancl
-by unfold_locales (auto simp: rel_ad_def)
+interpretation rel_antidomain_kleene_algebra: antidomain_kleene_algebra 
+   rel_ad "(\<union>)" "(O)" Id "{}" "(\<subseteq>)" "(\<subset>)" rtrancl
+  by unfold_locales (auto simp: rel_ad_def)
 
 definition trace_a :: "('p, 'a) trace set \<Rightarrow> ('p, 'a) trace set" where
   "trace_a X = {(p,[]) | p. \<not> (\<exists>x. x \<in> X \<and> p = first x)}"

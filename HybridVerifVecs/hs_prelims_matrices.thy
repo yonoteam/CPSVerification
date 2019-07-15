@@ -53,6 +53,9 @@ lemma vec_mult_inner: "(A *v v) \<bullet> w = v \<bullet> (transpose A *v w)" fo
   apply(subgoal_tac "\<forall>i j. A $ i $ j * v $ j * w $ i = v $ j * (A $ i $ j * w $ i)")
   by presburger (simp)
 
+lemma uminus_axis_eq[simp]: "- axis i k = axis i (-k)" for k::"'a::ring"
+  unfolding axis_def by(simp add: vec_eq_iff)
+
 lemma norm_axis_eq[simp]: "\<parallel>axis i k\<parallel> = \<parallel>k\<parallel>"
 proof(simp add: axis_def norm_vec_def L2_set_def)
   have "(\<Sum>j\<in>UNIV. (\<parallel>(\<delta>\<^sub>K j i k)\<parallel>)\<^sup>2) = (\<Sum>j\<in>{i}. (\<parallel>(\<delta>\<^sub>K j i k)\<parallel>)\<^sup>2) + (\<Sum>j\<in>(UNIV-{i}). (\<parallel>(\<delta>\<^sub>K j i k)\<parallel>)\<^sup>2)"
@@ -163,7 +166,7 @@ proof-
 qed
 
 lemma ltimes_op_norm:
-"Sup {\<bar>c\<bar> * (\<parallel>A *v x\<parallel>) |x. \<parallel>x\<parallel> = 1} = \<bar>c\<bar> * (\<parallel>A\<parallel>\<^sub>o\<^sub>p)" (is "Sup ?cA = \<bar>c\<bar> * (\<parallel>A\<parallel>\<^sub>o\<^sub>p) ")
+  "Sup {\<bar>c\<bar> * (\<parallel>A *v x\<parallel>) |x. \<parallel>x\<parallel> = 1} = \<bar>c\<bar> * (\<parallel>A\<parallel>\<^sub>o\<^sub>p)" (is "Sup ?cA = \<bar>c\<bar> * (\<parallel>A\<parallel>\<^sub>o\<^sub>p) ")
 proof(cases "c = 0", simp add: ex_norm_eq_1)
   let ?S = "{(\<parallel>A *v x\<parallel>) |x. \<parallel>x\<parallel> = 1}"
   note op_norm_set_proptys(2)[of A]
@@ -403,10 +406,10 @@ proof(subst mult_norm_matrix_sgn_eq[symmetric])
 qed
 
 lemma picard_lindeloef_linear_system:
-  fixes A::"real^('n::finite)^'n" 
+  fixes A::"real^'n^'n" 
   assumes "0 < ((real CARD('n))\<^sup>2 * (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x))" (is "0 < ?L") 
   assumes "0 \<le> t" and "t < 1/?L"
-  shows "picard_lindeloef (\<lambda> t s. A *v s) {0..t} ?L 0"
+  shows "picard_lindeloef_closed_ivl (\<lambda> t s. A *v s) {0..t} ?L 0"
   apply unfold_locales apply(simp add: \<open>0 \<le> t\<close>)
   subgoal by(simp, metis continuous_on_compose2 continuous_on_cong continuous_on_id 
         continuous_on_snd matrix_vector_mult_linear_continuous_on top_greatest) 
@@ -759,7 +762,7 @@ lemma picard_lindeloef_sq_mtx:
   fixes A::"('n::finite) sqrd_matrix"
   assumes "0 < ((real CARD('n))\<^sup>2 * (\<parallel>to_vec A\<parallel>\<^sub>m\<^sub>a\<^sub>x))" (is "0 < ?L") 
   assumes "0 \<le> t" and "t < 1/?L"
-  shows "picard_lindeloef (\<lambda> t s. A *\<^sub>V s) {0..t} ?L 0"
+  shows "picard_lindeloef_closed_ivl (\<lambda> t s. A *\<^sub>V s) {0..t} ?L 0"
   apply unfold_locales apply(simp add: \<open>0 \<le> t\<close>)
   subgoal by(transfer, simp, metis continuous_on_compose2 continuous_on_cong continuous_on_id 
         continuous_on_snd matrix_vector_mult_linear_continuous_on top_greatest) 
@@ -775,7 +778,7 @@ lemma local_flow_exp:
   fixes A::"('n::finite) sqrd_matrix"
   assumes "0 < ((real CARD('n))\<^sup>2 * (\<parallel>to_vec A\<parallel>\<^sub>m\<^sub>a\<^sub>x))" (is "0 < ?L") 
   assumes "0 \<le> t" and "t < 1/?L"
-  shows "local_flow (\<lambda>s. A *\<^sub>V s) {0..t} ((real CARD('n))\<^sup>2 * (\<parallel>to_vec A\<parallel>\<^sub>m\<^sub>a\<^sub>x)) ((\<lambda>t s. exp (t *\<^sub>R A) *\<^sub>V s))"
+  shows "local_flow ((*\<^sub>V) A) {0..t} ?L (\<lambda>t s. exp (t *\<^sub>R A) *\<^sub>V s)"
   unfolding local_flow_def local_flow_axioms_def apply safe
   using picard_lindeloef_sq_mtx assms apply blast
   using exp_has_vderiv_on_linear[of 0] apply force

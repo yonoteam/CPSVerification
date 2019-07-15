@@ -126,12 +126,6 @@ notation has_derivative ("(1(D _ \<mapsto> (_))/ _)" [65,65] 61)
 notation has_vderiv_on ("(1 D _ = (_)/ on _)" [65,65] 61)
 notation norm ("(1\<parallel>_\<parallel>)" [65] 61)
 
-lemma closed_segment_mvt:
-  fixes f :: "real \<Rightarrow> real"
-  assumes "(\<And>r. r\<in>{a--b} \<Longrightarrow> (D f \<mapsto> (f' r) (at r within {a--b})))" and "a \<le> b"
-  shows "\<exists>r\<in>{a--b}. f b - f a = f' r (b - a)"
-  using assms closed_segment_eq_real_ivl mvt_very_simple by auto
-
 lemma exp_scaleR_has_derivative_right[derivative_intros]: (* by Fabian Immler *)
   fixes f::"real \<Rightarrow> real"
   assumes "D f \<mapsto> f' at x within s" and "(\<lambda>h. f' h *\<^sub>R (exp (f x *\<^sub>R A) * A)) = g'"
@@ -147,55 +141,94 @@ qed
 named_theorems poly_derivatives "compilation of derivatives for kinematics and polynomials."
 
 declare has_vderiv_on_const [poly_derivatives]
+    and has_vderiv_on_id [poly_derivatives]
+    and derivative_intros(191) [poly_derivatives]
+    and derivative_intros(192) [poly_derivatives]
+    and derivative_intros(194) [poly_derivatives]
 
-lemma has_vector_derivative_mult_const: "((*) a has_vector_derivative a) (at x within T)"
+lemma has_vector_derivative_mult_const [derivative_intros]: 
+  "((*) a has_vector_derivative a) F"
   by (auto intro: derivative_eq_intros)
 
-lemma has_derivative_mult_const: "D (*) a \<mapsto> (\<lambda>x. x *\<^sub>R a) at x within T"
+lemma has_derivative_mult_const [derivative_intros]: "D (*) a \<mapsto> (\<lambda>x. x *\<^sub>R a) F"
   using has_vector_derivative_mult_const unfolding has_vector_derivative_def by simp
 
-lemma has_derivative_quadratic_monomial:
-  fixes a :: real
-  shows "D (\<lambda>t. a * t\<^sup>2) \<mapsto> (\<lambda>t. a * (2 * x * t)) at x within T"
-  apply(rule_tac g'1="\<lambda> t. 2 * x * t" in derivative_eq_intros(6))
-   apply(rule_tac f'1="\<lambda> t. t" in derivative_eq_intros(15))
-  by (auto intro: derivative_eq_intros) 
+lemma has_vderiv_on_mult_const [derivative_intros]: "D (*) a = (\<lambda>x. a) on T"
+  using has_vector_derivative_mult_const unfolding has_vderiv_on_def by auto
 
-lemma has_derivative_quadratic_monomial_halfed: 
-  fixes a :: real
-  shows "D (\<lambda>t. a * t\<^sup>2 / 2) \<mapsto> (*) (a * x) at x within T"
-  apply(rule_tac f'1="\<lambda>t. a * (2 * x * t)" and g'1="\<lambda> x. 0" in derivative_eq_intros(18))
-  using has_derivative_quadratic_monomial by auto
+lemma has_vderiv_on_power2 [derivative_intros]: "D power2 = (*) 2 on T"
+  unfolding has_vderiv_on_def has_vector_derivative_def apply clarify
+  by(rule_tac f'1="\<lambda> t. t" in derivative_eq_intros(15)) auto
 
-lemma [poly_derivatives]: "D (\<lambda>t. a * t\<^sup>2 / 2) = (*) a on T"
-  apply(simp add: has_vderiv_on_def has_vector_derivative_def, clarify)
-  using has_derivative_quadratic_monomial_halfed by (simp add: mult_commute_abs)
+lemma has_vderiv_on_divide_cnst [derivative_intros]: "a \<noteq> 0 \<Longrightarrow> D (\<lambda>t. t/a) = (\<lambda>t. 1/a) on T"
+  unfolding has_vderiv_on_def has_vector_derivative_def apply clarify
+  apply(rule_tac f'1="\<lambda>t. t" and g'1="\<lambda> x. 0" in derivative_eq_intros(18))
+  by(auto intro: derivative_eq_intros)
 
-lemma [poly_derivatives]: "D (\<lambda>t. a * t\<^sup>2 / 2 + v * t + x) = (\<lambda>t. a * t + v) on T"
-  apply(rule_tac f'="\<lambda> x. a * x + v" and g'1="\<lambda> x. 0" in derivative_intros(191))
-    apply(rule_tac f'1="\<lambda> x. a * x" and g'1="\<lambda> x. v" in derivative_intros(191))
-  using poly_derivatives(2) by(auto intro: derivative_intros)
+lemma [poly_derivatives]: "g = (*) 2 \<Longrightarrow> D power2 = g on T"
+  using has_vderiv_on_power2 by auto
 
-lemma [poly_derivatives]: "D (\<lambda>r. a * r + v) = (\<lambda>t. a) on T"
-  apply(rule_tac f'1="\<lambda> x. a" and g'1="\<lambda> x. 0" in derivative_intros(191))
-  unfolding has_vderiv_on_def by(auto intro: derivative_eq_intros)
+lemma [poly_derivatives]: "D f = f' on T \<Longrightarrow> g = (\<lambda>t. - f' t) \<Longrightarrow> D (\<lambda>t. - f t) = g on T"
+  using has_vderiv_on_uminus by auto
 
-lemma [poly_derivatives]: "D (\<lambda>t. v * t - a * t\<^sup>2 / 2 + x) = (\<lambda>x. v - a * x) on T"
-  apply(subgoal_tac "D (\<lambda>t. - a * t\<^sup>2 / 2 + v * t  +x) = (\<lambda>x. - a * x + v) on T", simp)
-  by(rule poly_derivatives)
+lemma [poly_derivatives]: "a \<noteq> 0 \<Longrightarrow> g = (\<lambda>t. 1/a) \<Longrightarrow> D (\<lambda>t. t/a) = g on T"
+  using has_vderiv_on_divide_cnst by auto
 
-lemma [poly_derivatives]: "D (\<lambda>t. v - a * t) = (\<lambda>x. - a) on T"
-  apply(subgoal_tac "D (\<lambda>t. - a * t + v) = (\<lambda>x. - a) on T", simp)
-  by(rule poly_derivatives)
+lemma has_vderiv_on_compose_eq: 
+  assumes "D f = f' on g ` T" 
+    and " D g = g' on T"
+    and "h = (\<lambda>x. g' x *\<^sub>R f' (g x))"
+  shows "D (\<lambda>t. f (g t)) = h on T"
+  apply(subst ssubst[of h], simp)
+  using assms has_vderiv_on_compose by auto
 
-declare has_derivative_mult_const [poly_derivatives]
-    and has_derivative_quadratic_monomial [poly_derivatives]
-    and has_derivative_quadratic_monomial_halfed [poly_derivatives]
+lemma [poly_derivatives]:
+  assumes "(a::real) \<noteq> 0" and "D f = f' on T" and "g = (\<lambda>t. (f' t)/a)"
+  shows "D (\<lambda>t. (f t)/a) = g on T"
+  apply(rule has_vderiv_on_compose_eq[of "\<lambda>t. t/a" "\<lambda>t. 1/a"])
+  using assms by(auto intro: poly_derivatives)
 
-lemma [poly_derivatives]: 
-  assumes "t \<in> T"
-  shows "D (\<lambda>\<tau>. a * \<tau>\<^sup>2 / 2 + v * \<tau> + x) \<mapsto> (\<lambda>x. x *\<^sub>R (a * t + v)) at t within T"
-  using assms poly_derivatives unfolding has_vderiv_on_def has_vector_derivative_def by simp
+lemma [poly_derivatives]:
+  fixes f::"real \<Rightarrow> real"
+  assumes "D f = f' on T" and "g = (\<lambda>t. 2 *\<^sub>R (f t) * (f' t))"
+  shows "D (\<lambda>t. (f t)^2) = g on T"
+  apply(rule has_vderiv_on_compose_eq[of "\<lambda>t. t^2"])
+  using assms by(auto intro!: poly_derivatives)
+
+lemma has_vderiv_on_cos: "D f = f' on T \<Longrightarrow> D (\<lambda>t. cos (f t)) = (\<lambda>t. - sin (f t) *\<^sub>R (f' t)) on T"
+  apply(rule has_vderiv_on_compose_eq[of "\<lambda>t. cos t"])
+  unfolding has_vderiv_on_def has_vector_derivative_def apply clarify
+  by(auto intro!: derivative_eq_intros simp: fun_eq_iff)
+
+lemma has_vderiv_on_sin: "D f = f' on T \<Longrightarrow> D (\<lambda>t. sin (f t)) = (\<lambda>t. cos (f t) *\<^sub>R (f' t)) on T"
+  apply(rule has_vderiv_on_compose_eq[of "\<lambda>t. sin t"])
+  unfolding has_vderiv_on_def has_vector_derivative_def apply clarify
+  by(auto intro!: derivative_eq_intros simp: fun_eq_iff)
+
+lemma [poly_derivatives]:
+  assumes "D f = f' on T" and "g = (\<lambda>t. - sin (f t) *\<^sub>R (f' t))"
+  shows "D (\<lambda>t. cos (f t)) = g on T"
+  using assms and has_vderiv_on_cos by auto
+
+lemma [poly_derivatives]:
+  assumes "D f = f' on T" and "g = (\<lambda>t. cos (f t) *\<^sub>R (f' t))"
+  shows "D (\<lambda>t. sin (f t)) = g on T"
+  using assms and has_vderiv_on_sin by auto
+
+lemma "D (\<lambda>t. a * t\<^sup>2 / 2) = (*) a on T"
+  by(auto intro!: poly_derivatives)
+
+lemma "D (\<lambda>t. a * t\<^sup>2 / 2 + v * t + x) = (\<lambda>t. a * t + v) on T"
+  by(auto intro!: poly_derivatives)
+
+lemma "D (\<lambda>r. a * r + v) = (\<lambda>t. a) on T"
+  by(auto intro!: poly_derivatives)
+
+lemma "D (\<lambda>t. v * t - a * t\<^sup>2 / 2 + x) = (\<lambda>x. v - a * x) on T"
+  by(auto intro!: poly_derivatives)
+
+lemma "D (\<lambda>t. v - a * t) = (\<lambda>x. - a) on T"
+  by(auto intro!: poly_derivatives)
 
 thm poly_derivatives
 
@@ -367,7 +400,7 @@ guarantees a unique solution for every initial value problem represented with a 
 @{term f} and an initial time @{term t\<^sub>0}. It is mostly a simplified reformulation of the approach 
 taken by the people who created the Ordinary Differential Equations entry in the AFP. \<close>
 
-locale picard_lindeloef =
+locale picard_lindeloef_closed_ivl =
   fixes f::"real \<Rightarrow> ('a::banach) \<Rightarrow> 'a" and T::"real set" and L t\<^sub>0::real
   assumes init_time: "t\<^sub>0 \<in> T"
     and cont_vec_field: "continuous_on (T \<times> UNIV) (\<lambda>(t, x). f t x)"
@@ -441,7 +474,8 @@ not depend explicitly on time), and it sets the initial time equal to 0. This is
 towards formalizing the flow of a differential equation, i.e. the function that maps every point to 
 the unique trajectory tangent to the vector field. \<close>
 
-locale local_flow = picard_lindeloef "(\<lambda> t. f)" T L 0 for f::"('a::banach) \<Rightarrow> 'a" and T L +
+locale local_flow = picard_lindeloef_closed_ivl "(\<lambda> t. f)" T L 0 
+  for f::"('a::banach) \<Rightarrow> 'a" and T L +
   fixes \<phi> :: "real \<Rightarrow> 'a \<Rightarrow> 'a"
   assumes ivp: "D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on T" "\<phi> 0 s = s "
 begin
@@ -449,8 +483,7 @@ begin
 lemma is_fixpoint:
   assumes "t \<in> T"
   shows "\<phi> t s = phi t s"
-  apply(rule fixpoint_usolves_ivp)
-  using ivp assms init_time by simp_all
+  using fixpoint_usolves_ivp[OF ivp assms] by simp
 
 lemma solves_ode:
   shows "((\<lambda> t. \<phi> t s) solves_ode (\<lambda> t. f))T UNIV"
@@ -459,31 +492,50 @@ lemma solves_ode:
 lemma usolves_ivp:
   assumes "D x = (\<lambda>t. f (x t)) on T" and "x 0 = s" and "t \<in> T"
   shows "x t = \<phi> t s"
-proof-
-  have "x t = phi t s" 
-    using assms fixpoint_usolves_ivp by blast
-  also have "... = \<phi> t s" 
-    using assms is_fixpoint by force 
-  finally show ?thesis .
-qed
+  using fixpoint_usolves_ivp[OF assms] is_fixpoint[OF assms(3)] by simp
 
 lemma usolves_on_compact_subset:
-  assumes "T' \<subseteq> T" and "compact_interval T'" and "0 \<in> T'" and "t \<in> T'"
-      and x_solves: "(x solves_ode (\<lambda>t. f)) T' UNIV"
+  assumes "T' \<subseteq> T" and "compact_interval T'" and "0 \<in> T'"
+      and x_solves: "D x = (f \<circ> x) on T'" and "t \<in> T'"
   shows "\<phi> t (x 0) = x t"
 proof-
-  have obs:"((\<lambda> \<tau>. \<phi> \<tau> (x 0)) solves_ode (\<lambda> \<tau>. f))T' UNIV" 
-    using \<open>T' \<subseteq> T\<close> solves_ode_on_subset solves_ode by (metis subset_eq) 
+  have obs1:"D (\<lambda> \<tau>. \<phi> \<tau> (x 0)) = (\<lambda> \<tau>. f (\<phi> \<tau> (x 0))) on T'" 
+    using \<open>T' \<subseteq> T\<close> has_vderiv_on_subset ivp by blast
   have "unique_on_bounded_closed 0 T (x 0) (\<lambda> \<tau>. f) UNIV L"
     using is_ubc by blast
-  hence "unique_on_bounded_closed 0 T' (x 0) (\<lambda> \<tau>. f) UNIV L" 
+  hence obs2:"unique_on_bounded_closed 0 T' (x 0) (\<lambda> \<tau>. f) UNIV L" 
     using unique_on_bounded_closed.unique_on_bounded_closed_on_compact_subset
     \<open>0 \<in> T'\<close> \<open>T' \<subseteq> T\<close> and \<open>compact_interval T'\<close> by blast
   moreover have "\<phi> 0 (x 0) = x 0" 
     using ivp by blast
-  ultimately show "\<phi> t (x 0) = x t" 
-    using unique_on_bounded_closed.unique_solution obs x_solves \<open>t \<in> T'\<close> by blast 
+  show "\<phi> t (x 0) = x t" 
+    apply(rule unique_on_bounded_closed.unique_solution[OF obs2])
+    unfolding solves_ode_def using x_solves apply(simp_all add: ivp \<open>t \<in> T'\<close>)
+    using has_vderiv_on_subset[OF ivp(1) \<open>T' \<subseteq> T\<close>] by blast
 qed
+
+lemma add_solves:
+  assumes "D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on (\<lambda>\<tau>. \<tau> + t) ` T"
+  shows "D (\<lambda>\<tau>. \<phi> (\<tau> + t) s) = (\<lambda>\<tau>. f (\<phi> (\<tau> + t) s)) on T"
+  apply(subgoal_tac "D ((\<lambda>\<tau>. \<phi> \<tau> s) \<circ> (\<lambda>\<tau>. \<tau> + t)) = (\<lambda>x. 1 *\<^sub>R f (\<phi> (x + t) s)) on T")
+  apply(simp add: comp_def, rule has_vderiv_on_compose) 
+  using assms apply blast
+  apply(rule_tac f'1="\<lambda> x. 1 " and g'1="\<lambda> x. 0" in derivative_intros(191))
+  by(rule derivative_intros, simp)+ simp_all
+
+lemma is_group_action:
+  assumes "D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on (\<lambda>t. t + t2) ` T" and "t1 \<in> T"
+  shows "\<phi> 0 s = s"
+    and "\<phi> (t1 + t2) s = \<phi> t1 (\<phi> t2 s)"
+proof-
+  show "\<phi> 0 s = s"
+    using ivp by simp
+  have "\<phi> (0 + t2) s = \<phi> t2 s" 
+    by simp
+  thus "\<phi> (t1 + t2) s = \<phi> t1 (\<phi> t2 s)"
+    using usolves_ivp[OF add_solves[OF assms(1)]] assms(2) by blast
+qed
+
 
 end
 
@@ -498,62 +550,36 @@ proof(unfold local_flow_def local_flow_axioms_def, safe)
     using assms solves_ode_on_subset[where T=T and S=T' and x="\<lambda>t. \<phi> t s" and X=UNIV]
     unfolding local_flow_def local_flow_axioms_def solves_ode_def by force
 next
-  show "picard_lindeloef (\<lambda>t. f) T L 0"
+  show "picard_lindeloef_closed_ivl (\<lambda>t. f) T L 0"
     using assms apply(unfold local_flow_def local_flow_axioms_def)
-    apply(unfold picard_lindeloef_def ubc_definitions)
+    apply(unfold picard_lindeloef_closed_ivl_def ubc_definitions)
     apply(meson Sigma_mono continuous_on_subset subsetI)
     by(simp_all add: subset_eq)
 qed
 
-text\<open> Finally, the flow exists when the unique solution from the last locale is defined in all of 
-@{text "\<real>"}. Here we prove that it is a dyanmical system, i.e. a group action on the additive group 
-of the real numbers.\<close>
+text\<open> Finally, the flow exists when the unique solution is defined in all of @{text "\<real>"}. However,
+this is not viable in the current formalization as the compactness assumption cannot be applied to
+@{term "UNIV::real set"}. \<close>
 
 locale global_flow = local_flow f UNIV L \<phi> for f L \<phi>
 begin 
 
-lemma add_flow_solves: "D (\<lambda>\<tau>. \<phi> (\<tau> + t) s) = (\<lambda>\<tau>. f (\<phi> (\<tau> + t) s)) on UNIV"
-  apply(subgoal_tac "D ((\<lambda>\<tau>. \<phi> \<tau> s) \<circ> (\<lambda>\<tau>. \<tau> + t)) = 
-    (\<lambda>x. (\<lambda>\<tau>. 1) x *\<^sub>R (\<lambda>t. f (\<phi> t s)) ((\<lambda>\<tau>. \<tau> + t) x)) on UNIV", simp add: comp_def)
-  apply(rule has_vderiv_on_compose) 
-  using solves_ode min_max_interval unfolding solves_ode_def apply force
-  apply(rule_tac f'1="\<lambda> x. 1 " and g'1="\<lambda> x. 0" in derivative_intros(191))
-  by(rule derivative_intros, simp)+ simp_all
-
-lemma is_group_action:
-  shows "\<phi> 0 s = s"
-    and "\<phi> (t1 + t2) s = \<phi> t1 (\<phi> t2 s)"
-proof-
-  show "\<phi> 0 s = s"
-    using ivp by simp
-  have "\<phi> (0 + t2) s = \<phi> t2 s" 
-    by simp
-  moreover have "D (\<lambda>\<tau>. \<phi> (\<tau> + t2) s) = (\<lambda>\<tau>. f (\<phi> (\<tau> + t2) s)) on UNIV" 
-    using add_flow_solves by simp
-  moreover have "\<phi> 0 (\<phi> t2 s) = \<phi> t2 s" 
-    using ivp by simp
-  ultimately have "\<And> t. \<phi> (t + t2) s = \<phi> t (\<phi> t2 s)"
-    using usolves_ivp by blast
-  thus "\<phi> (t1 + t2) s = \<phi> t1 (\<phi> t2 s)" 
-    by simp
-qed
+lemma contradiction: "False"
+  using compact_time and not_compact_UNIV by simp
 
 end
 
-lemma localize_global_flow:
-  assumes "global_flow f L \<phi>" and "compact_interval T"
-  shows "local_flow f T L \<phi>"
-  using assms unfolding global_flow_def local_flow_def picard_lindeloef_def by simp
-
 subsubsection\<open> Example \<close>
 
-text\<open> Below there is an example showing the general methodology to introduce pairs of vector fields 
+text\<open> Below there is an example showing the general methodolog to introduce pairs of vector fields 
 and their respective flows using the previous locales. \<close>
 
-lemma picard_lindeloef_constant: "0 \<le> t \<Longrightarrow> picard_lindeloef (\<lambda>t s. c) {0..t} (1 / (t + 1)) 0"
-  unfolding picard_lindeloef_def by(simp add: nonempty_set_def lipschitz_on_def, clarsimp, simp)
+lemma picard_lindeloef_closed_ivl_constant: 
+  "0 \<le> t \<Longrightarrow> picard_lindeloef_closed_ivl (\<lambda>t s. c) {0..t} (1 / (t + 1)) 0"
+  unfolding picard_lindeloef_closed_ivl_def 
+  by(simp add: nonempty_set_def lipschitz_on_def, clarsimp, simp)
 
-lemma line_vderiv_constant: "D (\<lambda>\<tau>. x + \<tau> *\<^sub>R c) = (\<lambda>t. c) on {0..t}"
+lemma line_vderiv_constant: "D (\<lambda>\<tau>. s + \<tau> *\<^sub>R c) = (\<lambda>t. c) on {0..t}"
   apply(rule_tac f'1="\<lambda> x. 0" and g'1="\<lambda> x. c" in derivative_intros(191))
   apply(rule derivative_intros, simp)+
   by simp_all
@@ -561,9 +587,9 @@ lemma line_vderiv_constant: "D (\<lambda>\<tau>. x + \<tau> *\<^sub>R c) = (\<la
 lemma line_is_local_flow:
   fixes c::"'a::banach"
   assumes "0 \<le> t"
-  shows "local_flow (\<lambda> s. c) {0..t} (1/(t + 1)) (\<lambda> t x. x + t *\<^sub>R c)"
+  shows "local_flow (\<lambda> t. c) {0..t} (1/(t + 1)) (\<lambda> t s. s + t *\<^sub>R c)"
   unfolding local_flow_def local_flow_axioms_def apply safe
-  using assms picard_lindeloef_constant apply blast
+  using assms picard_lindeloef_closed_ivl_constant apply blast
   using line_vderiv_constant by auto
 
 end
