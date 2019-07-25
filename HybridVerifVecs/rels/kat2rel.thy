@@ -1,7 +1,7 @@
 theory kat2rel
   imports
   "../hs_prelims_matrices"
-  "../../../afpModified/VC_KAT"
+  "../../afpModified/VC_KAT"
 
 begin
 

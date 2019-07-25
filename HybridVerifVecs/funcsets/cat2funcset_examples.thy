@@ -231,7 +231,7 @@ lemma circular_motion_invariants:
 
 \<comment> \<open>Proof of the same specification by providing solutions:\<close>
 
-lemma entries_circ_mtx: "entries C = {0, - 1, 1}"
+lemma entries_circ_matrix: "entries C = {0, - 1, 1}"
   apply (simp_all add: axis_def, safe)
   subgoal by(rule_tac x="0" in exI, simp)+
   subgoal by(rule_tac x="0" in exI, simp)+
@@ -242,12 +242,12 @@ abbreviation "circular_motion_matrix_flow t s \<equiv>
 
 notation circular_motion_matrix_flow ("\<phi>\<^sub>C")
 
-lemma local_flow_circ_mtx: 
+lemma local_flow_circ_matrix: 
   assumes "0 \<le> t" and "t < 1/4" 
   shows "local_flow ((*v) C) {0..t} ((real CARD(2))\<^sup>2 \<cdot> (\<parallel>C\<parallel>\<^sub>m\<^sub>a\<^sub>x)) \<phi>\<^sub>C"
   unfolding local_flow_def local_flow_axioms_def apply safe
     apply(rule picard_lindeloef_linear_system)
-  unfolding entries_circ_mtx using assms apply(simp_all)
+  unfolding entries_circ_matrix using assms apply(simp_all)
    apply(rule has_vderiv_on_vec_lambda)
   apply(force intro!: poly_derivatives simp: matrix_vector_mult_def)
   using exhaust_2 two_eq_zero by(force simp: vec_eq_iff)
@@ -257,7 +257,7 @@ lemma circular_motion:
   shows "{s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2} \<le> 
   fb\<^sub>\<F> ([x\<acute>=(*v) C]{0..t} & (\<lambda> s. s $ 0 \<ge> 0))
   {s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2}"
-  apply(subst local_flow.ffb_g_orbit[OF local_flow_circ_mtx])
+  apply(subst local_flow.ffb_g_orbit[OF local_flow_circ_matrix])
   using assms by auto
 
 no_notation circular_motion_matrix ("C")
@@ -275,16 +275,20 @@ arithmetic. \<close>
 
 named_theorems bb_real_arith "real arithmetic properties for the bouncing ball."
 
-lemma [bb_real_arith]: "0 \<le> x \<Longrightarrow> 0 > g \<Longrightarrow> 2 \<cdot> g \<cdot> x = 2 \<cdot> g \<cdot> h + v \<cdot> v \<Longrightarrow> (x::real) \<le> h"
+lemma [bb_real_arith]: 
+  assumes "0 > g" and inv: "2 \<cdot> g \<cdot> x - 2 \<cdot> g \<cdot> h = v \<cdot> v"
+  shows "(x::real) \<le> h"
 proof-
-  assume "0 \<le> x" and "0 > g" and "2 \<cdot> g \<cdot> x = 2 \<cdot> g \<cdot> h + v \<cdot> v"
-  then have "v \<cdot> v = 2 \<cdot> g \<cdot> x - 2 \<cdot> g \<cdot> h \<and> 0 > g" by auto
-  hence *:"v \<cdot> v = 2 \<cdot> g \<cdot> (x - h) \<and> 0 > g \<and> v \<cdot> v \<ge> 0" 
+  have "v \<cdot> v = 2 \<cdot> g \<cdot> x - 2 \<cdot> g \<cdot> h \<and> 0 > g" 
+    using inv and \<open>0 > g\<close> by auto
+  hence obs:"v \<cdot> v = 2 \<cdot> g \<cdot> (x - h) \<and> 0 > g \<and> v \<cdot> v \<ge> 0" 
     using left_diff_distrib mult.commute by (metis zero_le_square) 
-  from this have "(v \<cdot> v)/(2 \<cdot> g) = (x - h)" by auto 
-  also from * have "(v \<cdot> v)/(2 \<cdot> g) \<le> 0"
+  hence "(v \<cdot> v)/(2 \<cdot> g) = (x - h)" 
+    by auto 
+  also from obs have "(v \<cdot> v)/(2 \<cdot> g) \<le> 0"
     using divide_nonneg_neg by fastforce 
-  ultimately have "h - x \<ge> 0" by linarith
+  ultimately have "h - x \<ge> 0" 
+    by linarith
   thus ?thesis by auto
 qed
 
@@ -300,14 +304,14 @@ proof-
         monoid_mult_class.power2_eq_square semiring_class.distrib_left)
   hence "g\<^sup>2 \<cdot> \<tau>\<^sup>2 + 2 \<cdot> g \<cdot> v \<cdot> \<tau> + v\<^sup>2 + 2 \<cdot> g \<cdot> h = 0"
     using invar by (simp add: monoid_mult_class.power2_eq_square) 
-  from this have *:"(g \<cdot> \<tau> + v)\<^sup>2 + 2 \<cdot> g \<cdot> h = 0"
+  hence obs: "(g \<cdot> \<tau> + v)\<^sup>2 + 2 \<cdot> g \<cdot> h = 0"
     apply(subst power2_sum) by (metis (no_types, hide_lams) Groups.add_ac(2, 3) 
         Groups.mult_ac(2, 3) monoid_mult_class.power2_eq_square nat_distrib(2))
-  hence "2 \<cdot> g \<cdot> h + (- ((g \<cdot> \<tau>) + v))\<^sup>2 = 0"
-    by (metis Groups.add_ac(2) power2_minus)
-  thus "2 \<cdot> g \<cdot> h + (- (g \<cdot> \<tau>) - v) \<cdot> (- (g \<cdot> \<tau>) - v) = 0"
+  thus "2 \<cdot> g \<cdot> h + (g \<cdot> \<tau> \<cdot> (g \<cdot> \<tau> + v) + v \<cdot> (g \<cdot> \<tau> + v)) = 0"
     by (simp add: monoid_mult_class.power2_eq_square)
-  from * show "2 \<cdot> g \<cdot> h + (g \<cdot> \<tau> \<cdot> (g \<cdot> \<tau> + v) + v \<cdot> (g \<cdot> \<tau> + v)) = 0"
+  have  "2 \<cdot> g \<cdot> h + (- ((g \<cdot> \<tau>) + v))\<^sup>2 = 0"
+    using obs by (metis Groups.add_ac(2) power2_minus)
+  thus "2 \<cdot> g \<cdot> h + (- (g \<cdot> \<tau>) - v) \<cdot> (- (g \<cdot> \<tau>) - v) = 0"
     by (simp add: monoid_mult_class.power2_eq_square)
 qed
     
@@ -338,11 +342,12 @@ lemma bouncing_ball:
   (IF (\<lambda> s. s $ 0 = 0) THEN (1 ::= (\<lambda>s. - s $ 1)) ELSE \<eta> FI)))
   {s. 0 \<le> s $ 0 \<and> s $ 0 \<le> h}"
   apply(rule ffb_starI[of _ "{s. 0 \<le> s$0 \<and> 0 > s$2 \<and>  2 \<cdot> s$2 \<cdot> s$0 = 2 \<cdot> s$2 \<cdot> h + (s$1 \<cdot> s$1)}"])
-  apply(clarsimp, simp only: ffb_kcomp)
+    apply(clarsimp, simp only: ffb_kcomp)
    apply(subst local_flow.ffb_g_orbit[OF local_flow_cnst_acc_matrix])
   using assms apply(simp, simp, clarsimp)
    apply(rule ffb_if_then_elseD)
   by(auto simp: bb_real_arith)
+
 
 subsubsection\<open> Bouncing Ball with invariants \<close>
 
@@ -364,21 +369,23 @@ lemma energy_conservation_invariant:
   by(auto intro!: poly_derivatives simp: vec_eq_iff matrix_vector_mult_def)
 
 lemma bouncing_ball_invariants:
+  fixes h::real
+  defines dinv: "I \<equiv> \<lambda>s::real^3. s $ 2 < 0 \<and> 2 \<cdot> s$2 \<cdot> s$0 - 2 \<cdot> s$2 \<cdot> h - (s$1 \<cdot> s$1) = 0"
   shows "{s. 0 \<le> s $ 0 \<and> s $ 0 = h \<and> s $ 1 = 0 \<and> 0 > s $ 2} \<le> fb\<^sub>\<F> 
   (kstar (([x\<acute>=(*v) A]{0..t} & (\<lambda> s. s $ 0 \<ge> 0)) \<circ>\<^sub>K
   (IF (\<lambda> s. s $ 0 = 0) THEN (1 ::= (\<lambda>s. - s $ 1)) ELSE \<eta> FI)))
   {s. 0 \<le> s $ 0 \<and> s $ 0 \<le> h}"
-  apply(rule_tac I="{s. 0 \<le> s$0 \<and> 0 > s$2 \<and> 2 \<cdot> s$2 \<cdot> s$0 = 2 \<cdot> s$2 \<cdot> h + (s$1 \<cdot> s$1)}" in ffb_starI)
-    apply(clarsimp, simp only: ffb_kcomp)
-   apply(rule dCut[where C="\<lambda> s. s $ 2 < 0"])
-    apply(rule_tac I="\<lambda> s. s $ 2 < 0" in dI)
-  using gravity_invariant apply(blast, force, force)
-   apply(rule_tac C="\<lambda> s. 2 \<cdot> s$2 \<cdot> s$0 - 2 \<cdot> s$2 \<cdot> h - s$1 \<cdot> s$1 = 0" in dCut)
-    apply(rule_tac I="\<lambda> s. 2 \<cdot> s$2 \<cdot> s$0 - 2 \<cdot> s$2 \<cdot> h - s$1 \<cdot> s$1 = 0" in dI)
-  using energy_conservation_invariant apply(blast, force, force)
-   apply(rule dWeakening)
+  apply(rule_tac I="{s. 0 \<le> s$0 \<and> I s}" in ffb_starI)
+  apply(force simp: dinv, simp only: ffb_kcomp)
+   apply(rule_tac I="{s. 0 \<le> s$0 \<and> I s}" in dI)
+     apply(force, subst ffb_guard_eq)
+  apply(rule_tac y="Collect I" in H_iso_cond1, force)
+    apply(rule dInvariant, unfold dinv)
+    apply(intro diff_invariant_rules(4))
+  using gravity_invariant apply force
+  using energy_conservation_invariant apply force
    apply(rule ffb_if_then_else)
-  by(auto simp: bb_real_arith le_fun_def)
+  unfolding dinv by(auto simp: bb_real_arith le_fun_def)
 
 no_notation constant_acceleration_kinematics_matrix ("A")
 
@@ -390,16 +397,8 @@ subsubsection\<open> Bouncing Ball with exponential solution \<close>
 text\<open> In our final example, we prove again the bouncing ball specification but this time we do it 
 with the general solution for linear systems.\<close>
 
-lemma ffb_sq_mtx:
-  fixes A::"('n::finite) sqrd_matrix"
-  assumes "0 < ((real CARD('n))\<^sup>2 * (\<parallel>to_vec A\<parallel>\<^sub>m\<^sub>a\<^sub>x))" (is "0 < ?L") 
-  assumes "0 \<le> t" and "t < 1/?L"
-  shows "fb\<^sub>\<F> ([x\<acute>=(*\<^sub>V) A]{0..t} & G) Q = 
-    {s. \<forall>\<tau>\<in>{0..t}. (G \<rhd> (\<lambda>t. exp (t *\<^sub>R A) *\<^sub>V s) {0..\<tau>}) \<longrightarrow> (exp (\<tau> *\<^sub>R A) *\<^sub>V s) \<in> Q}"
-  apply(subst local_flow.ffb_g_orbit)
-  using local_flow_exp[OF assms] by auto
-
-abbreviation "constant_acceleration_kinematics_sq_mtx \<equiv> sq_mtx_chi constant_acceleration_kinematics_matrix"
+abbreviation "constant_acceleration_kinematics_sq_mtx \<equiv> 
+  sq_mtx_chi constant_acceleration_kinematics_matrix"
 
 notation constant_acceleration_kinematics_sq_mtx ("K")
 
@@ -412,20 +411,60 @@ proof-
     by auto
 qed
 
-lemma ffb_cnst_acc_sq_mtx:
-  assumes "0 \<le> t" and "t < 1/9"
-  shows "fb\<^sub>\<F> ([x\<acute>=(*\<^sub>V) K]{0..t} & G) Q = 
-    {s. \<forall>\<tau>\<in>{0..t}. (G \<rhd> (\<lambda>r. (exp (r *\<^sub>R K)) *\<^sub>V s) {0..\<tau>}) \<longrightarrow> ((exp (\<tau> *\<^sub>R K)) *\<^sub>V s) \<in> Q}"
-  apply(subst local_flow.ffb_g_orbit[of "(*\<^sub>V) K" _ "((real CARD(3))\<^sup>2 \<cdot> (\<parallel>to_vec K\<parallel>\<^sub>m\<^sub>a\<^sub>x))" 
-"(\<lambda>t x. (exp (t *\<^sub>R K)) *\<^sub>V x)"])
-   apply(rule local_flow_exp)
-  using max_norm_cnst_acc_sq_mtx assms by auto
+lemma const_acc_mtx_pow2: "(\<tau> *\<^sub>R K)\<^sup>2 = sq_mtx_chi (\<chi> i. if i=0 then \<tau>\<^sup>2 *\<^sub>R \<e> 2 else 0)"
+  unfolding power2_eq_square apply(simp add: scaleR_sqrd_matrix_def)
+  unfolding times_sqrd_matrix_def apply(simp add: sq_mtx_chi_inject vec_eq_iff)
+  apply(simp add: matrix_matrix_mult_def)
+  unfolding UNIV_3 by(auto simp: axis_def)
 
+lemma const_acc_mtx_powN:"n > 2 \<Longrightarrow> (\<tau> *\<^sub>R K)^n = 0"
+proof(induct n)
+  case 0
+  thus ?case by simp
+next
+  case (Suc n)
+  assume IH: "2 < n \<Longrightarrow> (\<tau> *\<^sub>R K)^n = 0" and "2 < Suc n"
+  then show ?case 
+  proof(cases "n \<le> 2")
+    case True
+    hence "n = 2"
+      using \<open>2 < Suc n\<close> le_less_Suc_eq by blast 
+    hence "(\<tau> *\<^sub>R K)^(Suc n) = (\<tau> *\<^sub>R K)^3"
+      by simp
+    also have "... = (\<tau> *\<^sub>R K) \<cdot> (\<tau> *\<^sub>R K)^2"
+      by (metis (no_types, lifting) \<open>n = 2\<close> calculation power_Suc)
+    also have "... = (\<tau> *\<^sub>R K) \<cdot> sq_mtx_chi (\<chi> i. if i=0 then \<tau>\<^sup>2 *\<^sub>R \<e> 2 else 0)"
+      by (subst const_acc_mtx_pow2) simp
+    also have "... = 0"
+      unfolding times_sqrd_matrix_def zero_sqrd_matrix_def
+      apply(simp add: sq_mtx_chi_inject vec_eq_iff scaleR_sqrd_matrix_def)
+      apply(simp add: matrix_matrix_mult_def)
+      unfolding UNIV_3 by(auto simp: axis_def)
+    finally show ?thesis .
+  next
+    case False
+    thus ?thesis 
+      using IH by auto
+  qed
+qed
+
+lemma suminf_eq_sum:
+  fixes f :: "nat \<Rightarrow> ('a::real_normed_vector)"
+  assumes "\<And>n. n > m \<Longrightarrow> f n = 0"
+  shows "(\<Sum>n. f n) = (\<Sum>n \<le> m. f n)"
+  using assms by (meson atMost_iff finite_atMost not_le suminf_finite)
+
+lemma exp_cnst_acc_sq_mtx: "exp (\<tau> *\<^sub>R K) = ((\<tau> *\<^sub>R K)\<^sup>2/\<^sub>R 2) + (\<tau> *\<^sub>R K) + 1"
+  unfolding exp_def apply(subst suminf_eq_sum[of 2])
+  using const_acc_mtx_powN by (simp_all add: numeral_2_eq_2)
+ 
 lemma exp_cnst_acc_sq_mtx_simps:
  "exp (\<tau> *\<^sub>R K) $$ 0 $ 0 = 1" "exp (\<tau> *\<^sub>R K) $$ 0 $ 1 = \<tau>" "exp (\<tau> *\<^sub>R K) $$ 0 $ 2 = \<tau>^2/2"
  "exp (\<tau> *\<^sub>R K) $$ 1 $ 0 = 0" "exp (\<tau> *\<^sub>R K) $$ 1 $ 1 = 1" "exp (\<tau> *\<^sub>R K) $$ 1 $ 2 = \<tau>"
  "exp (\<tau> *\<^sub>R K) $$ 2 $ 0 = 0" "exp (\<tau> *\<^sub>R K) $$ 2 $ 1 = 0" "exp (\<tau> *\<^sub>R K) $$ 2 $ 2 = 1"
-  sorry
+  unfolding exp_cnst_acc_sq_mtx const_acc_mtx_pow2 
+  by(auto simp: plus_sqrd_matrix_def scaleR_sqrd_matrix_def one_sqrd_matrix_def mat_def 
+      scaleR_vec_def axis_def plus_vec_def)
 
 lemma bouncing_ball_K:
   assumes "0 \<le> t" and "t < 1/9" 
@@ -436,9 +475,8 @@ lemma bouncing_ball_K:
   apply(rule ffb_starI[of _ "{s. 0 \<le> s $ (0::3) \<and> 0 > s $ 2 \<and> 
   2 \<cdot> s $ 2 \<cdot> s $ 0 = 2 \<cdot> s $ 2 \<cdot> h + (s $ 1 \<cdot> s $ 1)}"])
     apply(clarsimp, simp only: ffb_kcomp)
-  apply(subst ffb_sq_mtx)
-  using max_norm_cnst_acc_sq_mtx assms 
-      apply(force, simp, force, clarify)
+    apply(subst local_flow.ffb_g_orbit[OF local_flow_exp])
+  using max_norm_cnst_acc_sq_mtx assms apply(force, simp, force, clarify)
   apply(rule ffb_if_then_elseD, clarsimp)
    apply(simp_all add: sq_mtx_vec_prod_eq)
   unfolding UNIV_3 apply(simp_all add: exp_cnst_acc_sq_mtx_simps)

@@ -523,7 +523,7 @@ lemma add_solves:
   apply(rule_tac f'1="\<lambda> x. 1 " and g'1="\<lambda> x. 0" in derivative_intros(191))
   by(rule derivative_intros, simp)+ simp_all
 
-lemma is_group_action:
+lemma is_monoid_action:
   assumes "D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on (\<lambda>t. t + t2) ` T" and "t1 \<in> T"
   shows "\<phi> 0 s = s"
     and "\<phi> (t1 + t2) s = \<phi> t1 (\<phi> t2 s)"

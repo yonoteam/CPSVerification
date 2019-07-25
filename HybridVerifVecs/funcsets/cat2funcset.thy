@@ -47,6 +47,16 @@ lemma ffb_kcomp: "fb\<^sub>\<F> (G \<circ>\<^sub>K F) P = fb\<^sub>\<F> G (fb\<^
   unfolding ffb_def apply(simp add: kop_def klift_def map_dual_def)
   unfolding dual_set_def f2r_def r2f_def by(auto simp: kcomp_def)
 
+lemma ffb_mono_ge:
+  assumes "P \<le> fb\<^sub>\<F> F I" and "I \<le> Q"
+  shows "P \<le> fb\<^sub>\<F> F Q"
+  using assms unfolding ffb_eq by auto
+
+lemma ffb_kcomp_ge:
+  assumes "P \<le> fb\<^sub>\<F> F I" "I \<le> fb\<^sub>\<F> G Q"
+  shows "P \<le> fb\<^sub>\<F> (F \<circ>\<^sub>K G) Q"
+  by(subst ffb_kcomp) (rule ffb_mono_ge[OF assms])
+
 text \<open>We also have an implementation of the conditional operator and its wlp.\<close>
 
 definition ifthenelse :: "'a pred \<Rightarrow> ('a \<Rightarrow> 'b set) \<Rightarrow> ('a \<Rightarrow> 'b set) \<Rightarrow> ('a \<Rightarrow> 'b set)"
@@ -140,6 +150,10 @@ lemma g_evolD:
   and "x t = s'" and "0 \<in> T" "t \<in> T" and "G \<rhd> x {0..t}"
   using assms unfolding g_orbital_def ivp_sols_def by blast
 
+lemma ffb_g_evol: 
+  "fb\<^sub>\<F> ([x\<acute>=f]T & G) Q = {s. \<forall>x \<in> ivp_sols f T 0 s. \<forall>t\<in>T. (G \<rhd> x {0..t}) \<longrightarrow> (x t) \<in> Q}"
+  unfolding g_evol_def ffb_eq ivp_sols_def by auto
+
 context local_flow
 begin
 
@@ -188,6 +202,9 @@ lemma ffb_g_orbit: "fb\<^sub>\<F> ([x\<acute>=f]T & G) Q = {s. \<forall>t\<in>T.
 
 end
 
+lemma ffb_guard_eq: "fb\<^sub>\<F> ([x\<acute>=f]{0..t} & G) {s. G s \<and> Q s} = fb\<^sub>\<F> ([x\<acute>=f]{0..t} & G) {s. Q s}"
+  unfolding g_evol_def ffb_eq by auto
+
 lemma (in local_flow) ivp_sols_collapse: "ivp_sols f T 0 s = {(\<lambda>t. \<phi> t s)}"
   apply(auto simp: ivp_sols_def ivp init_time fun_eq_iff)
   apply(rule unique_solution, simp_all add: ivp)
@@ -216,6 +233,12 @@ Then we prove the inference rules which are used in our verification proofs.\<cl
 
 subsubsection\<open> Differential Weakening \<close>
         
+lemma DW: 
+  assumes "0 \<le> t"
+  shows "fb\<^sub>\<F> ([x\<acute>=f]{0..t} & G) Q = fb\<^sub>\<F> ([x\<acute>=f]{0..t} & (\<lambda>s. True)) {s. G s \<longrightarrow> s \<in> Q}"
+  apply(auto intro: g_evolD simp: ffb_eq assms)
+  oops 
+
 lemma DW: "fb\<^sub>\<F> ([x\<acute>=f]{0..t} & G) Q = fb\<^sub>\<F> ([x\<acute>=f]{0..t} & G) {s. G s \<longrightarrow> s \<in> Q}"
   by(auto intro: g_evolD simp: ffb_eq)
   
@@ -341,6 +364,8 @@ lemma dInvariant_converse:
   shows "I is_diff_invariant_of f along T"
   using assms unfolding invariant_to_set ffb_eq by auto
 
+(* It works, but why.. *)
+
 lemma ffb_g_evol_le_requires:
   assumes "\<forall>s. \<exists>x. x \<in> (ivp_sols f T 0 s) \<and> G s"
     shows "fb\<^sub>\<F> ([x\<acute>=f]T & G) {s. I s} \<le> {s. I s}"
@@ -349,11 +374,10 @@ lemma ffb_g_evol_le_requires:
   using assms ivp_solsD(1) by(fastforce simp: ivp_sols_def)
 
 lemma dI:
-assumes "I is_diff_invariant_of f along {0..t}"
-    and "P \<le> {s. I s}" and "{s. I s} \<le> Q"
+  assumes "P \<le> I" and "I \<le> fb\<^sub>\<F> ([x\<acute>=f]{0..t} & G) I" and "I \<le> Q"
   shows "P \<le> fb\<^sub>\<F> ([x\<acute>=f]{0..t} & G) Q"
-  apply(rule_tac C="I" in dCut)
-  using dInvariant assms apply blast
+  apply(rule_tac C="\<lambda>s. s \<in> I" in dCut)
+  using assms apply force
   apply(rule dWeakening)
   using assms by auto
 

@@ -109,9 +109,8 @@ of ODEs @{term "x' t = A *v (x t)"}. For that we derive some properties of two m
 
 subsection\<open> Matrix operator norm \<close>
 
-abbreviation "op_norm (A::('a::real_normed_algebra_1)^'n^'m) \<equiv> Sup {\<parallel>A *v x\<parallel> | x. \<parallel>x\<parallel> = 1}"
-
-notation op_norm ("(1\<parallel>_\<parallel>\<^sub>o\<^sub>p)" [65] 61)
+abbreviation op_norm :: "('a::real_normed_algebra_1)^'n^'m \<Rightarrow> real" ("(1\<parallel>_\<parallel>\<^sub>o\<^sub>p)" [65] 61)
+  where "\<parallel>A\<parallel>\<^sub>o\<^sub>p \<equiv> onorm (\<lambda>x. A *v x)"
 
 lemma norm_matrix_bound:
   fixes A::"('a::real_normed_algebra_1)^'n^'m"
@@ -128,13 +127,24 @@ proof-
     also have "... \<le> (\<Sum>i\<in>UNIV. (\<parallel>A $ j $ i\<parallel>) * 1)"
       using xi_le1 by (simp add: sum_mono mult_left_le)
     finally have "\<parallel>(\<Sum>i\<in>UNIV. A $ j $ i * x $ i)\<parallel> \<le> (\<Sum>i\<in>UNIV. (\<parallel>A $ j $ i\<parallel>) * 1)" by simp}
-  from this have "\<And>j. \<parallel>(A *v x) $ j\<parallel> \<le> ((\<chi> i1 i2. \<parallel>A $ i1 $ i2\<parallel>) *v 1) $ j"
+  hence "\<And>j. \<parallel>(A *v x) $ j\<parallel> \<le> ((\<chi> i1 i2. \<parallel>A $ i1 $ i2\<parallel>) *v 1) $ j"
     unfolding matrix_vector_mult_def by simp
   hence "(\<Sum>j\<in>UNIV. (\<parallel>(A *v x) $ j\<parallel>)\<^sup>2) \<le> (\<Sum>j\<in>UNIV. (\<parallel>((\<chi> i1 i2. \<parallel>A $ i1 $ i2\<parallel>) *v 1) $ j\<parallel>)\<^sup>2)"
     by (metis (mono_tags, lifting) norm_ge_zero power2_abs power_mono real_norm_def sum_mono) 
   thus "\<parallel>A *v x\<parallel> \<le> \<parallel>(\<chi> i j. \<parallel>A $ i $ j\<parallel>) *v 1\<parallel>"
     unfolding norm_vec_def L2_set_def by simp
 qed
+
+lemma onorm_set_proptys:
+  fixes A::"('a::real_normed_algebra_1)^'n^'m"
+  shows "bounded (range (\<lambda>x. (\<parallel>A *v x\<parallel>) / (\<parallel>x\<parallel>)))"
+    and "bdd_above (range (\<lambda>x. (\<parallel>A *v x\<parallel>) / (\<parallel>x\<parallel>)))"
+    and "(range (\<lambda>x. (\<parallel>A *v x\<parallel>) / (\<parallel>x\<parallel>))) \<noteq> {}"
+  unfolding bounded_def bdd_above_def image_def dist_real_def apply(rule_tac x=0 in exI)
+    apply(rule_tac x="\<parallel>(\<chi> i j. \<parallel>A $ i $ j\<parallel>) *v 1\<parallel>" in exI, clarsimp,
+      subst mult_norm_matrix_sgn_eq[symmetric], clarsimp,
+      rule_tac x="sgn _" in norm_matrix_bound, simp add: norm_sgn)+
+  by force
 
 lemma op_norm_set_proptys:
   fixes A::"('a::real_normed_algebra_1)^'n^'m"
@@ -147,16 +157,28 @@ lemma op_norm_set_proptys:
    apply(rule_tac x="\<parallel>(\<chi> i j. \<parallel>A $ i $ j\<parallel>) *v 1\<parallel>" in exI, force simp: norm_matrix_bound)
   using ex_norm_eq_1 by blast
 
-lemma norm_matrix_le_op_norm: "\<parallel>x\<parallel> = 1 \<Longrightarrow> \<parallel>A *v x\<parallel> \<le> \<parallel>A\<parallel>\<^sub>o\<^sub>p"
-  by(rule cSup_upper, auto simp: op_norm_set_proptys)
+lemma op_norm_def: 
+  fixes A::"('a::real_normed_algebra_1)^'n^'m"
+  shows "\<parallel>A\<parallel>\<^sub>o\<^sub>p = Sup {\<parallel>A *v x\<parallel> | x. \<parallel>x\<parallel> = 1}"
+  apply(rule antisym[OF onorm_le cSup_least[OF op_norm_set_proptys(3)]])
+   apply(case_tac "x = 0", simp)
+   apply(subst mult_norm_matrix_sgn_eq[symmetric], simp)
+   apply(rule cSup_upper[OF _ op_norm_set_proptys(2)])
+   apply(force simp: norm_sgn)
+  unfolding onorm_def apply(rule cSup_upper[OF _ onorm_set_proptys(2)])
+  by (simp add: image_def, clarsimp) (metis div_by_1)
 
-lemma norm_matrix_le_op_norm_ge_0: "0 \<le> \<parallel>A\<parallel>\<^sub>o\<^sub>p"
+lemma norm_matrix_le_op_norm: "\<parallel>x\<parallel> = 1 \<Longrightarrow> \<parallel>A *v x\<parallel> \<le> \<parallel>A\<parallel>\<^sub>o\<^sub>p"
+  apply(unfold onorm_def, rule cSup_upper[OF _ onorm_set_proptys(2)])
+  unfolding image_def by (clarsimp, rule_tac x=x in exI) simp
+
+lemma op_norm_ge_0: "0 \<le> \<parallel>A\<parallel>\<^sub>o\<^sub>p"
   using ex_norm_eq_1 norm_ge_zero norm_matrix_le_op_norm basic_trans_rules(23) by blast
 
 lemma norm_sgn_le_op_norm: "\<parallel>A *v sgn x\<parallel> \<le> \<parallel>A\<parallel>\<^sub>o\<^sub>p"
-  by(cases "x=0", simp_all add: norm_sgn norm_matrix_le_op_norm norm_matrix_le_op_norm_ge_0)
+  by(cases "x=0", simp_all add: norm_sgn norm_matrix_le_op_norm op_norm_ge_0)
 
-lemma norm_matrix_le_mult_op_norm: "\<parallel>A *v x\<parallel> \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>x\<parallel>)" for A :: "real^'n^'m"
+lemma norm_matrix_le_mult_op_norm: "\<parallel>A *v x\<parallel> \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>x\<parallel>)"
 proof-
   have "\<parallel>A *v x\<parallel> = (\<parallel>A *v sgn x\<parallel>) * (\<parallel>x\<parallel>)"
     by(simp add: mult_norm_matrix_sgn_eq)
@@ -165,131 +187,38 @@ proof-
   finally show ?thesis by simp
 qed
 
-lemma ltimes_op_norm:
-  "Sup {\<bar>c\<bar> * (\<parallel>A *v x\<parallel>) |x. \<parallel>x\<parallel> = 1} = \<bar>c\<bar> * (\<parallel>A\<parallel>\<^sub>o\<^sub>p)" (is "Sup ?cA = \<bar>c\<bar> * (\<parallel>A\<parallel>\<^sub>o\<^sub>p) ")
-proof(cases "c = 0", simp add: ex_norm_eq_1)
-  let ?S = "{(\<parallel>A *v x\<parallel>) |x. \<parallel>x\<parallel> = 1}"
-  note op_norm_set_proptys(2)[of A]
-  also have "?cA = {\<bar>c\<bar> * x|x. x \<in> ?S}" 
-    by force
-  ultimately have bdd_cA:"bdd_above ?cA" 
-    using bdd_above_ltimes[of "\<bar>c\<bar>" ?S] by simp
-  assume "c \<noteq> 0"
-  show "Sup ?cA = \<bar>c\<bar> * (\<parallel>A\<parallel>\<^sub>o\<^sub>p)"
-  proof(rule cSup_eq_linorder)
-    show nempty_cA:"?cA \<noteq> {}" 
-      using op_norm_set_proptys(3)[of A] by blast 
-    show "bdd_above ?cA"
-      using bdd_cA by blast
-    {fix m assume "m \<in> ?cA"
-      then obtain x where x_def:"\<parallel>x\<parallel> = 1 \<and> m = \<bar>c\<bar> * (\<parallel>A *v x\<parallel>)"
-        by blast
-      hence "(\<parallel>A *v x\<parallel>) \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p)" 
-        using norm_matrix_le_op_norm by force
-      hence "m  \<le> \<bar>c\<bar> * (\<parallel>A\<parallel>\<^sub>o\<^sub>p) " 
-        using x_def by (simp add: mult_left_mono)}
-    thus "\<forall>x\<in>?cA. x \<le> \<bar>c\<bar> * (\<parallel>A\<parallel>\<^sub>o\<^sub>p)"
-      by blast
-  next
-    show "\<forall>y<\<bar>c\<bar>*(\<parallel>A\<parallel>\<^sub>o\<^sub>p). \<exists>x\<in>?cA. y < x"
-    proof(clarify)
-      fix m assume "m < \<bar>c\<bar> * (\<parallel>A\<parallel>\<^sub>o\<^sub>p)"
-      hence "(m / \<bar>c\<bar>) < (\<parallel>A\<parallel>\<^sub>o\<^sub>p)"
-        using pos_divide_less_eq[of "\<bar>c\<bar>" m "(\<parallel>A\<parallel>\<^sub>o\<^sub>p)"] \<open>c \<noteq> 0\<close>
-            semiring_normalization_rules(7)[of "\<bar>c\<bar>"] by auto
-      then obtain x where "\<parallel>x\<parallel> = 1 \<and> (m / \<bar>c\<bar>) < (\<parallel>A *v x\<parallel>)"
-        using less_cSup_iff[of ?S "m / \<bar>c\<bar>"] op_norm_set_proptys by force
-      hence "\<parallel>x\<parallel> = 1 \<and> m < \<bar>c\<bar> * (\<parallel>A *v x\<parallel>)"
-        using \<open>c \<noteq> 0\<close> pos_divide_less_eq[of _ m _] by (simp add: mult.commute)
-      thus "\<exists>n\<in>?cA. m < n" by blast
-    qed
-  qed
-qed
-
-lemma op_norm_le_sum_column:
-  "\<parallel>A\<parallel>\<^sub>o\<^sub>p \<le> (\<Sum>i\<in>UNIV. \<parallel>column i A\<parallel>)" for A::"real^'n^'m"
-  using op_norm_set_proptys(3) proof(rule cSup_least)
-  fix m assume "m \<in> {\<parallel>A *v x\<parallel> | x. \<parallel>x\<parallel> = 1}"
-    then obtain x where x_def:"\<parallel>x\<parallel> = 1 \<and> m = (\<parallel>A *v x\<parallel>)" by blast
-    hence x_hyp:"\<And>i. norm (x $ i) \<le> 1"
-      by (simp add: norm_bound_component_le_cart)
-    have "(\<parallel>A *v x\<parallel>) = norm (\<Sum>i\<in>UNIV. (x $ i *s column i A))"
-      by(subst matrix_mult_sum[of A], simp)
-    also have "... \<le> (\<Sum>i\<in>UNIV.  norm (x $ i *s column i A))"
-      by (simp add: sum_norm_le)
-    also have "... = (\<Sum>i\<in>UNIV.  norm (x $ i) * norm (column i A))"
-      by (simp add: mult_norm_matrix_sgn_eq)
-    also have "... \<le> (\<Sum>i\<in>UNIV. norm (column i A))"
-      using x_hyp by (simp add: mult_left_le_one_le sum_mono) 
-    finally show "m \<le> (\<Sum>i\<in>UNIV. norm (column i A))"
-      using x_def by linarith
-qed
+lemma blin_norm_matrix: "bounded_linear ((*v) A)" for A::"('a::real_normed_algebra_1)^'n^'m"
+  by (unfold_locales) (auto intro: norm_matrix_le_mult_op_norm simp: 
+      mult.commute matrix_vector_right_distrib vector_scaleR_commute)
 
 lemma op_norm_zero_iff: "(\<parallel>A\<parallel>\<^sub>o\<^sub>p = 0) = (A = 0)" for A::"('a::real_normed_field)^'n^'m"
-proof
-  assume "A = 0" thus "\<parallel>A\<parallel>\<^sub>o\<^sub>p = 0" 
-    by(simp add: ex_norm_eq_1)
-next
-  assume "\<parallel>A\<parallel>\<^sub>o\<^sub>p = 0"
-  note cSup_upper[of _ "{\<parallel>A *v x\<parallel> | x. \<parallel>x\<parallel> = 1}"]
-  hence "\<And>r. r \<in> {\<parallel>A *v x\<parallel> | x. \<parallel>x\<parallel> = 1} \<Longrightarrow> r \<le>  (\<parallel>A\<parallel>\<^sub>o\<^sub>p)" 
-    using op_norm_set_proptys(2) by force
-  also have "\<And>r. r \<in> ({\<parallel>A *v x\<parallel> | x. \<parallel>x\<parallel> = 1}) \<Longrightarrow> 0 \<le> r" 
-    using norm_ge_zero by blast
-  ultimately have "\<And>r. r \<in> ({\<parallel>A *v x\<parallel> | x. \<parallel>x\<parallel> = 1}) \<Longrightarrow> r = 0" 
-    using \<open>\<parallel>A\<parallel>\<^sub>o\<^sub>p = 0\<close> by fastforce
-  hence "\<And>x. \<parallel>x\<parallel> = 1 \<Longrightarrow> x \<noteq> 0 \<and> (\<parallel>A *v x\<parallel>) = 0" 
-    by force
-  hence "\<And>i. norm (A *v \<e> i) = 0" 
-    by simp
-  from this show "A = 0" 
-    using matrix_axis_0[of 1 A] norm_eq_zero by simp
-qed
+  unfolding onorm_eq_0[OF blin_norm_matrix] using matrix_axis_0[of 1 A] by fastforce
 
-lemma op_norm_triangle:
-  fixes A::"('a::real_normed_algebra_1)^'n^'m"
-  shows "\<parallel>A + B\<parallel>\<^sub>o\<^sub>p \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p) + (\<parallel>B\<parallel>\<^sub>o\<^sub>p)" 
-  using op_norm_set_proptys(3)[of "A + B"] proof(rule cSup_least)
-  fix m assume "m \<in> {\<parallel>(A + B) *v x\<parallel> | x. \<parallel>x\<parallel> = 1}"
-    then obtain x::"'a^'n" where "\<parallel>x\<parallel> = 1" and "m = \<parallel>(A + B) *v x\<parallel>" 
-      by blast
-    have " \<parallel>(A + B) *v x\<parallel> \<le> (\<parallel>A *v x\<parallel>) + (\<parallel>B *v x\<parallel>)"
-      by (simp add: matrix_vector_mult_add_rdistrib norm_triangle_ineq)
-    also have "... \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p) + (\<parallel>B\<parallel>\<^sub>o\<^sub>p)"
-      by (simp add: \<open>\<parallel>x\<parallel> = 1\<close> add_mono norm_matrix_le_op_norm)
-    finally show "m \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p) + (\<parallel>B\<parallel>\<^sub>o\<^sub>p)" 
-      using \<open>m = \<parallel>(A + B) *v x\<parallel>\<close> by blast
-qed
+lemma op_norm_triangle: "\<parallel>A + B\<parallel>\<^sub>o\<^sub>p \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p) + (\<parallel>B\<parallel>\<^sub>o\<^sub>p)" 
+  using onorm_triangle[OF blin_norm_matrix[of A] blin_norm_matrix[of B]]
+    matrix_vector_mult_add_rdistrib[symmetric, of A _ B] by simp
 
 lemma op_norm_scaleR: "\<parallel>c *\<^sub>R A\<parallel>\<^sub>o\<^sub>p = \<bar>c\<bar> * (\<parallel>A\<parallel>\<^sub>o\<^sub>p)"
-proof-
-  let ?N= "{\<bar>c\<bar> * (\<parallel>A *v x\<parallel>) |x. \<parallel>x\<parallel> = 1}"
-  have "{\<parallel>(c *\<^sub>R A) *v x\<parallel> | x. \<parallel>x\<parallel> = 1} = ?N" 
-    by (metis (no_types, hide_lams) norm_scaleR scaleR_vector_assoc)
-  also have "Sup ?N = \<bar>c\<bar> * (\<parallel>A\<parallel>\<^sub>o\<^sub>p)" 
-    using ltimes_op_norm[of c A] by blast
-  ultimately show " op_norm (c *\<^sub>R A) = \<bar>c\<bar> * (\<parallel>A\<parallel>\<^sub>o\<^sub>p)" 
-    by auto
-qed
+  unfolding onorm_scaleR[OF blin_norm_matrix, symmetric] scaleR_vector_assoc ..
 
-lemma op_norm_matrix_matrix_mult_le: "\<parallel>A ** B\<parallel>\<^sub>o\<^sub>p \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>B\<parallel>\<^sub>o\<^sub>p)" for A::"real^'n^'m"
-using op_norm_set_proptys(3)[of "A ** B"]
-proof(rule cSup_least)
-  have "0 \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p)" using norm_matrix_le_op_norm_ge_0 by force 
-  fix n assume "n \<in> {\<parallel>(A ** B) *v x\<parallel> | x. \<parallel>x\<parallel> = 1}"
-    then obtain x where x_def:"n = \<parallel>A ** B *v x\<parallel> \<and> \<parallel>x\<parallel> = 1" by blast
-    have "\<parallel>A ** B *v x\<parallel> = \<parallel>A *v (B *v x)\<parallel>"
-      by (simp add: matrix_vector_mul_assoc)
-    also have "... \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>B *v x\<parallel>)"
-      by (simp add: norm_matrix_le_mult_op_norm[of _ "B *v x"])
-    also have "... \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p) * ((\<parallel>B\<parallel>\<^sub>o\<^sub>p) * (\<parallel>x\<parallel>))"
-      using norm_matrix_le_mult_op_norm[of B x] \<open>0 \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p)\<close> mult_left_mono by blast 
-    also have "... = (\<parallel>A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>B\<parallel>\<^sub>o\<^sub>p)" using x_def by simp
-    finally show "n \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>B\<parallel>\<^sub>o\<^sub>p)" using x_def by blast
+lemma op_norm_matrix_matrix_mult_le: 
+  fixes A::"('a::real_normed_algebra_1)^'n^'m"
+  shows "\<parallel>A ** B\<parallel>\<^sub>o\<^sub>p \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>B\<parallel>\<^sub>o\<^sub>p)" 
+proof(rule onorm_le)
+  have "0 \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p)" 
+    by(rule onorm_pos_le[OF blin_norm_matrix])
+  fix x have "\<parallel>A ** B *v x\<parallel> = \<parallel>A *v (B *v x)\<parallel>"
+    by (simp add: matrix_vector_mul_assoc)
+  also have "... \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>B *v x\<parallel>)"
+    by (simp add: norm_matrix_le_mult_op_norm[of _ "B *v x"])
+  also have "... \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p) * ((\<parallel>B\<parallel>\<^sub>o\<^sub>p) * (\<parallel>x\<parallel>))"
+    using norm_matrix_le_mult_op_norm[of B x] \<open>0 \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p)\<close> mult_left_mono by blast
+  finally show "\<parallel>A ** B *v x\<parallel> \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>B\<parallel>\<^sub>o\<^sub>p) * (\<parallel>x\<parallel>)" 
+    by simp
 qed
 
 lemma norm_matrix_vec_mult_le_transpose:
-"\<parallel>x\<parallel> = 1 \<Longrightarrow> (\<parallel>A *v x\<parallel>) \<le> sqrt (\<parallel>transpose A ** A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>x\<parallel>)" for A::"real^'a^'a"
+  "\<parallel>x\<parallel> = 1 \<Longrightarrow> (\<parallel>A *v x\<parallel>) \<le> sqrt (\<parallel>transpose A ** A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>x\<parallel>)" for A::"real^'n^'n"
 proof-
   assume "\<parallel>x\<parallel> = 1"
   have "(\<parallel>A *v x\<parallel>)\<^sup>2 = (A *v x) \<bullet> (A *v x)"
@@ -299,12 +228,45 @@ proof-
   also have "... \<le> (\<parallel>x\<parallel>) * (\<parallel>transpose A *v (A *v x)\<parallel>)"
     using norm_cauchy_schwarz by blast
   also have "... \<le> (\<parallel>transpose A ** A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>x\<parallel>)^2"
-    apply(subst matrix_vector_mul_assoc) using norm_matrix_le_mult_op_norm[of "transpose A ** A" x]
+    apply(subst matrix_vector_mul_assoc) 
+    using norm_matrix_le_mult_op_norm[of "transpose A ** A" x]
     by (simp add: \<open>\<parallel>x\<parallel> = 1\<close>) 
   finally have "((\<parallel>A *v x\<parallel>))^2 \<le> (\<parallel>transpose A ** A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>x\<parallel>)^2"
     by linarith
   thus "(\<parallel>A *v x\<parallel>) \<le> sqrt ((\<parallel>transpose A ** A\<parallel>\<^sub>o\<^sub>p)) * (\<parallel>x\<parallel>)"
     by (simp add: \<open>\<parallel>x\<parallel> = 1\<close> real_le_rsqrt)
+qed
+
+lemma op_norm_le_sum_column: "\<parallel>A\<parallel>\<^sub>o\<^sub>p \<le> (\<Sum>i\<in>UNIV. \<parallel>column i A\<parallel>)" for A::"real^'n^'m"  
+proof(unfold op_norm_def, rule cSup_least[OF op_norm_set_proptys(3)], clarsimp)
+  fix x::"real^'n" assume x_def:"\<parallel>x\<parallel> = 1" 
+  hence x_hyp:"\<And>i. \<parallel>x $ i\<parallel> \<le> 1"
+    by (simp add: norm_bound_component_le_cart)
+  have "(\<parallel>A *v x\<parallel>) = \<parallel>(\<Sum>i\<in>UNIV. x $ i *s column i A)\<parallel>"
+    by(subst matrix_mult_sum[of A], simp)
+  also have "... \<le> (\<Sum>i\<in>UNIV. \<parallel>x $ i *s column i A\<parallel>)"
+    by (simp add: sum_norm_le)
+  also have "... = (\<Sum>i\<in>UNIV. (\<parallel>x $ i\<parallel>) * (\<parallel>column i A\<parallel>))"
+    by (simp add: mult_norm_matrix_sgn_eq)
+  also have "... \<le> (\<Sum>i\<in>UNIV. \<parallel>column i A\<parallel>)"
+    using x_hyp by (simp add: mult_left_le_one_le sum_mono) 
+  finally show "\<parallel>A *v x\<parallel> \<le> (\<Sum>i\<in>UNIV. \<parallel>column i A\<parallel>)" .
+qed
+
+lemma op_norm_le_transpose: "\<parallel>A\<parallel>\<^sub>o\<^sub>p \<le> \<parallel>transpose A\<parallel>\<^sub>o\<^sub>p" for A::"real^'n^'n"  
+proof-
+  have obs:"\<forall>x. \<parallel>x\<parallel> = 1 \<longrightarrow> (\<parallel>A *v x\<parallel>) \<le> sqrt ((\<parallel>transpose A ** A\<parallel>\<^sub>o\<^sub>p)) * (\<parallel>x\<parallel>)"
+    using norm_matrix_vec_mult_le_transpose by blast
+  have "(\<parallel>A\<parallel>\<^sub>o\<^sub>p) \<le> sqrt ((\<parallel>transpose A ** A\<parallel>\<^sub>o\<^sub>p))"
+    using obs apply(unfold op_norm_def)
+    by (rule cSup_least[OF op_norm_set_proptys(3)]) clarsimp
+  hence "((\<parallel>A\<parallel>\<^sub>o\<^sub>p))\<^sup>2 \<le> (\<parallel>transpose A ** A\<parallel>\<^sub>o\<^sub>p)"
+    using power_mono[of "(\<parallel>A\<parallel>\<^sub>o\<^sub>p)" _ 2] op_norm_ge_0 by force
+  also have "... \<le> (\<parallel>transpose A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>A\<parallel>\<^sub>o\<^sub>p)"
+    using op_norm_matrix_matrix_mult_le by blast
+  finally have "((\<parallel>A\<parallel>\<^sub>o\<^sub>p))\<^sup>2 \<le> (\<parallel>transpose A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>A\<parallel>\<^sub>o\<^sub>p)"  by linarith
+  thus "(\<parallel>A\<parallel>\<^sub>o\<^sub>p) \<le> (\<parallel>transpose A\<parallel>\<^sub>o\<^sub>p)"
+    using sq_le_cancel[of "(\<parallel>A\<parallel>\<^sub>o\<^sub>p)"] op_norm_ge_0 by blast
 qed
 
 subsection\<open> Matrix maximum norm \<close>
@@ -316,9 +278,7 @@ notation max_norm ("(1\<parallel>_\<parallel>\<^sub>m\<^sub>a\<^sub>x)" [65] 61)
 lemma max_norm_def: "\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x = Max {\<bar>A $ i $ j\<bar>|i j. i\<in>UNIV \<and> j\<in>UNIV}"
   by(simp add: image_def, rule arg_cong[of _ _ Max], blast)
 
-lemma max_norm_set_proptys:
-  fixes A::"real^('n::finite)^('m::finite)"
-  shows "finite {\<bar>A $ i $ j\<bar> |i j. i \<in> UNIV \<and> j \<in> UNIV}" (is "finite ?X")
+lemma max_norm_set_proptys: "finite {\<bar>A $ i $ j\<bar> |i j. i \<in> UNIV \<and> j \<in> UNIV}" (is "finite ?X")
 proof-
   have "\<And>i. finite {\<bar>A $ i $ j\<bar> | j. j \<in> UNIV}"
     using finite_Atleast_Atmost_nat by fastforce
@@ -339,50 +299,9 @@ qed
 
 lemma op_norm_le_max_norm:
   fixes A::"real^('n::finite)^('m::finite)"
-  shows "\<parallel>A\<parallel>\<^sub>o\<^sub>p \<le> real CARD('n) * real CARD('m) * (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x)" (is "\<parallel>A\<parallel>\<^sub>o\<^sub>p \<le>?n * ?m * (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x)")
-proof(rule cSup_least)
-  show "{\<parallel>A *v x\<parallel> |x. \<parallel>x\<parallel> = 1} \<noteq> {}"
-    using op_norm_set_proptys(3) by blast
-  {fix n assume "n \<in> {\<parallel>A *v x\<parallel> |x. \<parallel>x\<parallel> = 1}"
-    then obtain x::"(real, 'n) vec" where n_def:"\<parallel>x\<parallel> = 1 \<and> \<parallel>A *v x\<parallel> = n"
-      by blast
-    hence comp_le_1:"\<forall> i::'n. \<bar>x $ i\<bar> \<le> 1"
-      by (simp add: norm_bound_component_le_cart)
-    have "A *v x = (\<Sum>i\<in>UNIV. x $ i *s column i A)"
-      using matrix_mult_sum by blast
-    hence "\<parallel>A *v x\<parallel> \<le> (\<Sum>i\<in>UNIV. \<parallel>x $ i *s column i A\<parallel>)"
-      by (simp add: sum_norm_le)
-    also have "... = (\<Sum>i\<in>UNIV. \<bar>x $ i\<bar> * (\<parallel>column i A\<parallel>))"
-      by simp
-    also have "... \<le> (\<Sum>i\<in>UNIV. \<parallel>column i A\<parallel>)"
-      by (metis (no_types, lifting) Groups.mult_ac(2) comp_le_1 mult_left_le norm_ge_zero sum_mono)
-    also have "... \<le> (\<Sum>(i::'n)\<in>UNIV. ?m * (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x))"
-    proof(unfold norm_vec_def L2_set_def real_norm_def)
-      have "\<And>i j. \<bar>column i A $ j\<bar> \<le> \<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x"
-        using max_norm_set_proptys Max_ge unfolding column_def max_norm_def by(simp, blast)
-      hence "\<And>i j. \<bar>column i A $ j\<bar>\<^sup>2 \<le> (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x)\<^sup>2"
-        by (metis (no_types, lifting) One_nat_def abs_ge_zero numerals(2) order_trans_rules(23) 
-            power2_abs power2_le_iff_abs_le)
-      then have "\<And>i. (\<Sum>j\<in>UNIV. \<bar>column i A $ j\<bar>\<^sup>2) \<le> (\<Sum>(j::'m)\<in>UNIV. (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x)\<^sup>2)"
-        by (meson sum_mono)
-      also have "(\<Sum>(j::'m)\<in>UNIV. (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x)\<^sup>2) = ?m * (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x)\<^sup>2" by simp
-      ultimately have "\<And>i. (\<Sum>j\<in>UNIV. \<bar>column i A $ j\<bar>\<^sup>2) \<le> ?m * (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x)\<^sup>2" by force
-      hence "\<And>i. sqrt (\<Sum>j\<in>UNIV. \<bar>column i A $ j\<bar>\<^sup>2) \<le> sqrt (?m * (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x)\<^sup>2)"
-        by(simp add: real_sqrt_le_mono)
-      also have "sqrt (?m * (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x)\<^sup>2) \<le> sqrt ?m * (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x)"
-        using max_norm_ge_0 real_sqrt_mult by auto
-      also have "... \<le> ?m * (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x)"
-        using sqrt_real_nat_le max_norm_ge_0 mult_right_mono by blast  
-      finally show "(\<Sum>i\<in>UNIV. sqrt (\<Sum>j\<in>UNIV. \<bar>column i A $ j\<bar>\<^sup>2)) \<le> (\<Sum>(i::'n)\<in>UNIV. ?m * (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x))"
-        by (meson sum_mono)
-    qed
-    also have "(\<Sum>(i::'n)\<in>UNIV. (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x)) = ?n * (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x)"
-      using sum_constant_scale by auto
-    ultimately have "n \<le> ?n * ?m * (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x)" 
-      by (simp add: n_def)}
-  thus "\<And>n. n \<in> {\<parallel>A *v x\<parallel> |x. \<parallel>x\<parallel> = 1} \<Longrightarrow> n \<le> ?n * ?m * (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x)" 
-    by blast
-qed
+  shows "\<parallel>A\<parallel>\<^sub>o\<^sub>p \<le> real CARD('m) * real CARD('n) * (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x)"
+  apply(rule onorm_le_matrix_component)
+  unfolding max_norm_def by(rule Max_ge[OF max_norm_set_proptys]) force
 
 section\<open> Picard Lindeloef for linear systems \<close>
 
@@ -398,9 +317,9 @@ proof(subst mult_norm_matrix_sgn_eq[symmetric])
   have "\<parallel>A\<parallel>\<^sub>o\<^sub>p \<le> (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x) * (real CARD('n) * real CARD('n))"
     by (metis (no_types) Groups.mult_ac(2) op_norm_le_max_norm)
   then have "(\<parallel>A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>x - y\<parallel>) \<le> (real CARD('n))\<^sup>2 * (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x) * (\<parallel>x - y\<parallel>)"
-    by (simp add: cross3_simps(11) mult_left_mono semiring_normalization_rules(29))
+    by (metis (no_types, lifting) mult.commute mult_right_mono norm_ge_zero power2_eq_square)
   also have "(\<parallel>A *v sgn (x - y)\<parallel>) * (\<parallel>x - y\<parallel>) \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>x - y\<parallel>)"
-    by (simp add: norm_sgn_le_op_norm cross3_simps(11) mult_left_mono) 
+    by (simp add: norm_sgn_le_op_norm mult_mono') 
   ultimately show "(\<parallel>A *v sgn (x - y)\<parallel>) * (\<parallel>x - y\<parallel>) \<le> (real CARD('n))\<^sup>2 * (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x) * (\<parallel>x - y\<parallel>)"
     using order_trans_rules(23) by blast
 qed
@@ -436,9 +355,6 @@ typedef 'm sqrd_matrix = "UNIV::(real^'m^'m) set"
 declare sq_mtx_chi_inverse [simp]
     and to_vec_inverse [simp]
 
-lemma galois_to_vec_mtx_chi[simp]:"(to_vec A = B) = (A = sq_mtx_chi B)" 
-  by auto
-
 setup_lifting type_definition_sqrd_matrix
 
 lift_definition sq_mtx_ith::"'m sqrd_matrix \<Rightarrow> 'm \<Rightarrow> (real^'m)" (infixl "$$" 90) is vec_nth .
@@ -462,6 +378,15 @@ lift_definition sq_mtx_col::"'m \<Rightarrow> ('m::finite) sqrd_matrix \<Rightar
 lift_definition sq_mtx_rows::"('m::finite) sqrd_matrix \<Rightarrow> (real^'m) set" is rows .
 
 lift_definition sq_mtx_cols::"('m::finite) sqrd_matrix \<Rightarrow> (real^'m) set" is columns .
+
+lemma to_vec_eq_ith[simp]: "(to_vec A) $ i = A $$ i"
+  by transfer simp
+
+lemma sq_mtx_chi_ith[simp]: "(sq_mtx_chi A) $$ i1 $ i2 = A $ i1 $ i2"
+  by transfer simp
+
+lemma sq_mtx_chi_vec_lambda_ith[simp]: "sq_mtx_chi (\<chi> i j. x i j) $$ i1 $ i2 = x i1 i2"
+  by(simp add: sq_mtx_ith_def)
 
 lemma sq_mtx_eq_iff:
   shows "(\<And>i. A $$ i = B $$ i) \<Longrightarrow> A = B"
@@ -557,7 +482,7 @@ lemma sq_mtx_scaleR_ith[simp]: "(c *\<^sub>R A) $$ i = (c  *\<^sub>R (A $$ i))"
 
 lemma le_mtx_norm: "m \<in> {\<parallel>A *\<^sub>V x\<parallel> |x. \<parallel>x\<parallel> = 1} \<Longrightarrow> m \<le> \<parallel>A\<parallel>"
   using cSup_upper[of _ "{\<parallel>(to_vec A) *v x\<parallel> | x. \<parallel>x\<parallel> = 1}"]
-  by (simp add: op_norm_set_proptys(2) norm_sqrd_matrix_def sq_mtx_vec_prod.rep_eq)
+  by (simp add: op_norm_set_proptys(2) op_norm_def norm_sqrd_matrix_def sq_mtx_vec_prod.rep_eq)
 
 lemma norm_vec_mult_le: "\<parallel>A *\<^sub>V x\<parallel> \<le> (\<parallel>A\<parallel>) * (\<parallel>x\<parallel>)"
   by (simp add: norm_matrix_le_mult_op_norm norm_sqrd_matrix_def sq_mtx_vec_prod.rep_eq)
@@ -567,31 +492,13 @@ lemma sq_mtx_norm_le_sum_col: "\<parallel>A\<parallel> \<le> (\<Sum>i\<in>UNIV. 
   by(transfer, simp add: op_norm_le_sum_column)
 
 lemma norm_le_transpose: "\<parallel>A\<parallel> \<le> \<parallel>A\<^sup>\<dagger>\<parallel>"
-  apply(simp add: norm_sqrd_matrix_def, transfer, simp add: transpose_def)
-  using op_norm_set_proptys(3) apply(rule cSup_least)
-proof(clarsimp)
-  fix A::"real^'a^'a" and x::"real ^ 'a" assume "\<parallel>x\<parallel> = 1"
-  have obs:"\<forall>x. \<parallel>x\<parallel> = 1 \<longrightarrow> (\<parallel>A *v x\<parallel>) \<le> sqrt ((\<parallel>transpose A ** A\<parallel>\<^sub>o\<^sub>p)) * (\<parallel>x\<parallel>)"
-    using norm_matrix_vec_mult_le_transpose by blast
-  have "(\<parallel>A\<parallel>\<^sub>o\<^sub>p) \<le> sqrt ((\<parallel>transpose A ** A\<parallel>\<^sub>o\<^sub>p))"
-    using op_norm_set_proptys(3) apply(rule cSup_least) using obs by clarsimp
-  then have "((\<parallel>A\<parallel>\<^sub>o\<^sub>p))\<^sup>2 \<le> (\<parallel>transpose A ** A\<parallel>\<^sub>o\<^sub>p)"
-    using power_mono[of "(\<parallel>A\<parallel>\<^sub>o\<^sub>p)" _ 2] norm_matrix_le_op_norm_ge_0 by force
-  also have "... \<le> (\<parallel>transpose A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>A\<parallel>\<^sub>o\<^sub>p)"
-    using op_norm_matrix_matrix_mult_le by blast
-  finally have "((\<parallel>A\<parallel>\<^sub>o\<^sub>p))\<^sup>2 \<le> (\<parallel>transpose A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>A\<parallel>\<^sub>o\<^sub>p)"  by linarith
-  hence "(\<parallel>A\<parallel>\<^sub>o\<^sub>p) \<le> (\<parallel>transpose A\<parallel>\<^sub>o\<^sub>p)"
-    using sq_le_cancel[of "(\<parallel>A\<parallel>\<^sub>o\<^sub>p)"] norm_matrix_le_op_norm_ge_0 by blast
-  thus "(\<parallel>A *v x\<parallel>) \<le> op_norm (\<chi> i j. A $ j $ i)"
-    unfolding transpose_def using \<open>\<parallel>x\<parallel> = 1\<close> order_trans norm_matrix_le_op_norm by blast 
-qed
+  unfolding norm_sqrd_matrix_def by transfer (rule op_norm_le_transpose)
 
 lemma norm_eq_norm_transpose[simp]: "\<parallel>A\<^sup>\<dagger>\<parallel> = \<parallel>A\<parallel>"
   using norm_le_transpose[of A] and norm_le_transpose[of "A\<^sup>\<dagger>"] by simp
 
 lemma norm_column_le_norm: "\<parallel>A $$ i\<parallel> \<le> \<parallel>A\<parallel>"
   using norm_vec_mult_le[of "A\<^sup>\<dagger>" "\<e> i"] by simp
-
 
 instantiation sqrd_matrix :: (finite) real_normed_algebra_1
 begin
@@ -602,7 +509,7 @@ lemma sq_mtx_one_idty: "1 * A = A" "A * 1 = A" for A::"'a sqrd_matrix"
   by(transfer, transfer, unfold mat_def matrix_matrix_mult_def, simp add: vec_eq_iff)+
 
 lemma sq_mtx_norm_1: "\<parallel>(1::'a sqrd_matrix)\<parallel> = 1"
-  unfolding one_sqrd_matrix_def norm_sqrd_matrix_def apply simp
+  unfolding one_sqrd_matrix_def norm_sqrd_matrix_def apply(simp add: op_norm_def)
   apply(subst cSup_eq[of _ 1])
   using ex_norm_eq_1 by auto
 
@@ -706,8 +613,7 @@ lemma mtx_vec_prod_has_derivative_mtx_vec_prod:
   assumes "\<And> i j. D (\<lambda>t. (A t) $$ i $ j) \<mapsto> (\<lambda>\<tau>. \<tau> *\<^sub>R (A' t) $$ i $ j) (at t within s)"
     and "(\<lambda>\<tau>. \<tau> *\<^sub>R (A' t) *\<^sub>V x) = g'"
   shows "D (\<lambda>t. A t *\<^sub>V x) \<mapsto> g' at t within s"
-  using assms(2) apply safe apply(rule ssubst[of g' "(\<lambda>\<tau>. \<tau> *\<^sub>R (A' t) *\<^sub>V x)"], simp) 
-  unfolding sq_mtx_vec_mult_sum_cols 
+  using assms(2) unfolding sq_mtx_vec_mult_sum_cols apply safe 
   apply(rule_tac f'1="\<lambda>i \<tau>. \<tau> *\<^sub>R  (x $ i *\<^sub>R \<c>\<o>\<l> i (A' t))" in derivative_eq_intros(9))
    apply(simp_all add: scaleR_right.sum)
   apply(rule_tac g'1="\<lambda>\<tau>. \<tau> *\<^sub>R \<c>\<o>\<l> i (A' t)" in derivative_eq_intros(4), simp_all add: mult.commute)
