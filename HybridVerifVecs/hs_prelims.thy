@@ -1,5 +1,5 @@
 theory hs_prelims
-  imports "Ordinary_Differential_Equations.Initial_Value_Problem"
+  imports "Ordinary_Differential_Equations.Picard_Lindeloef_Qualitative"
 
 begin
 
@@ -86,6 +86,23 @@ lemma sq_le_cancel:
   and "(a::real) \<ge> 0 \<Longrightarrow> b \<ge> 0 \<Longrightarrow> a^2 \<le> a * b \<Longrightarrow> a \<le> b"
    apply(metis less_eq_real_def mult.commute mult_le_cancel_left semiring_normalization_rules(29))
   by(metis less_eq_real_def mult_le_cancel_left semiring_normalization_rules(29))
+
+lemma abs_le_eq: 
+  shows "(r::real) > 0 \<Longrightarrow> (\<bar>x\<bar> < r) = (-r < x \<and> x < r)"
+    and "(r::real) > 0 \<Longrightarrow> (\<bar>x\<bar> \<le> r) = (-r \<le> x \<and> x \<le> r)"
+  by linarith linarith
+
+lemma real_ivl_eqs:
+  assumes "0 < r"
+  shows "ball x r = {x-r<--< x+r}"         and "{x-r<--< x+r} = {x-r<..< x+r}"
+    and "ball (r / 2) (r / 2) = {0<--<r}"  and "{0<--<r} = {0<..<r}"
+    and "ball 0 r = {-r<--<r}"             and "{-r<--<r} = {-r<..<r}"
+    and "cball x r = {x-r--x+r}"           and "{x-r--x+r} = {x-r..x+r}"
+    and "cball (r / 2) (r / 2) = {0--r}"   and "{0--r} = {0..r}"
+    and "cball 0 r = {-r--r}"              and "{-r--r} = {-r..r}"
+  unfolding open_segment_eq_real_ivl closed_segment_eq_real_ivl
+  using assms apply(auto simp: cball_def ball_def dist_norm)
+  by(simp_all add: field_simps)
 
 named_theorems trig_simps "simplification rules for trigonometric identities"
 
@@ -232,7 +249,37 @@ lemma "D (\<lambda>t. v - a * t) = (\<lambda>x. - a) on T"
 
 thm poly_derivatives
 
+
 subsection\<open> Multivariable Derivatives \<close>
+
+lemma add_solves:
+  assumes "D x = x' on (\<lambda>\<tau>. \<tau> + t) ` T"
+  shows "D (\<lambda>\<tau>. x (\<tau> + t)) = (\<lambda>\<tau>. x' (\<tau> + t)) on T"
+  apply(subgoal_tac "D (x \<circ> (\<lambda>\<tau>. \<tau> + t)) = (\<lambda>\<tau>. 1 *\<^sub>R x' (\<tau> + t)) on T")
+  apply(simp add: comp_def, rule has_vderiv_on_compose) 
+  using assms apply blast
+  apply(rule_tac f'1="\<lambda> x. 1 " and g'1="\<lambda> x. 0" in derivative_intros(191))
+  by(rule derivative_intros, simp)+ simp_all
+
+lemma eventually_at_within_mono:
+  assumes "t \<in> interior T" and "T \<subseteq> S" 
+    and "eventually P (at t within T)"
+  shows "eventually P (at t within S)"
+  by (meson assms eventually_within_interior interior_mono subsetD)
+
+lemma netlimit_at_within_mono: 
+  fixes t::"'a::{perfect_space,t2_space}"
+  assumes "t \<in> interior T" and "T \<subseteq> S"
+  shows "netlimit (at t within S) = t"
+  using assms(1) interior_mono[OF \<open>T \<subseteq> S\<close>] netlimit_within_interior by auto
+  
+lemma has_derivative_at_within_mono:
+  assumes "(t::real) \<in> interior T" and "T \<subseteq> S"
+    and "D f \<mapsto> f' at t within T"
+  shows "D f \<mapsto> f' at t within S"
+  using assms(3) apply(unfold has_derivative_def tendsto_iff, safe)
+  unfolding netlimit_at_within_mono[OF assms(1,2)] netlimit_within_interior[OF assms(1)]
+  by (rule eventually_at_within_mono[OF assms(1,2)]) simp
 
 lemma eventually_all_finite2:
   fixes P :: "('a::finite) \<Rightarrow> 'b \<Rightarrow> bool"
@@ -368,101 +415,85 @@ section\<open> Ordinary Differential Equations \<close>
 
 subsection\<open> Picard-Lindeloef \<close>
 
-named_theorems ubc_definitions "definitions used in the locale unique_on_bounded_closed"
-
-declare unique_on_bounded_closed_def [ubc_definitions]
-    and unique_on_bounded_closed_axioms_def [ubc_definitions]
-    and unique_on_closed_def [ubc_definitions]
-    and compact_interval_def [ubc_definitions]
-    and compact_interval_axioms_def [ubc_definitions]
-    and self_mapping_def [ubc_definitions]
-    and self_mapping_axioms_def [ubc_definitions]
-    and continuous_rhs_def [ubc_definitions]
-    and closed_domain_def [ubc_definitions]
-    and global_lipschitz_def [ubc_definitions]
-    and interval_def [ubc_definitions]
-    and nonempty_set_def [ubc_definitions]
-
-lemma(in unique_on_bounded_closed) unique_on_bounded_closed_on_compact_subset:
-  assumes "t0 \<in> T'" and "x0 \<in> X" and "T' \<subseteq> T" and "compact_interval T'" 
-  shows "unique_on_bounded_closed t0 T' x0 f X L"
-  apply(unfold_locales)
-  using \<open>compact_interval T'\<close> unfolding ubc_definitions apply simp+
-  using \<open>t0 \<in> T'\<close> apply simp
-  using \<open>x0 \<in> X\<close> apply simp
-  using \<open>T' \<subseteq> T\<close> self_mapping apply blast
-  using \<open>T' \<subseteq> T\<close> continuous apply(meson Sigma_mono continuous_on_subset subsetI)
-  using \<open>T' \<subseteq> T\<close> lipschitz apply blast
-  using \<open>T' \<subseteq> T\<close> lipschitz_bound by blast
-
 text\<open> The next locale makes explicit the conditions for applying the Picard-Lindeloef theorem. This
 guarantees a unique solution for every initial value problem represented with a vector field 
 @{term f} and an initial time @{term t\<^sub>0}. It is mostly a simplified reformulation of the approach 
 taken by the people who created the Ordinary Differential Equations entry in the AFP. \<close>
 
-locale picard_lindeloef_closed_ivl =
-  fixes f::"real \<Rightarrow> ('a::banach) \<Rightarrow> 'a" and T::"real set" and L t\<^sub>0::real
+definition "ivp_sols f T S t\<^sub>0 s = 
+  {x |x. (D x = (\<lambda>t. f t (x t)) on T) \<and> x t\<^sub>0 = s \<and> x \<in> T \<rightarrow> S}"
+
+lemma ivp_solsI: 
+  assumes "D x = (\<lambda>t. f t (x t)) on T" "x t\<^sub>0 = s" "x \<in> T \<rightarrow> S"
+  shows "x \<in> ivp_sols f T S t\<^sub>0 s"
+  using assms unfolding ivp_sols_def by blast
+
+lemma ivp_solsD:
+  assumes "x \<in> ivp_sols f T S t\<^sub>0 s"
+  shows "D x = (\<lambda>t. f t (x t)) on T"
+    and "x t\<^sub>0 = s" and "x \<in> T \<rightarrow> S"
+  using assms unfolding ivp_sols_def by auto
+
+locale picard_lindeloef =
+  fixes f::"real \<Rightarrow> ('a::{heine_borel,banach}) \<Rightarrow> 'a" and T::"real set" and S::"'a set" and t\<^sub>0::real
   assumes init_time: "t\<^sub>0 \<in> T"
-    and cont_vec_field: "continuous_on (T \<times> UNIV) (\<lambda>(t, x). f t x)"
-    and lipschitz_vec_field: "\<And>t. t \<in> T \<Longrightarrow> L-lipschitz_on UNIV (\<lambda>x. f t x)"
-    and nonempty_time: "T \<noteq> {}"
+    and cont_vec_field: "\<forall>s \<in> S. continuous_on T (\<lambda>t. f t s)"
+    and lipschitz_vec_field: "local_lipschitz T S f"
     and interval_time: "is_interval T"
-    and compact_time: "compact T"
-    and lipschitz_bound: "\<And>s t. s \<in> T \<Longrightarrow> t \<in> T \<Longrightarrow> abs (s - t) * L < 1"
+    and open_domain: "open T" "open S"
 begin
 
-sublocale continuous_rhs T UNIV
-  using cont_vec_field unfolding continuous_rhs_def by simp
+sublocale ll_on_open_it T f S t\<^sub>0
+  by (unfold_locales) (auto simp: cont_vec_field lipschitz_vec_field interval_time open_domain) 
 
-sublocale global_lipschitz T UNIV
-  using lipschitz_vec_field unfolding global_lipschitz_def by simp
+lemmas subintervalI = closed_segment_subset_domain
 
-sublocale closed_domain UNIV
-  unfolding closed_domain_def by simp
+lemma subintervalD:
+  assumes "{t\<^sub>1--t\<^sub>2} \<subseteq> T"
+  shows "t\<^sub>1 \<in> T" and "t\<^sub>2 \<in> T"
+  using assms by auto
 
-sublocale compact_interval
-  using interval_time nonempty_time compact_time by(unfold_locales, auto)
+lemma csols_eq: "csols t\<^sub>0 s = {(x, t). t \<in> T \<and>  x \<in> ivp_sols f {t\<^sub>0--t} S t\<^sub>0 s}"
+  unfolding ivp_sols_def csols_def solves_ode_def using subintervalI[OF init_time] by auto
 
-lemma is_ubc:
-  shows "unique_on_bounded_closed t\<^sub>0 T s f UNIV L"
-  using nonempty_time unfolding ubc_definitions apply safe
-  by(auto simp: compact_time interval_time init_time 
-      lipschitz_vec_field lipschitz_bound cont_vec_field)
-
-lemma min_max_interval:
-  obtains m M where "T = {m .. M}"
-  using T_def by blast
-
-lemma subinterval:
-  assumes "t \<in> T"
-  obtains t1 where  "{t .. t1} \<subseteq> T"
-  using assms interval_subset_is_interval interval_time by fastforce 
-
-lemma subsegment:
-  assumes "t1 \<in> T" and "t2 \<in> T"
-  shows "{t1 -- t2} \<subseteq> T"
-  using assms closed_segment_subset_domain by blast
+abbreviation "ex_ivl s \<equiv> existence_ivl t\<^sub>0 s"
 
 lemma unique_solution:
-  assumes "D x = (\<lambda>t. f t (x t)) on T" and "x t\<^sub>0 = s"
-    and "D y = (\<lambda>t. f t (y t)) on T" and "y t\<^sub>0 = s" and "t \<in> T" 
+  assumes xivp: "D x = (\<lambda>t. f t (x t)) on {t\<^sub>0--t}" "x t\<^sub>0 = s" "x \<in> {t\<^sub>0--t} \<rightarrow> S" and "t \<in> T"
+    and yivp: "D y = (\<lambda>t. f t (y t)) on {t\<^sub>0--t}" "y t\<^sub>0 = s" "y \<in> {t\<^sub>0--t} \<rightarrow> S" and "s \<in> S" 
   shows "x t = y t"
-  apply(rule unique_on_bounded_closed.unique_solution)
-  using is_ubc[of s] apply blast
-  using assms unfolding solves_ode_def by auto
+proof-
+  have "(x, t) \<in> csols t\<^sub>0 s"
+    using xivp \<open>t \<in> T\<close> unfolding csols_eq ivp_sols_def by auto
+  hence ivl_fact: "{t\<^sub>0--t} \<subseteq> ex_ivl s"
+    unfolding existence_ivl_def by auto
+  have obs: "\<And>z T'. t\<^sub>0 \<in> T' \<and> is_interval T' \<and> T' \<subseteq> ex_ivl s \<and> (z solves_ode f) T' S \<Longrightarrow> 
+  z t\<^sub>0 = flow t\<^sub>0 s t\<^sub>0 \<Longrightarrow> (\<forall>t\<in>T'. z t = flow t\<^sub>0 s t)"
+    using flow_usolves_ode[OF init_time \<open>s \<in> S\<close>] unfolding usolves_ode_from_def by blast
+  have "\<forall>\<tau>\<in>{t\<^sub>0--t}. x \<tau> = flow t\<^sub>0 s \<tau>"
+    using obs[of "{t\<^sub>0--t}" x] xivp ivl_fact flow_initial_time[OF init_time  \<open>s \<in> S\<close>] 
+    unfolding solves_ode_def by simp
+  also have "\<forall>\<tau>\<in>{t\<^sub>0--t}. y \<tau> = flow t\<^sub>0 s \<tau>"
+    using obs[of "{t\<^sub>0--t}" y] yivp ivl_fact flow_initial_time[OF init_time  \<open>s \<in> S\<close>] 
+    unfolding solves_ode_def by simp
+  ultimately show "x t = y t"
+    by auto
+qed
 
-abbreviation "phi t s \<equiv> (apply_bcontfun (unique_on_bounded_closed.fixed_point t\<^sub>0 T s f UNIV)) t"
-
-lemma fixpoint_solves_ivp:
-  shows "D (\<lambda>t. phi t s) = (\<lambda>t. f t (phi t s)) on T" and "phi t\<^sub>0 s = s"
-  using is_ubc[of s] unique_on_bounded_closed.fixed_point_solution[of t\<^sub>0 T s f UNIV L] 
-    unique_on_bounded_closed.fixed_point_iv[of t\<^sub>0 T s f UNIV L] 
-  unfolding solves_ode_def by auto
-
-lemma fixpoint_usolves_ivp:
-  assumes "D x = (\<lambda>t. f t (x t)) on T" and "x t\<^sub>0 = s" and "t \<in> T"
-  shows "x t = phi t s"
-  using unique_solution[OF assms(1,2)] fixpoint_solves_ivp assms by blast
+lemma solution_eq_flow:
+  assumes xivp: "D x = (\<lambda>t. f t (x t)) on ex_ivl s" "x t\<^sub>0 = s" "x \<in> ex_ivl s \<rightarrow> S" 
+    and "t \<in> ex_ivl s" and "s \<in> S" 
+  shows "x t = flow t\<^sub>0 s t"
+proof-
+  have obs: "\<And>z T'. t\<^sub>0 \<in> T' \<and> is_interval T' \<and> T' \<subseteq> ex_ivl s \<and> (z solves_ode f) T' S \<Longrightarrow> 
+  z t\<^sub>0 = flow t\<^sub>0 s t\<^sub>0 \<Longrightarrow> (\<forall>t\<in>T'. z t = flow t\<^sub>0 s t)"
+    using flow_usolves_ode[OF init_time \<open>s \<in> S\<close>] unfolding usolves_ode_from_def by blast
+  have "\<forall>\<tau>\<in>ex_ivl s. x \<tau> = flow t\<^sub>0 s \<tau>"
+    using obs[of "ex_ivl s" x] existence_ivl_initial_time[OF init_time \<open>s \<in> S\<close>]
+      xivp flow_initial_time[OF init_time \<open>s \<in> S\<close>] unfolding solves_ode_def by simp
+  thus "x t = flow t\<^sub>0 s t"
+    by (auto simp: \<open>t \<in> ex_ivl s\<close>)
+qed
 
 end
 
@@ -474,98 +505,206 @@ not depend explicitly on time), and it sets the initial time equal to 0. This is
 towards formalizing the flow of a differential equation, i.e. the function that maps every point to 
 the unique trajectory tangent to the vector field. \<close>
 
-locale local_flow = picard_lindeloef_closed_ivl "(\<lambda> t. f)" T L 0 
-  for f::"('a::banach) \<Rightarrow> 'a" and T L +
+locale local_flow = picard_lindeloef "(\<lambda> t. f)" T S 0 
+  for f::"('a::{heine_borel,banach}) \<Rightarrow> 'a" and T S L +
   fixes \<phi> :: "real \<Rightarrow> 'a \<Rightarrow> 'a"
-  assumes ivp: "D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on T" "\<phi> 0 s = s "
+  assumes ivp:"\<And> t s. t \<in> T \<Longrightarrow> s \<in> S \<Longrightarrow> (D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on {0--t})"
+              "\<And> s. s \<in> S \<Longrightarrow> \<phi> 0 s = s"
+              "\<And> t s. t \<in> T \<Longrightarrow> s \<in> S \<Longrightarrow> (\<lambda>t. \<phi> t s) \<in> {0--t} \<rightarrow> S"
 begin
 
-lemma is_fixpoint:
-  assumes "t \<in> T"
-  shows "\<phi> t s = phi t s"
-  using fixpoint_usolves_ivp[OF ivp assms] by simp
+lemma in_ivp_sols_ivl: 
+  assumes "t \<in> T" "s \<in> S"
+  shows "(\<lambda>t. \<phi> t s) \<in> ivp_sols (\<lambda>t. f) {0--t} S 0 s"
+  apply(rule ivp_solsI)
+  using ivp assms by auto
 
-lemma solves_ode:
-  shows "((\<lambda> t. \<phi> t s) solves_ode (\<lambda> t. f))T UNIV"
-  unfolding solves_ode_def using ivp(1) by auto
+lemma ex_ivl_eq:
+  assumes "s \<in> S"
+  shows "ex_ivl s = T"
+  using existence_ivl_subset[of s] apply safe
+  unfolding existence_ivl_def csols_eq 
+  using in_ivp_sols_ivl[OF _ assms] by blast
 
-lemma usolves_ivp:
-  assumes "D x = (\<lambda>t. f (x t)) on T" and "x 0 = s" and "t \<in> T"
-  shows "x t = \<phi> t s"
-  using fixpoint_usolves_ivp[OF assms] is_fixpoint[OF assms(3)] by simp
+lemma in_domain:
+  assumes "s \<in> S"
+  shows "(\<lambda>t. \<phi> t s) \<in> T \<rightarrow> S"
+  unfolding ex_ivl_eq[symmetric] existence_ivl_def
+  using local.mem_existence_ivl_subset ivp(3)[OF _ assms] by blast
 
-lemma usolves_on_compact_subset:
-  assumes "T' \<subseteq> T" and "compact_interval T'" and "0 \<in> T'"
-      and x_solves: "D x = (f \<circ> x) on T'" and "t \<in> T'"
-  shows "\<phi> t (x 0) = x t"
+lemma has_derivative_on_open1: 
+  assumes  "t > 0" "t \<in> T" "s \<in> S"
+  obtains B where "t \<in> B" and "open B" and "B \<subseteq> T"
+    and "D (\<lambda>\<tau>. \<phi> \<tau> s) \<mapsto> (\<lambda>\<tau>. \<tau> *\<^sub>R f (\<phi> t s)) at t within B" 
 proof-
-  have obs1:"D (\<lambda> \<tau>. \<phi> \<tau> (x 0)) = (\<lambda> \<tau>. f (\<phi> \<tau> (x 0))) on T'" 
-    using \<open>T' \<subseteq> T\<close> has_vderiv_on_subset ivp by blast
-  have "unique_on_bounded_closed 0 T (x 0) (\<lambda> \<tau>. f) UNIV L"
-    using is_ubc by blast
-  hence obs2:"unique_on_bounded_closed 0 T' (x 0) (\<lambda> \<tau>. f) UNIV L" 
-    using unique_on_bounded_closed.unique_on_bounded_closed_on_compact_subset
-    \<open>0 \<in> T'\<close> \<open>T' \<subseteq> T\<close> and \<open>compact_interval T'\<close> by blast
-  moreover have "\<phi> 0 (x 0) = x 0" 
-    using ivp by blast
-  show "\<phi> t (x 0) = x t" 
-    apply(rule unique_on_bounded_closed.unique_solution[OF obs2])
-    unfolding solves_ode_def using x_solves apply(simp_all add: ivp \<open>t \<in> T'\<close>)
-    using has_vderiv_on_subset[OF ivp(1) \<open>T' \<subseteq> T\<close>] by blast
+  obtain r::real where rHyp: "r > 0" "ball t r \<subseteq> T"
+    using open_contains_ball_eq open_domain(1) \<open>t \<in> T\<close> by blast
+  moreover have "t + r/2 > 0"
+    using \<open>r > 0\<close> \<open>t > 0\<close> by auto
+  moreover have "{0--t} \<subseteq> T" 
+    using subintervalI[OF init_time \<open>t \<in> T\<close>] .
+  ultimately have subs: "{0<--<t + r/2} \<subseteq> T"
+    unfolding abs_le_eq abs_le_eq real_ivl_eqs[OF \<open>t > 0\<close>] real_ivl_eqs[OF \<open>t + r/2 > 0\<close>] 
+    by clarify (case_tac "t < x", simp_all add: cball_def ball_def dist_norm subset_eq field_simps)
+  have "t + r/2 \<in> T"
+    using rHyp unfolding real_ivl_eqs[OF rHyp(1)] by (simp add: subset_eq)
+  hence "{0--t + r/2} \<subseteq> T"
+    using subintervalI[OF init_time] by blast
+  hence "(D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on {0--(t + r/2)})"
+    using ivp(1)[OF _ \<open>s \<in> S\<close>] by auto
+  hence vderiv: "(D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on {0<--<t + r/2})"
+    apply(rule has_vderiv_on_subset)
+    unfolding real_ivl_eqs[OF \<open>t + r/2 > 0\<close>] by auto
+  have "t \<in> {0<--<t + r/2}"
+    unfolding real_ivl_eqs[OF \<open>t + r/2 > 0\<close>] using rHyp \<open>t > 0\<close> by simp
+  moreover have "D (\<lambda>\<tau>. \<phi> \<tau> s) \<mapsto> (\<lambda>\<tau>. \<tau> *\<^sub>R f (\<phi> t s)) (at t within {0<--<t + r/2})"
+    using vderiv calculation unfolding has_vderiv_on_def has_vector_derivative_def by blast
+  moreover have "open {0<--<t + r/2}"
+    unfolding real_ivl_eqs[OF \<open>t + r/2 > 0\<close>] by simp
+  ultimately show ?thesis
+    using subs that by blast
 qed
 
-lemma add_solves:
-  assumes "D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on (\<lambda>\<tau>. \<tau> + t) ` T"
-  shows "D (\<lambda>\<tau>. \<phi> (\<tau> + t) s) = (\<lambda>\<tau>. f (\<phi> (\<tau> + t) s)) on T"
-  apply(subgoal_tac "D ((\<lambda>\<tau>. \<phi> \<tau> s) \<circ> (\<lambda>\<tau>. \<tau> + t)) = (\<lambda>x. 1 *\<^sub>R f (\<phi> (x + t) s)) on T")
-  apply(simp add: comp_def, rule has_vderiv_on_compose) 
-  using assms apply blast
-  apply(rule_tac f'1="\<lambda> x. 1 " and g'1="\<lambda> x. 0" in derivative_intros(191))
-  by(rule derivative_intros, simp)+ simp_all
+lemma has_derivative_on_open2: 
+  assumes "t < 0" "t \<in> T" "s \<in> S"
+  obtains B where "t \<in> B" and "open B" and "B \<subseteq> T"
+    and "D (\<lambda>\<tau>. \<phi> \<tau> s) \<mapsto> (\<lambda>\<tau>. \<tau> *\<^sub>R f (\<phi> t s)) at t within B" 
+proof-
+  obtain r::real where rHyp: "r > 0" "ball t r \<subseteq> T"
+    using open_contains_ball_eq open_domain(1) \<open>t \<in> T\<close> by blast
+  moreover have "t - r/2 < 0"
+    using \<open>r > 0\<close> \<open>t < 0\<close> by auto
+  moreover have "{0--t} \<subseteq> T" 
+    using subintervalI[OF init_time \<open>t \<in> T\<close>] .
+  ultimately have subs: "{0<--<t - r/2} \<subseteq> T"
+    unfolding open_segment_eq_real_ivl closed_segment_eq_real_ivl
+      real_ivl_eqs[OF rHyp(1)] by(auto simp: subset_eq)
+  have "t - r/2 \<in> T"
+    using rHyp unfolding real_ivl_eqs by (simp add: subset_eq)
+  hence "{0--t - r/2} \<subseteq> T"
+    using subintervalI[OF init_time] by blast
+  hence "(D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on {0--(t - r/2)})"
+    using ivp(1)[OF _ \<open>s \<in> S\<close>] by auto
+  hence vderiv: "(D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on {0<--<t - r/2})"
+    apply(rule has_vderiv_on_subset)
+    unfolding open_segment_eq_real_ivl closed_segment_eq_real_ivl by auto
+  have "t \<in> {0<--<t - r/2}"
+    unfolding open_segment_eq_real_ivl using rHyp \<open>t < 0\<close> by simp
+  moreover have "D (\<lambda>\<tau>. \<phi> \<tau> s) \<mapsto> (\<lambda>\<tau>. \<tau> *\<^sub>R f (\<phi> t s)) (at t within {0<--<t - r/2})"
+    using vderiv calculation unfolding has_vderiv_on_def has_vector_derivative_def by blast
+  moreover have "open {0<--<t - r/2}"
+    unfolding open_segment_eq_real_ivl by simp
+  ultimately show ?thesis
+    using subs that by blast
+qed
+
+lemma has_derivative_on_open3: 
+  assumes "s \<in> S"
+  obtains B where "0 \<in> B" and "open B" and "B \<subseteq> T"
+    and "D (\<lambda>\<tau>. \<phi> \<tau> s) \<mapsto> (\<lambda>\<tau>. \<tau> *\<^sub>R f (\<phi> 0 s)) at 0 within B" 
+proof-
+  obtain r::real where rHyp: "r > 0" "ball 0 r \<subseteq> T"
+    using open_contains_ball_eq open_domain(1) init_time by blast
+  hence "r/2 \<in> T" "-r/2 \<in> T" "r/2 > 0"
+    unfolding real_ivl_eqs by auto
+  hence subs: "{0--r/2} \<subseteq> T" "{0--(-r/2)} \<subseteq> T"
+    using subintervalI[OF init_time] by auto
+  hence "(D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on {0--r/2})"
+    "(D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on {0--(-r/2)})"
+    using ivp(1)[OF _ \<open>s \<in> S\<close>] by auto
+  also have "{0--r/2} = {0--r/2} \<union> closure {0--r/2} \<inter> closure {0--(-r/2)}"
+    "{0--(-r/2)} = {0--(-r/2)} \<union> closure {0--r/2} \<inter> closure {0--(-r/2)}"
+    unfolding closed_segment_eq_real_ivl \<open>r/2 > 0\<close> by auto
+  ultimately have vderivs:
+    "(D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on {0--r/2} \<union> closure {0--r/2} \<inter> closure {0--(-r/2)})"
+    "(D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on {0--(-r/2)} \<union> closure {0--r/2} \<inter> closure {0--(-r/2)})"
+    unfolding closed_segment_eq_real_ivl \<open>r/2 > 0\<close> by auto
+  have obs: "0 \<in> {-r/2<--<r/2}"
+    unfolding open_segment_eq_real_ivl using \<open>r/2 > 0\<close> by auto
+  have union: "{-r/2--r/2} = {0--r/2} \<union> {0--(-r/2)}"
+    unfolding closed_segment_eq_real_ivl by auto
+  hence "(D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on {-r/2--r/2})"
+    using has_vderiv_on_union[OF vderivs] by simp
+  hence "(D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on {-r/2<--<r/2})"
+    using has_vderiv_on_subset[OF _ segment_open_subset_closed[of "-r/2" "r/2"]] by auto
+  hence "D (\<lambda>\<tau>. \<phi> \<tau> s) \<mapsto> (\<lambda>\<tau>. \<tau> *\<^sub>R f (\<phi> 0 s)) (at 0 within {-r/2<--<r/2})"
+    unfolding has_vderiv_on_def has_vector_derivative_def using obs by blast
+  moreover have "open {-r/2<--<r/2}"
+    unfolding open_segment_eq_real_ivl by simp
+  moreover have "{-r/2<--<r/2} \<subseteq> T"
+    using subs union segment_open_subset_closed by blast 
+  ultimately show ?thesis
+    using obs that by blast
+qed
+
+lemma has_derivative_on_open: 
+  assumes "t \<in> T" "s \<in> S"
+  obtains B where "t \<in> B" and "open B" and "B \<subseteq> T"
+    and "D (\<lambda>\<tau>. \<phi> \<tau> s) \<mapsto> (\<lambda>\<tau>. \<tau> *\<^sub>R f (\<phi> t s)) at t within B" 
+  apply(subgoal_tac "t < 0 \<or> t = 0 \<or> t > 0")
+  using has_derivative_on_open1[OF _ assms] has_derivative_on_open2[OF _ assms]
+    has_derivative_on_open3[OF \<open>s \<in> S\<close>] by blast force
+
+lemma has_vderiv_on_domain:
+  assumes "s \<in> S"
+  shows "D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on T"
+proof(unfold has_vderiv_on_def has_vector_derivative_def, clarsimp)
+  fix t assume "t \<in> T"
+  then obtain B where "t \<in> B" and "open B" and "B \<subseteq> T" 
+    and Dhyp: "D (\<lambda>t. \<phi> t s) \<mapsto> (\<lambda>xa. xa *\<^sub>R f (\<phi> t s)) at t within B"
+    using assms has_derivative_on_open[OF \<open>t \<in> T\<close>] by blast
+  hence "t \<in> interior B"
+    using interior_eq by auto
+  thus "D (\<lambda>t. \<phi> t s) \<mapsto> (\<lambda>xa. xa *\<^sub>R f (\<phi> t s)) at t within T"
+    using has_derivative_at_within_mono[OF _ \<open>B \<subseteq> T\<close> Dhyp] by blast
+qed
+
+lemma eq_solution:
+  assumes "x \<in> (ivp_sols (\<lambda>t. f) T S 0 s)" and "t \<in> T" and "s \<in> S"
+  shows "x t = \<phi> t s"
+proof-
+  have "D x = (\<lambda>t. f (x t)) on (ex_ivl s)" and "x 0 = s" and "x \<in> (ex_ivl s) \<rightarrow> S"
+    using ivp_solsD[OF assms(1)] unfolding ex_ivl_eq[OF \<open>s \<in> S\<close>] by auto
+  note solution_eq_flow[OF this]
+  hence "x t = flow 0 s t"
+    unfolding ex_ivl_eq[OF \<open>s \<in> S\<close>] using assms by blast
+  also have "\<phi> t s = flow 0 s t"
+    apply(rule solution_eq_flow ivp)
+        apply(simp_all add: assms(2,3) ivp(2)[OF \<open>s \<in> S\<close>])
+    unfolding ex_ivl_eq[OF \<open>s \<in> S\<close>] by (auto simp: has_vderiv_on_domain assms in_domain)
+  ultimately show "x t = \<phi> t s"
+    by simp
+qed
+
+lemma in_ivp_sols: 
+  assumes "s \<in> S"
+  shows "(\<lambda>t. \<phi> t s) \<in> ivp_sols (\<lambda>t. f) T S 0 s"
+  using has_vderiv_on_domain ivp(2) in_domain apply(rule ivp_solsI)
+  using assms by auto
+
+lemma eq_solution_ivl:
+  assumes xivp: "D x = (\<lambda>t. f (x t)) on {0--t}" "x 0 = s" "x \<in> {0--t} \<rightarrow> S" 
+    and indom: "t \<in> T" "s \<in> S"
+  shows "x t = \<phi> t s"
+  apply(rule unique_solution[OF xivp \<open>t \<in> T\<close>])
+  using \<open>s \<in> S\<close> ivp indom by auto
 
 lemma is_monoid_action:
-  assumes "D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on (\<lambda>t. t + t2) ` T" and "t1 \<in> T"
+  assumes "D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on (\<lambda>\<tau>. \<tau> + t\<^sub>2) ` {0--t\<^sub>1}" 
+    and "(\<lambda>t. \<phi> (t + t\<^sub>2) s) \<in> {0--t\<^sub>1} \<rightarrow> S"
+    and indom: "t\<^sub>1 \<in> T" "s \<in> S" "t\<^sub>2 \<in> {0--t\<^sub>1}"
   shows "\<phi> 0 s = s"
-    and "\<phi> (t1 + t2) s = \<phi> t1 (\<phi> t2 s)"
+    and "\<phi> (t\<^sub>1 + t\<^sub>2) s = \<phi> t\<^sub>1 (\<phi> t\<^sub>2 s)"
 proof-
   show "\<phi> 0 s = s"
-    using ivp by simp
-  have "\<phi> (0 + t2) s = \<phi> t2 s" 
+    using ivp indom(1,2) by simp
+  have "\<phi> (0 + t\<^sub>2) s = \<phi> t\<^sub>2 s" 
     by simp
-  thus "\<phi> (t1 + t2) s = \<phi> t1 (\<phi> t2 s)"
-    using usolves_ivp[OF add_solves[OF assms(1)]] assms(2) by blast
+  also have "\<phi> t\<^sub>2 s \<in> S"
+    using \<open>t\<^sub>2 \<in> {0--t\<^sub>1}\<close> ivp(3)[OF \<open>t\<^sub>1 \<in> T\<close> \<open>s \<in> S\<close>] by auto
+  finally show "\<phi> (t\<^sub>1 + t\<^sub>2) s = \<phi> t\<^sub>1 (\<phi> t\<^sub>2 s)"
+    using eq_solution_ivl[OF add_solves[OF assms(1)]] assms by auto 
 qed
-
-
-end
-
-lemma flow_on_compact_subset:
-  assumes flow_on_big: "local_flow f T' L \<phi>" and "T \<subseteq> T'" 
-    and "compact_interval T" and "0 \<in> T"
-  shows "local_flow f T L \<phi>"
-proof(unfold local_flow_def local_flow_axioms_def, safe)
-  fix s show "\<phi> 0 s = s"
-    using local_flow.ivp(2) flow_on_big by blast
-  show "D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on T"
-    using assms solves_ode_on_subset[where T=T and S=T' and x="\<lambda>t. \<phi> t s" and X=UNIV]
-    unfolding local_flow_def local_flow_axioms_def solves_ode_def by force
-next
-  show "picard_lindeloef_closed_ivl (\<lambda>t. f) T L 0"
-    using assms apply(unfold local_flow_def local_flow_axioms_def)
-    apply(unfold picard_lindeloef_closed_ivl_def ubc_definitions)
-    apply(meson Sigma_mono continuous_on_subset subsetI)
-    by(simp_all add: subset_eq)
-qed
-
-text\<open> Finally, the flow exists when the unique solution is defined in all of @{text "\<real>"}. However,
-this is not viable in the current formalization as the compactness assumption cannot be applied to
-@{term "UNIV::real set"}. \<close>
-
-locale global_flow = local_flow f UNIV L \<phi> for f L \<phi>
-begin 
-
-lemma contradiction: "False"
-  using compact_time and not_compact_UNIV by simp
 
 end
 
@@ -574,22 +713,14 @@ subsubsection\<open> Example \<close>
 text\<open> Below there is an example showing the general methodolog to introduce pairs of vector fields 
 and their respective flows using the previous locales. \<close>
 
-lemma picard_lindeloef_closed_ivl_constant: 
-  "0 \<le> t \<Longrightarrow> picard_lindeloef_closed_ivl (\<lambda>t s. c) {0..t} (1 / (t + 1)) 0"
-  unfolding picard_lindeloef_closed_ivl_def 
-  by(simp add: nonempty_set_def lipschitz_on_def, clarsimp, simp)
-
-lemma line_vderiv_constant: "D (\<lambda>\<tau>. s + \<tau> *\<^sub>R c) = (\<lambda>t. c) on {0..t}"
+lemma line_vderiv_constant: "D (\<lambda>\<tau>. s + \<tau> *\<^sub>R c) = (\<lambda>t. c) on T"
   apply(rule_tac f'1="\<lambda> x. 0" and g'1="\<lambda> x. c" in derivative_intros(191))
   apply(rule derivative_intros, simp)+
   by simp_all
 
-lemma line_is_local_flow:
-  fixes c::"'a::banach"
-  assumes "0 \<le> t"
-  shows "local_flow (\<lambda> t. c) {0..t} (1/(t + 1)) (\<lambda> t s. s + t *\<^sub>R c)"
-  unfolding local_flow_def local_flow_axioms_def apply safe
-  using assms picard_lindeloef_closed_ivl_constant apply blast
+lemma line_is_local_flow: "local_flow (\<lambda> s. c) UNIV UNIV (\<lambda> t s. s + t *\<^sub>R c)"
+  apply(unfold_locales, simp_all add: local_lipschitz_def lipschitz_on_def, clarsimp)
+  apply(rule_tac x=1 in exI, clarsimp, rule_tac x="1/2" in exI, simp)
   using line_vderiv_constant by auto
 
 end

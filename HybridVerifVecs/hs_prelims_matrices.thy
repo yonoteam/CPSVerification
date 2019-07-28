@@ -310,7 +310,7 @@ of ODEs, and then we prove that IVPs arising from these satisfy the conditions f
 theorem (hence, they have a unique solution). \<close>
 
 lemma matrix_lipschitz_constant:
-  fixes A::"real^('n::finite)^'n"
+  fixes A::"real^'n^'n"
   shows "dist (A *v x) (A *v y) \<le> (real CARD('n))\<^sup>2 * (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x) * dist x y"
   unfolding dist_norm matrix_vector_mult_diff_distrib[symmetric]
 proof(subst mult_norm_matrix_sgn_eq[symmetric])
@@ -325,20 +325,12 @@ proof(subst mult_norm_matrix_sgn_eq[symmetric])
 qed
 
 lemma picard_lindeloef_linear_system:
-  fixes A::"real^'n^'n" 
-  assumes "0 < ((real CARD('n))\<^sup>2 * (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x))" (is "0 < ?L") 
-  assumes "0 \<le> t" and "t < 1/?L"
-  shows "picard_lindeloef_closed_ivl (\<lambda> t s. A *v s) {0..t} ?L 0"
-  apply unfold_locales apply(simp add: \<open>0 \<le> t\<close>)
-  subgoal by(simp, metis continuous_on_compose2 continuous_on_cong continuous_on_id 
-        continuous_on_snd matrix_vector_mult_linear_continuous_on top_greatest) 
-  subgoal using matrix_lipschitz_constant max_norm_ge_0 zero_compare_simps(4,12) 
-    unfolding lipschitz_on_def by blast
-  apply(simp_all add: assms)
-  subgoal for r s apply(subgoal_tac "\<bar>r - s\<bar> < 1/?L")
-     apply(subst (asm) pos_less_divide_eq[of ?L "\<bar>r - s\<bar>" 1])
-    using assms by auto
-  done
+  fixes A::"real^'n^'n"
+  defines "L \<equiv> (real CARD('n))\<^sup>2 * (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x)"
+  shows "picard_lindeloef (\<lambda> t s. A *v s) UNIV UNIV 0"
+  apply(unfold_locales, simp_all add: local_lipschitz_def lipschitz_on_def, clarsimp)
+  apply(rule_tac x=1 in exI, clarsimp, rule_tac x="L" in exI, safe)
+  using max_norm_ge_0[of A] unfolding assms by force (rule matrix_lipschitz_constant)
 
 section\<open> Matrix Exponential \<close>
 
@@ -666,27 +658,18 @@ lemma exp_has_vderiv_on_linear:
 
 lemma picard_lindeloef_sq_mtx:
   fixes A::"('n::finite) sqrd_matrix"
-  assumes "0 < ((real CARD('n))\<^sup>2 * (\<parallel>to_vec A\<parallel>\<^sub>m\<^sub>a\<^sub>x))" (is "0 < ?L") 
-  assumes "0 \<le> t" and "t < 1/?L"
-  shows "picard_lindeloef_closed_ivl (\<lambda> t s. A *\<^sub>V s) {0..t} ?L 0"
-  apply unfold_locales apply(simp add: \<open>0 \<le> t\<close>)
-  subgoal by(transfer, simp, metis continuous_on_compose2 continuous_on_cong continuous_on_id 
-        continuous_on_snd matrix_vector_mult_linear_continuous_on top_greatest) 
-  subgoal apply transfer using matrix_lipschitz_constant max_norm_ge_0 zero_compare_simps(4,12)
-    unfolding lipschitz_on_def by blast
-  apply(simp_all add: assms)
-  subgoal for r s apply(subgoal_tac "\<bar>r - s\<bar> < 1/?L")
-     apply(subst (asm) pos_less_divide_eq[of ?L "\<bar>r - s\<bar>" 1])
-    using assms by auto
-  done
+  defines "L \<equiv> (real CARD('n))\<^sup>2 * (\<parallel>to_vec A\<parallel>\<^sub>m\<^sub>a\<^sub>x)"
+  shows "picard_lindeloef (\<lambda> t s. A *\<^sub>V s) UNIV UNIV 0"
+  apply(unfold_locales, simp_all add: local_lipschitz_def lipschitz_on_def, clarsimp)
+  apply(rule_tac x=1 in exI, clarsimp, rule_tac x="L" in exI, safe)
+  using max_norm_ge_0[of "to_vec A"] unfolding assms apply force
+  by transfer (rule matrix_lipschitz_constant)
 
 lemma local_flow_exp:
   fixes A::"('n::finite) sqrd_matrix"
-  assumes "0 < ((real CARD('n))\<^sup>2 * (\<parallel>to_vec A\<parallel>\<^sub>m\<^sub>a\<^sub>x))" (is "0 < ?L") 
-  assumes "0 \<le> t" and "t < 1/?L"
-  shows "local_flow ((*\<^sub>V) A) {0..t} ?L (\<lambda>t s. exp (t *\<^sub>R A) *\<^sub>V s)"
+  shows "local_flow ((*\<^sub>V) A) UNIV UNIV (\<lambda>t s. exp (t *\<^sub>R A) *\<^sub>V s)"
   unfolding local_flow_def local_flow_axioms_def apply safe
-  using picard_lindeloef_sq_mtx assms apply blast
+  using picard_lindeloef_sq_mtx apply blast
   using exp_has_vderiv_on_linear[of 0] apply force
   by(auto simp: sq_mtx_one_vec)
 
