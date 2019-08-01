@@ -324,14 +324,6 @@ proof(subst mult_norm_matrix_sgn_eq[symmetric])
     using order_trans_rules(23) by blast
 qed
 
-lemma picard_lindeloef_linear_system:
-  fixes A::"real^'n^'n"
-  defines "L \<equiv> (real CARD('n))\<^sup>2 * (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x)"
-  shows "picard_lindeloef (\<lambda> t s. A *v s) UNIV UNIV 0"
-  apply(unfold_locales, simp_all add: local_lipschitz_def lipschitz_on_def, clarsimp)
-  apply(rule_tac x=1 in exI, clarsimp, rule_tac x="L" in exI, safe)
-  using max_norm_ge_0[of A] unfolding assms by force (rule matrix_lipschitz_constant)
-
 section\<open> Matrix Exponential \<close>
 
 text\<open> The general solution for linear systems of ODEs is an exponential function. Unfortunately, 
@@ -655,22 +647,5 @@ lemma exp_has_vderiv_on_linear:
     apply(rule_tac f'1="id" and g'1="\<lambda>x. 0" in derivative_eq_intros(11))
       apply(rule derivative_eq_intros)
   by(simp_all add: fun_eq_iff exp_times_scaleR_commute sq_mtx_times_vec_assoc)
-
-lemma picard_lindeloef_sq_mtx:
-  fixes A::"('n::finite) sqrd_matrix"
-  defines "L \<equiv> (real CARD('n))\<^sup>2 * (\<parallel>to_vec A\<parallel>\<^sub>m\<^sub>a\<^sub>x)"
-  shows "picard_lindeloef (\<lambda> t s. A *\<^sub>V s) UNIV UNIV 0"
-  apply(unfold_locales, simp_all add: local_lipschitz_def lipschitz_on_def, clarsimp)
-  apply(rule_tac x=1 in exI, clarsimp, rule_tac x="L" in exI, safe)
-  using max_norm_ge_0[of "to_vec A"] unfolding assms apply force
-  by transfer (rule matrix_lipschitz_constant)
-
-lemma local_flow_exp:
-  fixes A::"('n::finite) sqrd_matrix"
-  shows "local_flow ((*\<^sub>V) A) UNIV UNIV (\<lambda>t s. exp (t *\<^sub>R A) *\<^sub>V s)"
-  unfolding local_flow_def local_flow_axioms_def apply safe
-  using picard_lindeloef_sq_mtx apply blast
-  using exp_has_vderiv_on_linear[of 0] apply force
-  by(auto simp: sq_mtx_one_vec)
 
 end

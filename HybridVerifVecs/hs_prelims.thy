@@ -11,10 +11,10 @@ section\<open> Miscellaneous \<close>
 
 subsection\<open> Functions \<close>
 
-lemma case_of_fst[simp]:"(\<lambda>x. case x of (t, x) \<Rightarrow> f t) = (\<lambda> x. (f \<circ> fst) x)"
+lemma case_of_fst[simp]: "(\<lambda>x. case x of (t, x) \<Rightarrow> f t) = (\<lambda> x. (f \<circ> fst) x)"
   by auto
 
-lemma case_of_snd[simp]:"(\<lambda>x. case x of (t, x) \<Rightarrow> f x) = (\<lambda> x. (f \<circ> snd) x)"
+lemma case_of_snd[simp]: "(\<lambda>x. case x of (t, x) \<Rightarrow> f x) = (\<lambda> x. (f \<circ> snd) x)"
   by auto
 
 subsection\<open> Orders \<close>
@@ -72,7 +72,7 @@ proof-
     by blast
 qed
 
-subsection\<open> Real Numbers \<close>
+subsection\<open> Real numbers \<close>
 
 lemma sqrt_le_itself: "1 \<le> x \<Longrightarrow> sqrt x \<le> x"
   by (metis basic_trans_rules(23) monoid_mult_class.power2_eq_square more_arith_simps(6) 
@@ -135,15 +135,16 @@ qed
 
 thm trig_simps
 
-section\<open> Calculus \<close>
+section\<open> Analisys \<close>
 
-subsection \<open> Single variable Derivatives \<close>
+subsection \<open> Single variable derivatives \<close>
 
 notation has_derivative ("(1(D _ \<mapsto> (_))/ _)" [65,65] 61)
 notation has_vderiv_on ("(1 D _ = (_)/ on _)" [65,65] 61)
 notation norm ("(1\<parallel>_\<parallel>)" [65] 61)
 
-lemma exp_scaleR_has_derivative_right[derivative_intros]: (* by Fabian Immler *)
+(* by Fabian Immler and Johannes Hölzl *)
+lemma exp_scaleR_has_derivative_right[derivative_intros]: 
   fixes f::"real \<Rightarrow> real"
   assumes "D f \<mapsto> f' at x within s" and "(\<lambda>h. f' h *\<^sub>R (exp (f x *\<^sub>R A) * A)) = g'"
   shows "D (\<lambda>x. exp (f x *\<^sub>R A)) \<mapsto> g' at x within s"
@@ -199,6 +200,12 @@ lemma has_vderiv_on_compose_eq:
   apply(subst ssubst[of h], simp)
   using assms has_vderiv_on_compose by auto
 
+lemma vderiv_on_compose_add [derivative_intros]:
+  assumes "D x = x' on (\<lambda>\<tau>. \<tau> + t) ` T"
+  shows "D (\<lambda>\<tau>. x (\<tau> + t)) = (\<lambda>\<tau>. x' (\<tau> + t)) on T"
+  apply(rule has_vderiv_on_compose_eq[OF assms])
+  by(auto intro: derivative_intros)
+
 lemma [poly_derivatives]:
   assumes "(a::real) \<noteq> 0" and "D f = f' on T" and "g = (\<lambda>t. (f' t)/a)"
   shows "D (\<lambda>t. (f t)/a) = g on T"
@@ -250,16 +257,7 @@ lemma "D (\<lambda>t. v - a * t) = (\<lambda>x. - a) on T"
 thm poly_derivatives
 
 
-subsection\<open> Multivariable Derivatives \<close>
-
-lemma add_solves:
-  assumes "D x = x' on (\<lambda>\<tau>. \<tau> + t) ` T"
-  shows "D (\<lambda>\<tau>. x (\<tau> + t)) = (\<lambda>\<tau>. x' (\<tau> + t)) on T"
-  apply(subgoal_tac "D (x \<circ> (\<lambda>\<tau>. \<tau> + t)) = (\<lambda>\<tau>. 1 *\<^sub>R x' (\<tau> + t)) on T")
-  apply(simp add: comp_def, rule has_vderiv_on_compose) 
-  using assms apply blast
-  apply(rule_tac f'1="\<lambda> x. 1 " and g'1="\<lambda> x. 0" in derivative_intros(191))
-  by(rule derivative_intros, simp)+ simp_all
+subsection\<open> Filters \<close>
 
 lemma eventually_at_within_mono:
   assumes "t \<in> interior T" and "T \<subseteq> S" 
@@ -308,6 +306,9 @@ proof-
     unfolding eventually_def 
     using h2 eventually_mono by auto
 qed
+
+
+subsection\<open> Multivariable derivatives \<close>
 
 lemma frechet_vec_lambda:
   fixes f::"real \<Rightarrow> ('a::banach)^('m::finite)" and x::real and T::"real set" 
@@ -410,317 +411,5 @@ lemma has_vderiv_on_vec_nth:
   shows "D (\<lambda>t. x t $ i) = (\<lambda>t. f (x t) $ i) on T"
   using assms unfolding has_vderiv_on_def has_vector_derivative_def apply clarsimp
   by(rule has_derivative_vec_nth, simp)
-
-section\<open> Ordinary Differential Equations \<close>
-
-subsection\<open> Picard-Lindeloef \<close>
-
-text\<open> The next locale makes explicit the conditions for applying the Picard-Lindeloef theorem. This
-guarantees a unique solution for every initial value problem represented with a vector field 
-@{term f} and an initial time @{term t\<^sub>0}. It is mostly a simplified reformulation of the approach 
-taken by the people who created the Ordinary Differential Equations entry in the AFP. \<close>
-
-definition "ivp_sols f T S t\<^sub>0 s = 
-  {x |x. (D x = (\<lambda>t. f t (x t)) on T) \<and> x t\<^sub>0 = s \<and> x \<in> T \<rightarrow> S}"
-
-lemma ivp_solsI: 
-  assumes "D x = (\<lambda>t. f t (x t)) on T" "x t\<^sub>0 = s" "x \<in> T \<rightarrow> S"
-  shows "x \<in> ivp_sols f T S t\<^sub>0 s"
-  using assms unfolding ivp_sols_def by blast
-
-lemma ivp_solsD:
-  assumes "x \<in> ivp_sols f T S t\<^sub>0 s"
-  shows "D x = (\<lambda>t. f t (x t)) on T"
-    and "x t\<^sub>0 = s" and "x \<in> T \<rightarrow> S"
-  using assms unfolding ivp_sols_def by auto
-
-locale picard_lindeloef =
-  fixes f::"real \<Rightarrow> ('a::{heine_borel,banach}) \<Rightarrow> 'a" and T::"real set" and S::"'a set" and t\<^sub>0::real
-  assumes init_time: "t\<^sub>0 \<in> T"
-    and cont_vec_field: "\<forall>s \<in> S. continuous_on T (\<lambda>t. f t s)"
-    and lipschitz_vec_field: "local_lipschitz T S f"
-    and interval_time: "is_interval T"
-    and open_domain: "open T" "open S"
-begin
-
-sublocale ll_on_open_it T f S t\<^sub>0
-  by (unfold_locales) (auto simp: cont_vec_field lipschitz_vec_field interval_time open_domain) 
-
-lemmas subintervalI = closed_segment_subset_domain
-
-lemma subintervalD:
-  assumes "{t\<^sub>1--t\<^sub>2} \<subseteq> T"
-  shows "t\<^sub>1 \<in> T" and "t\<^sub>2 \<in> T"
-  using assms by auto
-
-lemma csols_eq: "csols t\<^sub>0 s = {(x, t). t \<in> T \<and>  x \<in> ivp_sols f {t\<^sub>0--t} S t\<^sub>0 s}"
-  unfolding ivp_sols_def csols_def solves_ode_def using subintervalI[OF init_time] by auto
-
-abbreviation "ex_ivl s \<equiv> existence_ivl t\<^sub>0 s"
-
-lemma unique_solution:
-  assumes xivp: "D x = (\<lambda>t. f t (x t)) on {t\<^sub>0--t}" "x t\<^sub>0 = s" "x \<in> {t\<^sub>0--t} \<rightarrow> S" and "t \<in> T"
-    and yivp: "D y = (\<lambda>t. f t (y t)) on {t\<^sub>0--t}" "y t\<^sub>0 = s" "y \<in> {t\<^sub>0--t} \<rightarrow> S" and "s \<in> S" 
-  shows "x t = y t"
-proof-
-  have "(x, t) \<in> csols t\<^sub>0 s"
-    using xivp \<open>t \<in> T\<close> unfolding csols_eq ivp_sols_def by auto
-  hence ivl_fact: "{t\<^sub>0--t} \<subseteq> ex_ivl s"
-    unfolding existence_ivl_def by auto
-  have obs: "\<And>z T'. t\<^sub>0 \<in> T' \<and> is_interval T' \<and> T' \<subseteq> ex_ivl s \<and> (z solves_ode f) T' S \<Longrightarrow> 
-  z t\<^sub>0 = flow t\<^sub>0 s t\<^sub>0 \<Longrightarrow> (\<forall>t\<in>T'. z t = flow t\<^sub>0 s t)"
-    using flow_usolves_ode[OF init_time \<open>s \<in> S\<close>] unfolding usolves_ode_from_def by blast
-  have "\<forall>\<tau>\<in>{t\<^sub>0--t}. x \<tau> = flow t\<^sub>0 s \<tau>"
-    using obs[of "{t\<^sub>0--t}" x] xivp ivl_fact flow_initial_time[OF init_time  \<open>s \<in> S\<close>] 
-    unfolding solves_ode_def by simp
-  also have "\<forall>\<tau>\<in>{t\<^sub>0--t}. y \<tau> = flow t\<^sub>0 s \<tau>"
-    using obs[of "{t\<^sub>0--t}" y] yivp ivl_fact flow_initial_time[OF init_time  \<open>s \<in> S\<close>] 
-    unfolding solves_ode_def by simp
-  ultimately show "x t = y t"
-    by auto
-qed
-
-lemma solution_eq_flow:
-  assumes xivp: "D x = (\<lambda>t. f t (x t)) on ex_ivl s" "x t\<^sub>0 = s" "x \<in> ex_ivl s \<rightarrow> S" 
-    and "t \<in> ex_ivl s" and "s \<in> S" 
-  shows "x t = flow t\<^sub>0 s t"
-proof-
-  have obs: "\<And>z T'. t\<^sub>0 \<in> T' \<and> is_interval T' \<and> T' \<subseteq> ex_ivl s \<and> (z solves_ode f) T' S \<Longrightarrow> 
-  z t\<^sub>0 = flow t\<^sub>0 s t\<^sub>0 \<Longrightarrow> (\<forall>t\<in>T'. z t = flow t\<^sub>0 s t)"
-    using flow_usolves_ode[OF init_time \<open>s \<in> S\<close>] unfolding usolves_ode_from_def by blast
-  have "\<forall>\<tau>\<in>ex_ivl s. x \<tau> = flow t\<^sub>0 s \<tau>"
-    using obs[of "ex_ivl s" x] existence_ivl_initial_time[OF init_time \<open>s \<in> S\<close>]
-      xivp flow_initial_time[OF init_time \<open>s \<in> S\<close>] unfolding solves_ode_def by simp
-  thus "x t = flow t\<^sub>0 s t"
-    by (auto simp: \<open>t \<in> ex_ivl s\<close>)
-qed
-
-end
-
-subsection\<open> Flows for ODEs \<close>
-
-text\<open> This locale is a particular case of the previous one. It makes the unique solution for initial 
-value problems explicit, it restricts the vector field to reflect autonomous systems (those that do 
-not depend explicitly on time), and it sets the initial time equal to 0. This is the first step 
-towards formalizing the flow of a differential equation, i.e. the function that maps every point to 
-the unique trajectory tangent to the vector field. \<close>
-
-locale local_flow = picard_lindeloef "(\<lambda> t. f)" T S 0 
-  for f::"('a::{heine_borel,banach}) \<Rightarrow> 'a" and T S L +
-  fixes \<phi> :: "real \<Rightarrow> 'a \<Rightarrow> 'a"
-  assumes ivp:"\<And> t s. t \<in> T \<Longrightarrow> s \<in> S \<Longrightarrow> (D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on {0--t})"
-              "\<And> s. s \<in> S \<Longrightarrow> \<phi> 0 s = s"
-              "\<And> t s. t \<in> T \<Longrightarrow> s \<in> S \<Longrightarrow> (\<lambda>t. \<phi> t s) \<in> {0--t} \<rightarrow> S"
-begin
-
-lemma in_ivp_sols_ivl: 
-  assumes "t \<in> T" "s \<in> S"
-  shows "(\<lambda>t. \<phi> t s) \<in> ivp_sols (\<lambda>t. f) {0--t} S 0 s"
-  apply(rule ivp_solsI)
-  using ivp assms by auto
-
-lemma ex_ivl_eq:
-  assumes "s \<in> S"
-  shows "ex_ivl s = T"
-  using existence_ivl_subset[of s] apply safe
-  unfolding existence_ivl_def csols_eq 
-  using in_ivp_sols_ivl[OF _ assms] by blast
-
-lemma in_domain:
-  assumes "s \<in> S"
-  shows "(\<lambda>t. \<phi> t s) \<in> T \<rightarrow> S"
-  unfolding ex_ivl_eq[symmetric] existence_ivl_def
-  using local.mem_existence_ivl_subset ivp(3)[OF _ assms] by blast
-
-lemma has_derivative_on_open1: 
-  assumes  "t > 0" "t \<in> T" "s \<in> S"
-  obtains B where "t \<in> B" and "open B" and "B \<subseteq> T"
-    and "D (\<lambda>\<tau>. \<phi> \<tau> s) \<mapsto> (\<lambda>\<tau>. \<tau> *\<^sub>R f (\<phi> t s)) at t within B" 
-proof-
-  obtain r::real where rHyp: "r > 0" "ball t r \<subseteq> T"
-    using open_contains_ball_eq open_domain(1) \<open>t \<in> T\<close> by blast
-  moreover have "t + r/2 > 0"
-    using \<open>r > 0\<close> \<open>t > 0\<close> by auto
-  moreover have "{0--t} \<subseteq> T" 
-    using subintervalI[OF init_time \<open>t \<in> T\<close>] .
-  ultimately have subs: "{0<--<t + r/2} \<subseteq> T"
-    unfolding abs_le_eq abs_le_eq real_ivl_eqs[OF \<open>t > 0\<close>] real_ivl_eqs[OF \<open>t + r/2 > 0\<close>] 
-    by clarify (case_tac "t < x", simp_all add: cball_def ball_def dist_norm subset_eq field_simps)
-  have "t + r/2 \<in> T"
-    using rHyp unfolding real_ivl_eqs[OF rHyp(1)] by (simp add: subset_eq)
-  hence "{0--t + r/2} \<subseteq> T"
-    using subintervalI[OF init_time] by blast
-  hence "(D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on {0--(t + r/2)})"
-    using ivp(1)[OF _ \<open>s \<in> S\<close>] by auto
-  hence vderiv: "(D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on {0<--<t + r/2})"
-    apply(rule has_vderiv_on_subset)
-    unfolding real_ivl_eqs[OF \<open>t + r/2 > 0\<close>] by auto
-  have "t \<in> {0<--<t + r/2}"
-    unfolding real_ivl_eqs[OF \<open>t + r/2 > 0\<close>] using rHyp \<open>t > 0\<close> by simp
-  moreover have "D (\<lambda>\<tau>. \<phi> \<tau> s) \<mapsto> (\<lambda>\<tau>. \<tau> *\<^sub>R f (\<phi> t s)) (at t within {0<--<t + r/2})"
-    using vderiv calculation unfolding has_vderiv_on_def has_vector_derivative_def by blast
-  moreover have "open {0<--<t + r/2}"
-    unfolding real_ivl_eqs[OF \<open>t + r/2 > 0\<close>] by simp
-  ultimately show ?thesis
-    using subs that by blast
-qed
-
-lemma has_derivative_on_open2: 
-  assumes "t < 0" "t \<in> T" "s \<in> S"
-  obtains B where "t \<in> B" and "open B" and "B \<subseteq> T"
-    and "D (\<lambda>\<tau>. \<phi> \<tau> s) \<mapsto> (\<lambda>\<tau>. \<tau> *\<^sub>R f (\<phi> t s)) at t within B" 
-proof-
-  obtain r::real where rHyp: "r > 0" "ball t r \<subseteq> T"
-    using open_contains_ball_eq open_domain(1) \<open>t \<in> T\<close> by blast
-  moreover have "t - r/2 < 0"
-    using \<open>r > 0\<close> \<open>t < 0\<close> by auto
-  moreover have "{0--t} \<subseteq> T" 
-    using subintervalI[OF init_time \<open>t \<in> T\<close>] .
-  ultimately have subs: "{0<--<t - r/2} \<subseteq> T"
-    unfolding open_segment_eq_real_ivl closed_segment_eq_real_ivl
-      real_ivl_eqs[OF rHyp(1)] by(auto simp: subset_eq)
-  have "t - r/2 \<in> T"
-    using rHyp unfolding real_ivl_eqs by (simp add: subset_eq)
-  hence "{0--t - r/2} \<subseteq> T"
-    using subintervalI[OF init_time] by blast
-  hence "(D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on {0--(t - r/2)})"
-    using ivp(1)[OF _ \<open>s \<in> S\<close>] by auto
-  hence vderiv: "(D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on {0<--<t - r/2})"
-    apply(rule has_vderiv_on_subset)
-    unfolding open_segment_eq_real_ivl closed_segment_eq_real_ivl by auto
-  have "t \<in> {0<--<t - r/2}"
-    unfolding open_segment_eq_real_ivl using rHyp \<open>t < 0\<close> by simp
-  moreover have "D (\<lambda>\<tau>. \<phi> \<tau> s) \<mapsto> (\<lambda>\<tau>. \<tau> *\<^sub>R f (\<phi> t s)) (at t within {0<--<t - r/2})"
-    using vderiv calculation unfolding has_vderiv_on_def has_vector_derivative_def by blast
-  moreover have "open {0<--<t - r/2}"
-    unfolding open_segment_eq_real_ivl by simp
-  ultimately show ?thesis
-    using subs that by blast
-qed
-
-lemma has_derivative_on_open3: 
-  assumes "s \<in> S"
-  obtains B where "0 \<in> B" and "open B" and "B \<subseteq> T"
-    and "D (\<lambda>\<tau>. \<phi> \<tau> s) \<mapsto> (\<lambda>\<tau>. \<tau> *\<^sub>R f (\<phi> 0 s)) at 0 within B" 
-proof-
-  obtain r::real where rHyp: "r > 0" "ball 0 r \<subseteq> T"
-    using open_contains_ball_eq open_domain(1) init_time by blast
-  hence "r/2 \<in> T" "-r/2 \<in> T" "r/2 > 0"
-    unfolding real_ivl_eqs by auto
-  hence subs: "{0--r/2} \<subseteq> T" "{0--(-r/2)} \<subseteq> T"
-    using subintervalI[OF init_time] by auto
-  hence "(D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on {0--r/2})"
-    "(D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on {0--(-r/2)})"
-    using ivp(1)[OF _ \<open>s \<in> S\<close>] by auto
-  also have "{0--r/2} = {0--r/2} \<union> closure {0--r/2} \<inter> closure {0--(-r/2)}"
-    "{0--(-r/2)} = {0--(-r/2)} \<union> closure {0--r/2} \<inter> closure {0--(-r/2)}"
-    unfolding closed_segment_eq_real_ivl \<open>r/2 > 0\<close> by auto
-  ultimately have vderivs:
-    "(D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on {0--r/2} \<union> closure {0--r/2} \<inter> closure {0--(-r/2)})"
-    "(D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on {0--(-r/2)} \<union> closure {0--r/2} \<inter> closure {0--(-r/2)})"
-    unfolding closed_segment_eq_real_ivl \<open>r/2 > 0\<close> by auto
-  have obs: "0 \<in> {-r/2<--<r/2}"
-    unfolding open_segment_eq_real_ivl using \<open>r/2 > 0\<close> by auto
-  have union: "{-r/2--r/2} = {0--r/2} \<union> {0--(-r/2)}"
-    unfolding closed_segment_eq_real_ivl by auto
-  hence "(D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on {-r/2--r/2})"
-    using has_vderiv_on_union[OF vderivs] by simp
-  hence "(D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on {-r/2<--<r/2})"
-    using has_vderiv_on_subset[OF _ segment_open_subset_closed[of "-r/2" "r/2"]] by auto
-  hence "D (\<lambda>\<tau>. \<phi> \<tau> s) \<mapsto> (\<lambda>\<tau>. \<tau> *\<^sub>R f (\<phi> 0 s)) (at 0 within {-r/2<--<r/2})"
-    unfolding has_vderiv_on_def has_vector_derivative_def using obs by blast
-  moreover have "open {-r/2<--<r/2}"
-    unfolding open_segment_eq_real_ivl by simp
-  moreover have "{-r/2<--<r/2} \<subseteq> T"
-    using subs union segment_open_subset_closed by blast 
-  ultimately show ?thesis
-    using obs that by blast
-qed
-
-lemma has_derivative_on_open: 
-  assumes "t \<in> T" "s \<in> S"
-  obtains B where "t \<in> B" and "open B" and "B \<subseteq> T"
-    and "D (\<lambda>\<tau>. \<phi> \<tau> s) \<mapsto> (\<lambda>\<tau>. \<tau> *\<^sub>R f (\<phi> t s)) at t within B" 
-  apply(subgoal_tac "t < 0 \<or> t = 0 \<or> t > 0")
-  using has_derivative_on_open1[OF _ assms] has_derivative_on_open2[OF _ assms]
-    has_derivative_on_open3[OF \<open>s \<in> S\<close>] by blast force
-
-lemma has_vderiv_on_domain:
-  assumes "s \<in> S"
-  shows "D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on T"
-proof(unfold has_vderiv_on_def has_vector_derivative_def, clarsimp)
-  fix t assume "t \<in> T"
-  then obtain B where "t \<in> B" and "open B" and "B \<subseteq> T" 
-    and Dhyp: "D (\<lambda>t. \<phi> t s) \<mapsto> (\<lambda>xa. xa *\<^sub>R f (\<phi> t s)) at t within B"
-    using assms has_derivative_on_open[OF \<open>t \<in> T\<close>] by blast
-  hence "t \<in> interior B"
-    using interior_eq by auto
-  thus "D (\<lambda>t. \<phi> t s) \<mapsto> (\<lambda>xa. xa *\<^sub>R f (\<phi> t s)) at t within T"
-    using has_derivative_at_within_mono[OF _ \<open>B \<subseteq> T\<close> Dhyp] by blast
-qed
-
-lemma eq_solution:
-  assumes "x \<in> (ivp_sols (\<lambda>t. f) T S 0 s)" and "t \<in> T" and "s \<in> S"
-  shows "x t = \<phi> t s"
-proof-
-  have "D x = (\<lambda>t. f (x t)) on (ex_ivl s)" and "x 0 = s" and "x \<in> (ex_ivl s) \<rightarrow> S"
-    using ivp_solsD[OF assms(1)] unfolding ex_ivl_eq[OF \<open>s \<in> S\<close>] by auto
-  note solution_eq_flow[OF this]
-  hence "x t = flow 0 s t"
-    unfolding ex_ivl_eq[OF \<open>s \<in> S\<close>] using assms by blast
-  also have "\<phi> t s = flow 0 s t"
-    apply(rule solution_eq_flow ivp)
-        apply(simp_all add: assms(2,3) ivp(2)[OF \<open>s \<in> S\<close>])
-    unfolding ex_ivl_eq[OF \<open>s \<in> S\<close>] by (auto simp: has_vderiv_on_domain assms in_domain)
-  ultimately show "x t = \<phi> t s"
-    by simp
-qed
-
-lemma in_ivp_sols: 
-  assumes "s \<in> S"
-  shows "(\<lambda>t. \<phi> t s) \<in> ivp_sols (\<lambda>t. f) T S 0 s"
-  using has_vderiv_on_domain ivp(2) in_domain apply(rule ivp_solsI)
-  using assms by auto
-
-lemma eq_solution_ivl:
-  assumes xivp: "D x = (\<lambda>t. f (x t)) on {0--t}" "x 0 = s" "x \<in> {0--t} \<rightarrow> S" 
-    and indom: "t \<in> T" "s \<in> S"
-  shows "x t = \<phi> t s"
-  apply(rule unique_solution[OF xivp \<open>t \<in> T\<close>])
-  using \<open>s \<in> S\<close> ivp indom by auto
-
-lemma is_monoid_action:
-  assumes "D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on (\<lambda>\<tau>. \<tau> + t\<^sub>2) ` {0--t\<^sub>1}" 
-    and "(\<lambda>t. \<phi> (t + t\<^sub>2) s) \<in> {0--t\<^sub>1} \<rightarrow> S"
-    and indom: "t\<^sub>1 \<in> T" "s \<in> S" "t\<^sub>2 \<in> {0--t\<^sub>1}"
-  shows "\<phi> 0 s = s"
-    and "\<phi> (t\<^sub>1 + t\<^sub>2) s = \<phi> t\<^sub>1 (\<phi> t\<^sub>2 s)"
-proof-
-  show "\<phi> 0 s = s"
-    using ivp indom(1,2) by simp
-  have "\<phi> (0 + t\<^sub>2) s = \<phi> t\<^sub>2 s" 
-    by simp
-  also have "\<phi> t\<^sub>2 s \<in> S"
-    using \<open>t\<^sub>2 \<in> {0--t\<^sub>1}\<close> ivp(3)[OF \<open>t\<^sub>1 \<in> T\<close> \<open>s \<in> S\<close>] by auto
-  finally show "\<phi> (t\<^sub>1 + t\<^sub>2) s = \<phi> t\<^sub>1 (\<phi> t\<^sub>2 s)"
-    using eq_solution_ivl[OF add_solves[OF assms(1)]] assms by auto 
-qed
-
-end
-
-subsubsection\<open> Example \<close>
-
-text\<open> Below there is an example showing the general methodolog to introduce pairs of vector fields 
-and their respective flows using the previous locales. \<close>
-
-lemma line_vderiv_constant: "D (\<lambda>\<tau>. s + \<tau> *\<^sub>R c) = (\<lambda>t. c) on T"
-  apply(rule_tac f'1="\<lambda> x. 0" and g'1="\<lambda> x. c" in derivative_intros(191))
-  apply(rule derivative_intros, simp)+
-  by simp_all
-
-lemma line_is_local_flow: "local_flow (\<lambda> s. c) UNIV UNIV (\<lambda> t s. s + t *\<^sub>R c)"
-  apply(unfold_locales, simp_all add: local_lipschitz_def lipschitz_on_def, clarsimp)
-  apply(rule_tac x=1 in exI, clarsimp, rule_tac x="1/2" in exI, simp)
-  using line_vderiv_constant by auto
 
 end
