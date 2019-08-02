@@ -231,7 +231,7 @@ abbreviation circular_motion_matrix :: "real^2^2"
 notation circular_motion_matrix ("C")
 
 lemma circle_invariant: 
-  "(\<lambda>s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2) is_diff_invariant_of (*v) C along UNIV UNIV from 0"
+  "diff_invariant (\<lambda>s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2) ((*v) C) UNIV UNIV 0 G"
   apply(rule_tac diff_invariant_rules, clarsimp, simp, clarsimp)
   apply(frule_tac i="0" in has_vderiv_on_vec_nth, drule_tac i="1" in has_vderiv_on_vec_nth)
   apply(rule_tac S="UNIV" in has_vderiv_on_subset)
@@ -239,8 +239,7 @@ lemma circle_invariant:
 
 lemma circular_motion_invariants:
   "\<lceil>\<lambda>s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2\<rceil> \<le> wp (x\<acute>=(*v) C & G) \<lceil>\<lambda>s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2\<rceil>"
-  apply(rule_tac I="\<lambda>s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2" in dInvariant)
-  using circle_invariant by auto
+  unfolding dInvariant using circle_invariant by auto
 
 \<comment> \<open>Proof of the same specification by providing solutions:\<close>
 
@@ -360,14 +359,14 @@ subsubsection\<open> Bouncing Ball with invariants \<close>
 
 text\<open> We prove again the bouncing ball but this time with differential invariants. \<close>
 
-lemma gravity_invariant: "(\<lambda>s. s $ 2 < 0) is_diff_invariant_of (*v) A along UNIV UNIV from 0"
+lemma gravity_invariant: "diff_invariant (\<lambda>s. s $ 2 < 0) ((*v) A) UNIV UNIV 0 G"
   apply(rule_tac \<theta>'="\<lambda>s. 0" and \<nu>'="\<lambda>s. 0" in diff_invariant_rules(3), clarsimp, simp, clarsimp)
   apply(drule_tac i="2" in has_vderiv_on_vec_nth)
   apply(rule_tac S="UNIV" in has_vderiv_on_subset)
   by(auto intro!: poly_derivatives simp: vec_eq_iff matrix_vector_mult_def)
 
 lemma energy_conservation_invariant: 
-  "(\<lambda>s. 2 \<cdot> s$2 \<cdot> s$0 - 2 \<cdot> s$2 \<cdot> h - s$1 \<cdot> s $ 1 = 0) is_diff_invariant_of (*v) A along UNIV UNIV from 0"
+  "diff_invariant (\<lambda>s. 2 \<cdot> s$2 \<cdot> s$0 - 2 \<cdot> s$2 \<cdot> h - s$1 \<cdot> s $ 1 = 0) ((*v) A) UNIV UNIV 0 G"
   apply(rule diff_invariant_rules, simp, simp, clarify)
   apply(frule_tac i="2" in has_vderiv_on_vec_nth)
   apply(frule_tac i="1" in has_vderiv_on_vec_nth)
@@ -389,10 +388,10 @@ lemma bouncing_ball_invariants:
   apply(rule_tac I="\<lambda>s. 0 \<le> s$0 \<and> I s" in dI, simp, simp, simp)
     apply(subst wp_guard_eq, simp)
     apply(rule order.trans[where b="\<lceil>I\<rceil>"], simp)
-    apply(rule dInvariant[of I], unfold dinv)
+    apply(unfold dInvariant dinv)
      apply(intro diff_invariant_rules(4))
   using gravity_invariant apply force
-  using energy_conservation_invariant apply(force, force)
+  using energy_conservation_invariant apply force
    apply(simp only: p2ndf_ndf2p_wp)
    apply(rule wp_if_then_else)
   by(auto simp: bb_real_arith le_fun_def)
@@ -489,7 +488,7 @@ lemma bouncing_ball_K:
    apply(subst local_flow.wp_g_orbit[OF local_flow_exp], simp)
   unfolding wp_nd_fun2 apply(simp add: f2r_def cond_def plus_nd_fun_def 
       times_nd_fun_def kcomp_def sq_mtx_vec_prod_eq)
-  unfolding UNIV_3 apply(simp add: exp_cnst_acc_sq_mtx_simps, safe)
+  unfolding UNIV_3 image_le_pred apply(simp add: exp_cnst_acc_sq_mtx_simps, safe)
   subgoal for x using bb_real_arith(3)[of "x $ 2"]
     by (simp add: add.commute mult.commute)
   subgoal for x \<tau> using bb_real_arith(4)[where g="x $ 2" and v="x $ 1"]

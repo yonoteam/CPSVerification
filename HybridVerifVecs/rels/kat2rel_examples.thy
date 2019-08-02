@@ -232,7 +232,7 @@ abbreviation circular_motion_matrix :: "real^2^2"
 notation circular_motion_matrix ("C")
 
 lemma circle_invariant: 
-  "(\<lambda>s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2) is_diff_invariant_of (*v) C along UNIV UNIV from 0"
+  "diff_invariant (\<lambda>s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2) ((*v) C) UNIV UNIV 0 G"
   apply(rule_tac diff_invariant_rules, clarsimp, simp, clarsimp)
   apply(frule_tac i="0" in has_vderiv_on_vec_nth, drule_tac i="1" in has_vderiv_on_vec_nth)
   apply(rule_tac S="UNIV" in has_vderiv_on_subset)
@@ -240,8 +240,7 @@ lemma circle_invariant:
 
 lemma circular_motion_invariants: "rel_kat.H 
   \<lceil>\<lambda>s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2\<rceil> (x\<acute>=(*v) C & G) \<lceil>\<lambda>s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2\<rceil>"
-  apply(rule_tac I="\<lambda>s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2" in dInvariant)
-  using circle_invariant by auto
+  unfolding dInvariant using circle_invariant by auto
 
 \<comment> \<open>Proof of the same specification by providing solutions:\<close>
 
@@ -359,14 +358,14 @@ subsubsection\<open> Bouncing Ball with invariants \<close>
 
 text\<open> We prove again the bouncing ball but this time with differential invariants. \<close>
 
-lemma gravity_invariant: "(\<lambda>s. s $ 2 < 0) is_diff_invariant_of (*v) A along UNIV UNIV from 0"
+lemma gravity_invariant: "diff_invariant (\<lambda>s. s $ 2 < 0) ((*v) A) UNIV UNIV 0 G"
   apply(rule_tac \<theta>'="\<lambda>s. 0" and \<nu>'="\<lambda>s. 0" in diff_invariant_rules(3), clarsimp, simp, clarsimp)
   apply(drule_tac i="2" in has_vderiv_on_vec_nth)
   apply(rule_tac S="UNIV" in has_vderiv_on_subset)
   by(auto intro!: poly_derivatives simp: vec_eq_iff matrix_vector_mult_def)
 
 lemma energy_conservation_invariant: 
-  "(\<lambda>s. 2 \<cdot> s$2 \<cdot> s$0 - 2 \<cdot> s$2 \<cdot> h - s$1 \<cdot> s $ 1 = 0) is_diff_invariant_of (*v) A along UNIV UNIV from 0"
+  "diff_invariant (\<lambda>s. 2 \<cdot> s$2 \<cdot> s$0 - 2 \<cdot> s$2 \<cdot> h - s$1 \<cdot> s $ 1 = 0) ((*v) A) UNIV UNIV 0 G"
   apply(rule diff_invariant_rules, simp, simp, clarify)
   apply(frule_tac i="2" in has_vderiv_on_vec_nth)
   apply(frule_tac i="1" in has_vderiv_on_vec_nth)
@@ -374,20 +373,23 @@ lemma energy_conservation_invariant:
   apply(rule_tac S="UNIV" in has_vderiv_on_subset)
   by(auto intro!: poly_derivatives simp: vec_eq_iff matrix_vector_mult_def)
 
-lemma bouncing_ball_invariants: "rel_kat.H 
+lemma bouncing_ball_invariants: 
+  fixes h::real
+  defines dinv: "I \<equiv> \<lambda>s::real^3. s $ 2 < 0 \<and> 2 \<cdot> s$2 \<cdot> s$0 - 2 \<cdot> s$2 \<cdot> h - (s$1 \<cdot> s$1) = 0"
+  shows "rel_kat.H 
   \<lceil>\<lambda>s. 0 \<le> s $ 0 \<and> s $ 0 = h \<and> s $ 1 = 0 \<and> 0 > s $ 2\<rceil> 
   (((x\<acute>=(*v) A & (\<lambda> s. s $ 0 \<ge> 0));
   (IF (\<lambda> s. s $ 0 = 0) THEN (1 ::= (\<lambda>s. - s $ 1)) ELSE Id FI))\<^sup>*)
   \<lceil>\<lambda>s. 0 \<le> s $ 0 \<and> s $ 0 \<le> h\<rceil>"
-  apply(rule sH_star [of _ "\<lambda>s. 0 \<le> s$0 \<and> 0 > s$2 \<and>  2 \<cdot> s$2 \<cdot> s$0 = 2 \<cdot> s$2 \<cdot> h + (s$1 \<cdot> s$1)"], simp)
-   apply(rule sH_relcomp[where R="\<lambda>s. 0 \<le> s$0 \<and> 0 > s$2 \<and>  2 \<cdot> s$2 \<cdot> s$0 = 2 \<cdot> s$2 \<cdot> h + (s$1 \<cdot> s$1)"])
-    apply(rule_tac I="\<lambda>s. 0 \<le> s$0 \<and> 0 > s$2 \<and>  2 \<cdot> s$2 \<cdot> s$0 = 2 \<cdot> s$2 \<cdot> h + (s$1 \<cdot> s$1)" in dI, simp, simp, simp)
+  apply(rule sH_star [of _ "\<lambda>s. 0 \<le> s$0 \<and> I s"], simp add: dinv)
+   apply(rule sH_relcomp[where R="\<lambda>s. 0 \<le> s$0 \<and> I s"])
+    apply(rule_tac I="\<lambda>s. 0 \<le> s$0 \<and> I s" in dI, simp, simp, simp)
   apply(rule sH_guard_rule, simp)
-     apply(rule sH_weaken_pre)
-      apply(rule dInvariant[of "\<lambda>s. 0 > s$2 \<and>  2 \<cdot> s $ 2 \<cdot> s $ 0 - 2 \<cdot> s $ 2 \<cdot> h - s $ 1 \<cdot> s $ 1 = 0"])
+     apply(rule sH_weaken_pre[of I])
+  apply(unfold dInvariant dinv)
 apply(intro diff_invariant_rules(4))
   using gravity_invariant apply force
-  using energy_conservation_invariant apply(force, force, force simp: p2r_def, simp)
+  using energy_conservation_invariant apply(force, force simp: p2r_def, simp)
    apply(rule sH_cond, subst sH_assign_iff, force simp: bb_real_arith)
   by(subst sH_H, simp_all, force simp: bb_real_arith)
 
@@ -478,7 +480,8 @@ lemma bouncing_ball_K: "rel_kat.H
   apply(rule sH_star [of _ "\<lambda>s. 0 \<le> s$0 \<and> 0 > s$2 \<and>  2 \<cdot> s$2 \<cdot> s$0 = 2 \<cdot> s$2 \<cdot> h + (s$1 \<cdot> s$1)"], simp)
    apply(rule sH_relcomp[where R="\<lambda>s. 0 \<le> s$0 \<and> 0 > s$2 \<and>  2 \<cdot> s$2 \<cdot> s$0 = 2 \<cdot> s$2 \<cdot> h + (s$1 \<cdot> s$1)"])
     apply(subst local_flow.sH_g_orbit[OF local_flow_exp], simp_all add: sq_mtx_vec_prod_eq)
-  unfolding UNIV_3 apply(simp add: exp_cnst_acc_sq_mtx_simps field_simps monoid_mult_class.power2_eq_square)
+  unfolding UNIV_3 image_le_pred 
+    apply(simp add: exp_cnst_acc_sq_mtx_simps field_simps monoid_mult_class.power2_eq_square)
   by (auto simp: bb_real_arith sH_H)
 
 no_notation constant_acceleration_kinematics_sq_mtx ("K")

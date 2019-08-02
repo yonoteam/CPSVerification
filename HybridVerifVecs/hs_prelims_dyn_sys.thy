@@ -7,6 +7,26 @@ section\<open> Dynamical Systems \<close>
 
 subsection\<open> Initial value problems and orbits \<close>
 
+notation image ("\<P>")
+
+lemma image_le_pred: "(\<P> f A \<subseteq> {s. G s}) = (\<forall>x\<in>A. G (f x))"
+  unfolding image_def by force
+
+abbreviation "down T t \<equiv> {\<tau>\<in>T. \<tau>\<le> t}"
+
+definition g_orbit :: "(real \<Rightarrow> 'a) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> real set \<Rightarrow> 'a set" ("\<gamma>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d")
+  where "\<gamma>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d X G T = \<Union> {\<P> X (down T t) |t. \<P> X (down T t) \<subseteq> {s. G s}}"
+
+lemma "\<gamma>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d X G T = \<Union> {\<P> X (down T t) |t. \<P> X (down T t) \<subseteq> {s. G s}}"
+  unfolding g_orbit_def by simp
+
+lemma g_orbit_eq: "\<gamma>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d X G T = {X t |t. t \<in> T \<and> (\<P> X (down T t) \<subseteq> {s. G s})}"
+  unfolding g_orbit_def apply(rule subset_antisym, simp_all add: subset_eq, safe)
+  by (intro exI conjI, simp, simp, force) (intro exI conjI, simp_all, force)
+
+lemma "\<gamma>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d X (\<lambda>s. True) T = {X t |t. t \<in> T}"
+  unfolding g_orbit_eq by simp
+
 definition "ivp_sols f T S t\<^sub>0 s = {X |X. (D X = (\<lambda>t. f t (X t)) on T) \<and> X t\<^sub>0 = s \<and> X \<in> T \<rightarrow> S}"
 
 lemma ivp_solsI: 
@@ -20,57 +40,50 @@ lemma ivp_solsD:
     and "X t\<^sub>0 = s" and "X \<in> T \<rightarrow> S"
   using assms unfolding ivp_sols_def by auto
 
-abbreviation guards :: "('a \<Rightarrow> bool) \<Rightarrow> (real \<Rightarrow> 'a) \<Rightarrow> (real set) \<Rightarrow> bool" ("_ \<rhd> _ _" [70, 65] 61) 
-  where "G \<rhd> X T \<equiv> \<forall>\<tau>\<in>T. G (X \<tau>)"
+definition g_orbital :: "('a \<Rightarrow> 'a) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> real set \<Rightarrow> 'a set \<Rightarrow> real \<Rightarrow> 
+  ('a::real_normed_vector) \<Rightarrow> 'a set"
+  where "g_orbital f G T S t\<^sub>0 s = \<Union>{\<gamma>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d X G T |X. X \<in> ivp_sols (\<lambda>t. f) T S t\<^sub>0 s}"
 
-abbreviation "down T t \<equiv> {t'\<in>T. t'\<le> t}"
-
-definition g_orbital :: "(('a::real_normed_vector) \<Rightarrow> 'a) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> real set \<Rightarrow> 'a set \<Rightarrow> 
-  real \<Rightarrow> 'a \<Rightarrow> 'a set"
-  where "g_orbital f G T S t\<^sub>0 s = \<Union>{{x t|t. t \<in> T \<and> G \<rhd> x (down T t)}|x. x \<in> ivp_sols (\<lambda>t. f) T S t\<^sub>0 s}"
-
-lemma g_orbital_eq: "g_orbital f G T S t\<^sub>0 s = 
-  {x t|t x. t \<in> T \<and> (D x = (f \<circ> x) on T) \<and> x t\<^sub>0 = s \<and> x \<in> T \<rightarrow> S \<and> G \<rhd> x (down T t)}"
-  unfolding g_orbital_def ivp_sols_def by auto
-
-lemma "g_orbital f G T S t\<^sub>0 s = (\<Union>x\<in>ivp_sols (\<lambda>t. f) T S t\<^sub>0 s. {x t|t. t \<in> T \<and> G \<rhd> x (down T t)})"
-  unfolding g_orbital_def ivp_sols_def by auto
+lemma g_orbital_eq: 
+  shows "g_orbital f G T S t\<^sub>0 s = 
+  {X t|t X. t \<in> T \<and> X \<in> ivp_sols (\<lambda>t. f) T S t\<^sub>0 s \<and> (\<P> X (down T t) \<subseteq> {s. G s})}" 
+    and "g_orbital f G T S t\<^sub>0 s = 
+  {X t|t X. t \<in> T \<and> (D X = (f \<circ> X) on T) \<and> X t\<^sub>0 = s \<and> X \<in> T \<rightarrow> S \<and> (\<P> X (down T t) \<subseteq> {s. G s})}"
+    and "g_orbital f G T S t\<^sub>0 s = (\<Union> X\<in>ivp_sols (\<lambda>t. f) T S t\<^sub>0 s. \<gamma>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d X G T)"
+  unfolding g_orbital_def ivp_sols_def g_orbit_eq by auto
 
 lemma g_orbitalI:
-  assumes "D x = (f \<circ> x) on T" "x t\<^sub>0 = s" "x \<in> T \<rightarrow> S"
-    and "t \<in> T" and "G \<rhd> x (down T t)"
-  shows "x t \<in> g_orbital f G T S t\<^sub>0 s"
-  using assms unfolding g_orbital_eq by auto
+  assumes "X \<in> ivp_sols (\<lambda>t. f) T S t\<^sub>0 s"
+    and "t \<in> T" and "(\<P> X (down T t) \<subseteq> {s. G s})"
+  shows "X t \<in> g_orbital f G T S t\<^sub>0 s"
+  using assms unfolding g_orbital_eq(1) by auto
 
 lemma g_orbitalE:
   assumes "s' \<in> g_orbital f G T S t\<^sub>0 s"
-  shows "\<exists> x t. x \<in> ivp_sols (\<lambda>t. f) T S t\<^sub>0 s \<and> x t = s' \<and> t \<in> T \<and> G \<rhd> x (down T t)"
-  using assms unfolding g_orbital_def ivp_sols_def by auto
+  shows "\<exists> X t. X \<in> ivp_sols (\<lambda>t. f) T S t\<^sub>0 s \<and> X t = s' \<and> t \<in> T \<and> (\<P> X (down T t) \<subseteq> {s. G s})"
+  using assms unfolding g_orbital_def ivp_sols_def g_orbit_eq by auto
 
 lemma g_orbitalD:
   assumes "s' \<in> g_orbital f G T S t\<^sub>0 s"
-  obtains x and t where "x \<in> ivp_sols (\<lambda>t. f) T S t\<^sub>0 s" 
-  and "D x = (f \<circ> x) on T" "x t\<^sub>0 = s" "x \<in> T \<rightarrow> S"
-  and "x t = s'" and "t \<in> T" and "G \<rhd> x (down T t)"
-  using assms unfolding g_orbital_def ivp_sols_def by auto
+  obtains X and t where "X \<in> ivp_sols (\<lambda>t. f) T S t\<^sub>0 s"
+  and "X t = s'" and "t \<in> T" and "(\<P> X (down T t) \<subseteq> {s. G s})"
+  using assms unfolding g_orbital_def g_orbit_eq by auto
 
 
 subsection\<open> Differential Invariants \<close>
 
 definition diff_invariant :: "('a \<Rightarrow> bool) \<Rightarrow> (('a::real_normed_vector) \<Rightarrow> 'a) \<Rightarrow> real set \<Rightarrow> 
-  'a set \<Rightarrow> real \<Rightarrow> bool" ("(_)/ is'_diff'_invariant'_of (_)/ along (_ _)/ from (_)" [70,65]61) 
-  where "I is_diff_invariant_of f along T S from t\<^sub>0 \<equiv> 
-    (\<forall>s\<in>S. I s \<longrightarrow> (\<forall> x. x \<in> ivp_sols (\<lambda>t. f) T S t\<^sub>0 s \<longrightarrow> (\<forall> t \<in> T. I (x t))))"
+  'a set \<Rightarrow> real \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> bool" 
+  (*"(_)/ is'_diff'_invariant'_of (_)/ along (_ _)/ from (_)" [70,65]61*) 
+  where "diff_invariant I f T S t\<^sub>0 G \<equiv> (\<Union> \<circ> (\<P> (g_orbital f G T S t\<^sub>0))) {s. I s} \<subseteq> {s. I s}"
 
-lemma invariant_to_set: "(I is_diff_invariant_of f along T S from t\<^sub>0) = 
-  (\<forall>s\<in>S. I s \<longrightarrow> (g_orbital f (\<lambda>s. True) T S t\<^sub>0 s) \<subseteq> {s. I s})"
-  unfolding diff_invariant_def ivp_sols_def g_orbital_eq apply safe
-   apply(erule_tac x="xa t\<^sub>0" in ballE)
-   apply(drule mp, simp_all)
-  apply(erule_tac x="X t\<^sub>0" in ballE)
-  apply(drule mp, simp_all add: subset_eq)
-  apply(erule_tac x="X t" in allE)
-  by(drule mp, auto)
+lemma diff_invariant_eq: "diff_invariant I f T S t\<^sub>0 G = 
+  (\<forall>s. I s \<longrightarrow> (\<forall>X. X \<in> ivp_sols (\<lambda>t. f) T S t\<^sub>0 s \<longrightarrow> (\<forall> t \<in> T. \<P> X (down T t) \<subseteq> {s. G s} \<longrightarrow> I (X t))))"
+  unfolding diff_invariant_def g_orbital_eq image_le_pred by auto
+
+lemma invariant_to_set: "diff_invariant I f T S t\<^sub>0 G = 
+  (\<forall>s. I s \<longrightarrow> (g_orbital f G T S t\<^sub>0 s) \<subseteq> {s. I s})"
+  unfolding diff_invariant_eq g_orbital_eq(1) image_le_pred by auto
 
 text\<open> Finally, we obtain some conditions to prove specific instances of differential invariants. \<close>
 
@@ -79,111 +92,111 @@ named_theorems diff_invariant_rules "compilation of rules for differential invar
 lemma [diff_invariant_rules]:
   fixes \<theta>::"'a::banach \<Rightarrow> real"
   assumes Thyp: "is_interval T" "t\<^sub>0 \<in> T"
-    and "\<forall>x. (D x = (\<lambda>\<tau>. f (x \<tau>)) on T) \<longrightarrow> (D (\<lambda>\<tau>. \<theta> (x \<tau>) - \<nu> (x \<tau>)) = ((*\<^sub>R) 0) on T)"
-  shows "(\<lambda>s. \<theta> s = \<nu> s) is_diff_invariant_of f along T S from t\<^sub>0"
-proof(simp add: diff_invariant_def ivp_sols_def, clarsimp)
-  fix x \<tau> assume tHyp:"\<tau> \<in> T" and x_ivp:"D x = (\<lambda>\<tau>. f (x \<tau>)) on T" "\<theta> (x t\<^sub>0) = \<nu> (x t\<^sub>0)" 
-  hence obs1: "\<forall>t\<in>T. D (\<lambda>\<tau>. \<theta> (x \<tau>) - \<nu> (x \<tau>)) \<mapsto> (\<lambda>\<tau>. \<tau> *\<^sub>R 0) at t within T"
+    and "\<forall>X. (D X = (\<lambda>\<tau>. f (X \<tau>)) on T) \<longrightarrow> (D (\<lambda>\<tau>. \<theta> (X \<tau>) - \<nu> (X \<tau>)) = ((*\<^sub>R) 0) on T)"
+  shows "diff_invariant (\<lambda>s. \<theta> s = \<nu> s) f T S t\<^sub>0 G"
+proof(simp add: diff_invariant_eq ivp_sols_def, clarsimp)
+  fix X \<tau> assume tHyp:"\<tau> \<in> T" and x_ivp:"D X = (\<lambda>\<tau>. f (X \<tau>)) on T" "\<theta> (X t\<^sub>0) = \<nu> (X t\<^sub>0)" 
+  hence obs1: "\<forall>t\<in>T. D (\<lambda>\<tau>. \<theta> (X \<tau>) - \<nu> (X \<tau>)) \<mapsto> (\<lambda>\<tau>. \<tau> *\<^sub>R 0) at t within T"
     using assms by (auto simp: has_vderiv_on_def has_vector_derivative_def)
   have obs2: "{t\<^sub>0--\<tau>} \<subseteq> T"
     using closed_segment_subset_interval tHyp Thyp by blast
-  hence "D (\<lambda>\<tau>. \<theta> (x \<tau>) - \<nu> (x \<tau>)) = (\<lambda>\<tau>. \<tau> *\<^sub>R 0) on {t\<^sub>0--\<tau>}"
+  hence "D (\<lambda>\<tau>. \<theta> (X \<tau>) - \<nu> (X \<tau>)) = (\<lambda>\<tau>. \<tau> *\<^sub>R 0) on {t\<^sub>0--\<tau>}"
     using obs1 x_ivp by (auto intro!: has_derivative_subset[OF _ obs2]
         simp: has_vderiv_on_def has_vector_derivative_def)
-  then obtain t where "t \<in> {t\<^sub>0--\<tau>}" and "\<theta> (x \<tau>) - \<nu> (x \<tau>) - (\<theta> (x t\<^sub>0) - \<nu> (x t\<^sub>0)) = (\<tau> - t\<^sub>0) * t *\<^sub>R 0"
+  then obtain t where "t \<in> {t\<^sub>0--\<tau>}" and "\<theta> (X \<tau>) - \<nu> (X \<tau>) - (\<theta> (X t\<^sub>0) - \<nu> (X t\<^sub>0)) = (\<tau> - t\<^sub>0) * t *\<^sub>R 0"
     using mvt_very_simple_closed_segmentE by blast
-  thus "\<theta> (x \<tau>) = \<nu> (x \<tau>)" 
+  thus "\<theta> (X \<tau>) = \<nu> (X \<tau>)" 
     by (simp add: x_ivp(2))
 qed
 
 lemma [diff_invariant_rules]:
   fixes \<theta>::"'a::banach \<Rightarrow> real"
   assumes Thyp: "is_interval T" "t\<^sub>0 \<in> T"
-    and "\<forall> x. (D x = (\<lambda>\<tau>. f (x \<tau>)) on T) \<longrightarrow> (\<forall>\<tau>\<in>T. (\<tau> > t\<^sub>0 \<longrightarrow> \<theta>' (x \<tau>) \<ge> \<nu>' (x \<tau>)) \<and> 
-(\<tau> < t\<^sub>0 \<longrightarrow> \<theta>' (x \<tau>) \<le> \<nu>' (x \<tau>))) \<and> (D (\<lambda>\<tau>. \<theta> (x \<tau>) - \<nu> (x \<tau>)) = (\<lambda>\<tau>. \<theta>' (x \<tau>) - \<nu>' (x \<tau>)) on T)"
-  shows "(\<lambda>s. \<nu> s \<le> \<theta> s) is_diff_invariant_of f along T S from t\<^sub>0"
-proof(simp add: diff_invariant_def ivp_sols_def, clarsimp)
-  fix x \<tau> assume "\<tau> \<in> T" and x_ivp:"D x = (\<lambda>\<tau>. f (x \<tau>)) on T" "\<nu> (x t\<^sub>0) \<le> \<theta> (x t\<^sub>0)"
+    and "\<forall>X. (D X = (\<lambda>\<tau>. f (X \<tau>)) on T) \<longrightarrow> (\<forall>\<tau>\<in>T. (\<tau> > t\<^sub>0 \<longrightarrow> \<theta>' (X \<tau>) \<ge> \<nu>' (X \<tau>)) \<and> 
+(\<tau> < t\<^sub>0 \<longrightarrow> \<theta>' (X \<tau>) \<le> \<nu>' (X \<tau>))) \<and> (D (\<lambda>\<tau>. \<theta> (X \<tau>) - \<nu> (X \<tau>)) = (\<lambda>\<tau>. \<theta>' (X \<tau>) - \<nu>' (X \<tau>)) on T)"
+  shows "diff_invariant (\<lambda>s. \<nu> s \<le> \<theta> s) f T S t\<^sub>0 G"
+proof(simp add: diff_invariant_eq ivp_sols_def, clarsimp)
+  fix X \<tau> assume "\<tau> \<in> T" and x_ivp:"D X = (\<lambda>\<tau>. f (X \<tau>)) on T" "\<nu> (X t\<^sub>0) \<le> \<theta> (X t\<^sub>0)"
   {assume "\<tau> \<noteq> t\<^sub>0"
-  hence primed: "\<And>\<tau>. \<tau> \<in> T \<Longrightarrow> \<tau> > t\<^sub>0 \<Longrightarrow> \<theta>' (x \<tau>) \<ge> \<nu>' (x \<tau>)" 
-    "\<And>\<tau>. \<tau> \<in> T \<Longrightarrow> \<tau> < t\<^sub>0 \<Longrightarrow> \<theta>' (x \<tau>) \<le> \<nu>' (x \<tau>)"
+  hence primed: "\<And>\<tau>. \<tau> \<in> T \<Longrightarrow> \<tau> > t\<^sub>0 \<Longrightarrow> \<theta>' (X \<tau>) \<ge> \<nu>' (X \<tau>)" 
+    "\<And>\<tau>. \<tau> \<in> T \<Longrightarrow> \<tau> < t\<^sub>0 \<Longrightarrow> \<theta>' (X \<tau>) \<le> \<nu>' (X \<tau>)"
     using x_ivp assms by auto
-  have obs1: "\<forall>t\<in>T. D (\<lambda>\<tau>. \<theta> (x \<tau>) - \<nu> (x \<tau>)) \<mapsto> (\<lambda>\<tau>. \<tau> *\<^sub>R (\<theta>' (x t) - \<nu>' (x t))) at t within T"
+  have obs1: "\<forall>t\<in>T. D (\<lambda>\<tau>. \<theta> (X \<tau>) - \<nu> (X \<tau>)) \<mapsto> (\<lambda>\<tau>. \<tau> *\<^sub>R (\<theta>' (X t) - \<nu>' (X t))) at t within T"
     using assms x_ivp by (auto simp: has_vderiv_on_def has_vector_derivative_def)
   have obs2: "{t\<^sub>0<--<\<tau>} \<subseteq> T" "{t\<^sub>0--\<tau>} \<subseteq> T"
     using \<open>\<tau> \<in> T\<close> Thyp \<open>\<tau> \<noteq> t\<^sub>0\<close> by (auto simp: convex_contains_open_segment 
         is_interval_convex_1 closed_segment_subset_interval)
-  hence "D (\<lambda>\<tau>. \<theta> (x \<tau>) - \<nu> (x \<tau>)) = (\<lambda>\<tau>. \<theta>' (x \<tau>) - \<nu>' (x \<tau>)) on {t\<^sub>0--\<tau>}"
+  hence "D (\<lambda>\<tau>. \<theta> (X \<tau>) - \<nu> (X \<tau>)) = (\<lambda>\<tau>. \<theta>' (X \<tau>) - \<nu>' (X \<tau>)) on {t\<^sub>0--\<tau>}"
     using obs1 x_ivp by (auto intro!: has_derivative_subset[OF _ obs2(2)]
         simp: has_vderiv_on_def has_vector_derivative_def)
   then obtain t where "t \<in> {t\<^sub>0<--<\<tau>}" and
-    "(\<theta> (x \<tau>) - \<nu> (x \<tau>)) - (\<theta> (x t\<^sub>0) - \<nu> (x t\<^sub>0)) = (\<lambda>\<tau>. \<tau> * (\<theta>' (x t) -  \<nu>' (x t))) (\<tau> - t\<^sub>0)"
+    "(\<theta> (X \<tau>) - \<nu> (X \<tau>)) - (\<theta> (X t\<^sub>0) - \<nu> (X t\<^sub>0)) = (\<lambda>\<tau>. \<tau> * (\<theta>' (X t) -  \<nu>' (X t))) (\<tau> - t\<^sub>0)"
     using mvt_simple_closed_segmentE \<open>\<tau> \<noteq> t\<^sub>0\<close> by blast
-  hence mvt: "\<theta> (x \<tau>) - \<nu> (x \<tau>) = (\<tau> - t\<^sub>0) * (\<theta>' (x t) -  \<nu>' (x t)) + (\<theta> (x t\<^sub>0) - \<nu> (x t\<^sub>0))" 
+  hence mvt: "\<theta> (X \<tau>) - \<nu> (X \<tau>) = (\<tau> - t\<^sub>0) * (\<theta>' (X t) -  \<nu>' (X t)) + (\<theta> (X t\<^sub>0) - \<nu> (X t\<^sub>0))" 
     by force
   have  "\<tau> > t\<^sub>0 \<Longrightarrow> t > t\<^sub>0" "\<not> t\<^sub>0 \<le> \<tau> \<Longrightarrow> t < t\<^sub>0" "t \<in> T"
     using \<open>t \<in> {t\<^sub>0<--<\<tau>}\<close> obs2 unfolding open_segment_eq_real_ivl by auto
-  moreover have "t > t\<^sub>0 \<Longrightarrow> (\<theta>' (x t) -  \<nu>' (x t)) \<ge> 0" "t < t\<^sub>0 \<Longrightarrow> (\<theta>' (x t) -  \<nu>' (x t)) \<le> 0"
+  moreover have "t > t\<^sub>0 \<Longrightarrow> (\<theta>' (X t) -  \<nu>' (X t)) \<ge> 0" "t < t\<^sub>0 \<Longrightarrow> (\<theta>' (X t) -  \<nu>' (X t)) \<le> 0"
     using primed(1,2)[OF \<open>t \<in> T\<close>] by auto
-  ultimately have "(\<tau> - t\<^sub>0) * (\<theta>' (x t) -  \<nu>' (x t)) \<ge> 0"
+  ultimately have "(\<tau> - t\<^sub>0) * (\<theta>' (X t) -  \<nu>' (X t)) \<ge> 0"
     apply(case_tac "\<tau> \<ge> t\<^sub>0") by (force, auto simp: split_mult_pos_le)
-  hence "(\<tau> - t\<^sub>0) * (\<theta>' (x t) -  \<nu>' (x t)) + (\<theta> (x t\<^sub>0) - \<nu> (x t\<^sub>0)) \<ge> 0" 
+  hence "(\<tau> - t\<^sub>0) * (\<theta>' (X t) -  \<nu>' (X t)) + (\<theta> (X t\<^sub>0) - \<nu> (X t\<^sub>0)) \<ge> 0" 
     using  x_ivp(2) by auto
-  hence "\<nu> (x \<tau>) \<le> \<theta> (x \<tau>)" 
+  hence "\<nu> (X \<tau>) \<le> \<theta> (X \<tau>)" 
     using mvt by simp}
-  thus "\<nu> (x \<tau>) \<le> \<theta> (x \<tau>)"
+  thus "\<nu> (X \<tau>) \<le> \<theta> (X \<tau>)"
     using x_ivp by blast
 qed
 
 lemma [diff_invariant_rules]:
   fixes \<theta>::"'a::banach \<Rightarrow> real"
   assumes Thyp: "is_interval T" "t\<^sub>0 \<in> T"
-    and "\<forall> x. (D x = (\<lambda>\<tau>. f (x \<tau>)) on T) \<longrightarrow> (\<forall>\<tau>\<in>T. (\<tau> > t\<^sub>0 \<longrightarrow> \<theta>' (x \<tau>) \<ge> \<nu>' (x \<tau>)) \<and> 
-(\<tau> < t\<^sub>0 \<longrightarrow> \<theta>' (x \<tau>) \<le> \<nu>' (x \<tau>))) \<and> (D (\<lambda>\<tau>. \<theta> (x \<tau>) - \<nu> (x \<tau>)) = (\<lambda>\<tau>. \<theta>' (x \<tau>) - \<nu>' (x \<tau>)) on T)"
-  shows "(\<lambda>s. \<nu> s < \<theta> s) is_diff_invariant_of f along T S from t\<^sub>0"
-proof(simp add: diff_invariant_def ivp_sols_def, clarsimp)
-  fix x \<tau> assume "\<tau> \<in> T" and x_ivp:"D x = (\<lambda>\<tau>. f (x \<tau>)) on T" "\<nu> (x t\<^sub>0) < \<theta> (x t\<^sub>0)"
+    and "\<forall> X. (D X = (\<lambda>\<tau>. f (X \<tau>)) on T) \<longrightarrow> (\<forall>\<tau>\<in>T. (\<tau> > t\<^sub>0 \<longrightarrow> \<theta>' (X \<tau>) \<ge> \<nu>' (X \<tau>)) \<and> 
+(\<tau> < t\<^sub>0 \<longrightarrow> \<theta>' (X \<tau>) \<le> \<nu>' (X \<tau>))) \<and> (D (\<lambda>\<tau>. \<theta> (X \<tau>) - \<nu> (X \<tau>)) = (\<lambda>\<tau>. \<theta>' (X \<tau>) - \<nu>' (X \<tau>)) on T)"
+  shows "diff_invariant (\<lambda>s. \<nu> s < \<theta> s) f T S t\<^sub>0 G"
+proof(simp add: diff_invariant_eq ivp_sols_def, clarsimp)
+  fix X \<tau> assume "\<tau> \<in> T" and x_ivp:"D X = (\<lambda>\<tau>. f (X \<tau>)) on T" "\<nu> (X t\<^sub>0) < \<theta> (X t\<^sub>0)"
   {assume "\<tau> \<noteq> t\<^sub>0"
-  hence primed: "\<And>\<tau>. \<tau> \<in> T \<Longrightarrow> \<tau> > t\<^sub>0 \<Longrightarrow> \<theta>' (x \<tau>) \<ge> \<nu>' (x \<tau>)" 
-    "\<And>\<tau>. \<tau> \<in> T \<Longrightarrow> \<tau> < t\<^sub>0 \<Longrightarrow> \<theta>' (x \<tau>) \<le> \<nu>' (x \<tau>)"
+  hence primed: "\<And>\<tau>. \<tau> \<in> T \<Longrightarrow> \<tau> > t\<^sub>0 \<Longrightarrow> \<theta>' (X \<tau>) \<ge> \<nu>' (X \<tau>)" 
+    "\<And>\<tau>. \<tau> \<in> T \<Longrightarrow> \<tau> < t\<^sub>0 \<Longrightarrow> \<theta>' (X \<tau>) \<le> \<nu>' (X \<tau>)"
     using x_ivp assms by auto
-  have obs1: "\<forall>t\<in>T. D (\<lambda>\<tau>. \<theta> (x \<tau>) - \<nu> (x \<tau>)) \<mapsto> (\<lambda>\<tau>. \<tau> *\<^sub>R (\<theta>' (x t) - \<nu>' (x t))) at t within T"
+  have obs1: "\<forall>t\<in>T. D (\<lambda>\<tau>. \<theta> (X \<tau>) - \<nu> (X \<tau>)) \<mapsto> (\<lambda>\<tau>. \<tau> *\<^sub>R (\<theta>' (X t) - \<nu>' (X t))) at t within T"
     using assms x_ivp by (auto simp: has_vderiv_on_def has_vector_derivative_def)
   have obs2: "{t\<^sub>0<--<\<tau>} \<subseteq> T" "{t\<^sub>0--\<tau>} \<subseteq> T"
     using \<open>\<tau> \<in> T\<close> Thyp \<open>\<tau> \<noteq> t\<^sub>0\<close> by (auto simp: convex_contains_open_segment 
         is_interval_convex_1 closed_segment_subset_interval)
-  hence "D (\<lambda>\<tau>. \<theta> (x \<tau>) - \<nu> (x \<tau>)) = (\<lambda>\<tau>. \<theta>' (x \<tau>) - \<nu>' (x \<tau>)) on {t\<^sub>0--\<tau>}"
+  hence "D (\<lambda>\<tau>. \<theta> (X \<tau>) - \<nu> (X \<tau>)) = (\<lambda>\<tau>. \<theta>' (X \<tau>) - \<nu>' (X \<tau>)) on {t\<^sub>0--\<tau>}"
     using obs1 x_ivp by (auto intro!: has_derivative_subset[OF _ obs2(2)]
         simp: has_vderiv_on_def has_vector_derivative_def)
   then obtain t where "t \<in> {t\<^sub>0<--<\<tau>}" and
-    "(\<theta> (x \<tau>) - \<nu> (x \<tau>)) - (\<theta> (x t\<^sub>0) - \<nu> (x t\<^sub>0)) = (\<lambda>\<tau>. \<tau> * (\<theta>' (x t) -  \<nu>' (x t))) (\<tau> - t\<^sub>0)"
+    "(\<theta> (X \<tau>) - \<nu> (X \<tau>)) - (\<theta> (X t\<^sub>0) - \<nu> (X t\<^sub>0)) = (\<lambda>\<tau>. \<tau> * (\<theta>' (X t) -  \<nu>' (X t))) (\<tau> - t\<^sub>0)"
     using mvt_simple_closed_segmentE \<open>\<tau> \<noteq> t\<^sub>0\<close> by blast
-  hence mvt: "\<theta> (x \<tau>) - \<nu> (x \<tau>) = (\<tau> - t\<^sub>0) * (\<theta>' (x t) -  \<nu>' (x t)) + (\<theta> (x t\<^sub>0) - \<nu> (x t\<^sub>0))" 
+  hence mvt: "\<theta> (X \<tau>) - \<nu> (X \<tau>) = (\<tau> - t\<^sub>0) * (\<theta>' (X t) -  \<nu>' (X t)) + (\<theta> (X t\<^sub>0) - \<nu> (X t\<^sub>0))" 
     by force
   have  "\<tau> > t\<^sub>0 \<Longrightarrow> t > t\<^sub>0" "\<not> t\<^sub>0 \<le> \<tau> \<Longrightarrow> t < t\<^sub>0" "t \<in> T"
     using \<open>t \<in> {t\<^sub>0<--<\<tau>}\<close> obs2 unfolding open_segment_eq_real_ivl by auto
-  moreover have "t > t\<^sub>0 \<Longrightarrow> (\<theta>' (x t) -  \<nu>' (x t)) \<ge> 0" "t < t\<^sub>0 \<Longrightarrow> (\<theta>' (x t) -  \<nu>' (x t)) \<le> 0"
+  moreover have "t > t\<^sub>0 \<Longrightarrow> (\<theta>' (X t) -  \<nu>' (X t)) \<ge> 0" "t < t\<^sub>0 \<Longrightarrow> (\<theta>' (X t) -  \<nu>' (X t)) \<le> 0"
     using primed(1,2)[OF \<open>t \<in> T\<close>] by auto
-  ultimately have "(\<tau> - t\<^sub>0) * (\<theta>' (x t) -  \<nu>' (x t)) \<ge> 0"
+  ultimately have "(\<tau> - t\<^sub>0) * (\<theta>' (X t) -  \<nu>' (X t)) \<ge> 0"
     apply(case_tac "\<tau> \<ge> t\<^sub>0") by (force, auto simp: split_mult_pos_le)
-  hence "(\<tau> - t\<^sub>0) * (\<theta>' (x t) -  \<nu>' (x t)) + (\<theta> (x t\<^sub>0) - \<nu> (x t\<^sub>0)) > 0" 
+  hence "(\<tau> - t\<^sub>0) * (\<theta>' (X t) -  \<nu>' (X t)) + (\<theta> (X t\<^sub>0) - \<nu> (X t\<^sub>0)) > 0" 
     using x_ivp(2) by auto
-  hence "\<nu> (x \<tau>) < \<theta> (x \<tau>)" 
+  hence "\<nu> (X \<tau>) < \<theta> (X \<tau>)" 
     using mvt by simp}
-  thus "\<nu> (x \<tau>) < \<theta> (x \<tau>)"
+  thus "\<nu> (X \<tau>) < \<theta> (X \<tau>)"
     using x_ivp by blast
 qed
 
 lemma [diff_invariant_rules]:
-assumes "I\<^sub>1 is_diff_invariant_of f along T S from t\<^sub>0" 
-    and "I\<^sub>2 is_diff_invariant_of f along T S from t\<^sub>0"
-shows "(\<lambda>s. I\<^sub>1 s \<and> I\<^sub>2 s) is_diff_invariant_of f along T S from t\<^sub>0"
+assumes "diff_invariant I\<^sub>1 f T S t\<^sub>0 G" 
+    and "diff_invariant I\<^sub>2 f T S t\<^sub>0 G"
+shows "diff_invariant (\<lambda>s. I\<^sub>1 s \<and> I\<^sub>2 s) f T S t\<^sub>0 G"
   using assms unfolding diff_invariant_def by auto
 
 lemma [diff_invariant_rules]:
-assumes "I\<^sub>1 is_diff_invariant_of f along T S from t\<^sub>0" 
-    and "I\<^sub>2 is_diff_invariant_of f along T S from t\<^sub>0"
-shows "(\<lambda>s. I\<^sub>1 s \<or> I\<^sub>2 s) is_diff_invariant_of f along T S from t\<^sub>0"
+assumes "diff_invariant I\<^sub>1 f T S t\<^sub>0 G" 
+    and "diff_invariant I\<^sub>2 f T S t\<^sub>0 G"
+shows "diff_invariant (\<lambda>s. I\<^sub>1 s \<or> I\<^sub>2 s) f T S t\<^sub>0 G"
   using assms unfolding diff_invariant_def by auto
 
 
@@ -272,13 +285,6 @@ locale local_flow = picard_lindeloef "(\<lambda> t. f)" T S 0
               "\<And> s. s \<in> S \<Longrightarrow> \<phi> 0 s = s"
               "\<And> t s. t \<in> T \<Longrightarrow> s \<in> S \<Longrightarrow> (\<lambda>t. \<phi> t s) \<in> {0--t} \<rightarrow> S"
 begin
-
-abbreviation g_orbit :: "('a \<Rightarrow> bool) \<Rightarrow> 'a \<Rightarrow> 'a set" ("\<gamma>\<^sup>\<phi>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d")
-  where "\<gamma>\<^sup>\<phi>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d G s \<equiv> g_orbital f G T S 0 s"
-
-definition "orbit s = \<gamma>\<^sup>\<phi>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d (\<lambda>s. True) s"
-
-notation orbit ("\<gamma>\<^sup>\<phi>")
 
 lemma in_ivp_sols_ivl: 
   assumes "t \<in> T" "s \<in> S"
@@ -418,11 +424,11 @@ lemma has_vderiv_on_domain:
 proof(unfold has_vderiv_on_def has_vector_derivative_def, clarsimp)
   fix t assume "t \<in> T"
   then obtain B where "t \<in> B" and "open B" and "B \<subseteq> T" 
-    and Dhyp: "D (\<lambda>t. \<phi> t s) \<mapsto> (\<lambda>xa. xa *\<^sub>R f (\<phi> t s)) at t within B"
+    and Dhyp: "D (\<lambda>t. \<phi> t s) \<mapsto> (\<lambda>\<tau>. \<tau> *\<^sub>R f (\<phi> t s)) at t within B"
     using assms has_derivative_on_open[OF \<open>t \<in> T\<close>] by blast
   hence "t \<in> interior B"
     using interior_eq by auto
-  thus "D (\<lambda>t. \<phi> t s) \<mapsto> (\<lambda>xa. xa *\<^sub>R f (\<phi> t s)) at t within T"
+  thus "D (\<lambda>t. \<phi> t s) \<mapsto> (\<lambda>\<tau>. \<tau> *\<^sub>R f (\<phi> t s)) at t within T"
     using has_derivative_at_within_mono[OF _ \<open>B \<subseteq> T\<close> Dhyp] by blast
 qed
 
@@ -479,42 +485,50 @@ proof-
     using eq_solution[OF additive_in_ivp_sols] assms by auto
 qed
 
+definition "orbit s = g_orbital f (\<lambda>s. True) T S 0 s"
+
+notation orbit ("\<gamma>\<^sup>\<phi>")
+
 lemma orbit_eq[simp]: 
   assumes "s \<in> S"
   shows "\<gamma>\<^sup>\<phi> s = {\<phi> t s| t. t \<in> T}"
   using eq_solution assms unfolding orbit_def g_orbital_eq ivp_sols_def
   by(auto intro!: has_vderiv_on_domain ivp(2) in_domain)
 
-lemma g_orbit_eq: 
+lemma g_orbital_collapses: 
   assumes "s \<in> S"
-  shows "\<gamma>\<^sup>\<phi>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d G s = {\<phi> t s| t. t \<in> T \<and> G \<rhd> (\<lambda>r. \<phi> r s) (down T t)}" (is "_ = ?gorbit")
+  shows "g_orbital f G T S 0 s = {\<phi> t s| t. t \<in> T \<and> \<P> (\<lambda>t. \<phi> t s) (down T t) \<subseteq> {s. G s}}"
 proof(rule subset_antisym, simp_all only: subset_eq)
-  {fix s' assume "s' \<in> \<gamma>\<^sup>\<phi>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d G s"
-    then obtain x and t where x_ivp:"x \<in> ivp_sols (\<lambda>t. f) T S 0 s" 
-      and "x t = s'" and "t \<in> T" and guard:"G \<rhd> x (down T t)"
-      unfolding g_orbital_def by auto
-    hence obs:"\<forall>\<tau>\<in>(down T t). x \<tau> = \<phi> \<tau> s"
-      using eq_solution[OF x_ivp _ assms] init_time
-      by blast
-    hence "G \<rhd> (\<lambda>r. \<phi> r s) (down T t)"
-      using guard
-      by auto 
-    also have "\<phi> t s = x t"
+  let ?gorbit = "{\<phi> t s |t. t \<in> T \<and> (\<forall>x\<in>\<P> (\<lambda>r. \<phi> r s) (down T t). x \<in> Collect G)}"
+  {fix s' assume "s' \<in> g_orbital f G T S 0 s"
+    then obtain X and t where x_ivp:"X \<in> ivp_sols (\<lambda>t. f) T S 0 s" 
+      and "X t = s'" and "t \<in> T" and guard:"(\<P> X (down T t) \<subseteq> {s. G s})"
+      unfolding g_orbital_def g_orbit_eq by auto
+    have obs:"\<forall>\<tau>\<in>(down T t). X \<tau> = \<phi> \<tau> s"
+      using eq_solution[OF x_ivp _ assms] by blast
+    hence "\<P> (\<lambda>t. \<phi> t s) (down T t) \<subseteq> {s. G s}"
+      using guard by auto 
+    also have "\<phi> t s = X t"
       using eq_solution[OF x_ivp \<open>t \<in> T\<close> assms] by simp
     ultimately have "s' \<in> ?gorbit"
-      using \<open>x t = s'\<close> \<open>t \<in> T\<close> by auto}
-  thus "\<forall>s'\<in>\<gamma>\<^sup>\<phi>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d G s. s' \<in> ?gorbit"
+      using \<open>X t = s'\<close> \<open>t \<in> T\<close> by auto}
+  thus "\<forall>s'\<in> g_orbital f G T S 0 s. s' \<in> ?gorbit"
     by blast
 next
+  let ?gorbit = "{\<phi> t s |t. t \<in> T \<and> (\<forall>x\<in>\<P> (\<lambda>r. \<phi> r s) (down T t). x \<in> Collect G)}"
   {fix s' assume "s' \<in> ?gorbit"
-    then obtain t where "G \<rhd> (\<lambda>r. \<phi> r s) (down T t)" and "t \<in> T" and "\<phi> t s = s'"
+    then obtain t where "\<P> (\<lambda>t. \<phi> t s) (down T t) \<subseteq> {s. G s}" and "t \<in> T" and "\<phi> t s = s'"
       by blast
-    hence "s' \<in> \<gamma>\<^sup>\<phi>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d G s"
-      using assms by(auto intro!: g_orbitalI in_domain ivp(2) 
-          has_vderiv_on_domain simp: init_time)}
-  thus "\<forall>s'\<in>?gorbit. s' \<in> \<gamma>\<^sup>\<phi>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d G s"
+    hence "s' \<in> g_orbital f G T S 0 s"
+      using assms by(auto intro!: g_orbitalI in_ivp_sols)}
+  thus "\<forall>s'\<in>?gorbit. s' \<in> g_orbital f G T S 0 s"
     by blast
 qed
+
+lemma 
+  assumes "S = UNIV"
+  shows "g_orbital f G T S 0 s = {\<phi> t s| t. t \<in> T \<and> \<P> (\<lambda>t. \<phi> t s) (down T t) \<subseteq> {s. G s}}"
+  using g_orbital_collapses unfolding assms by simp
 
 lemma ivp_sols_collapse: 
   assumes "S = UNIV" "T = UNIV"
@@ -522,10 +536,9 @@ lemma ivp_sols_collapse:
   using in_ivp_sols eq_solution unfolding assms by auto
 
 lemma diff_invariant_eq_invariant_set:
-  "(I is_diff_invariant_of f along T S from 0) = (\<forall>s\<in>S. \<forall>t\<in>T. I s \<longrightarrow> I (\<phi> t s))"
-  apply(subst invariant_to_set, safe)
-   apply(erule_tac x=s in ballE)
-  unfolding g_orbit_eq by auto
+  assumes "S = UNIV"
+  shows "(diff_invariant I f T S 0 (\<lambda>s. True)) = (\<forall>s. \<forall>t\<in>T. I s \<longrightarrow> I (\<phi> t s))"
+  unfolding diff_invariant_def using g_orbital_collapses unfolding assms by(force simp: subset_eq)
 
 end
 
