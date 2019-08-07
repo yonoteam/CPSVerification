@@ -237,7 +237,7 @@ lemma circle_invariant:
 
 lemma circular_motion_invariants:
   "{s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2} \<le> fb\<^sub>\<F> (x\<acute>=(*v) C & G) {s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2}"
-  unfolding dInvariant using circle_invariant by auto
+  unfolding ffb_diff_inv using circle_invariant by auto
 
 \<comment> \<open>Proof of the same specification by providing solutions:\<close>
 
@@ -355,7 +355,7 @@ subsubsection\<open> Bouncing Ball with invariants \<close>
 text\<open> We prove again the bouncing ball but this time with differential invariants. \<close>
 
 lemma gravity_invariant: "diff_invariant (\<lambda>s. s $ 2 < 0) ((*v) A) UNIV UNIV 0 G"
-  apply(rule_tac \<theta>'="\<lambda>s. 0" and \<nu>'="\<lambda>s. 0" in diff_invariant_rules(3), clarsimp, simp, clarsimp)
+  apply(rule_tac \<mu>'="\<lambda>s. 0" and \<nu>'="\<lambda>s. 0" in diff_invariant_rules(3), clarsimp, simp, clarsimp)
   apply(drule_tac i="2" in has_vderiv_on_vec_nth)
   apply(rule_tac S="UNIV" in has_vderiv_on_subset)
   by(auto intro!: poly_derivatives simp: vec_eq_iff matrix_vector_mult_def)
@@ -377,16 +377,16 @@ lemma bouncing_ball_invariants:
   (IF (\<lambda> s. s $ 0 = 0) THEN (1 ::= (\<lambda>s. - s $ 1)) ELSE \<eta> FI)))
   {s. 0 \<le> s $ 0 \<and> s $ 0 \<le> h}"
   apply(rule_tac I="{s. 0 \<le> s$0 \<and> I s}" in ffb_kstarI)
-  apply(force simp: dinv, simp only: ffb_kcomp)
-   apply(rule_tac I="{s. 0 \<le> s$0 \<and> I s}" in dI)
-  apply(simp_all, subst ffb_guard_eq, simp)
-    apply(rule_tac y="{s. I s}" in H_iso_cond1, force)
-    apply(unfold dInvariant dinv)
-    apply(intro diff_invariant_rules(4))
+    apply(force simp: dinv, simp add: ffb_kcomp ffb_if_then_else)
+   apply(rule_tac b="fb\<^sub>\<F> (x\<acute>=(*v) A & (\<lambda> s. s $ 0 \<ge> 0)) {s. 0 \<le> s$0 \<and> I s}" in order.trans)
+  apply(simp add: ffb_g_orbital_guard)
+    apply(rule_tac b="{s. I s}" in order.trans, force)
+    apply(simp_all add: ffb_diff_inv dinv)
+    apply(rule diff_invariant_rules)
   using gravity_invariant apply force
   using energy_conservation_invariant apply force
-   apply(subst ffb_if_then_else)
-  unfolding dinv by(auto simp: bb_real_arith le_fun_def)
+  apply(rule ffb_iso)
+  unfolding dinv ffb_eq by (auto simp: bb_real_arith le_fun_def)
 
 no_notation constant_acceleration_kinematics_matrix ("A")
 
@@ -486,77 +486,5 @@ lemma bouncing_ball_K:
   by (force simp: bb_real_arith)
 
 no_notation constant_acceleration_kinematics_sq_mtx ("K")
-
-(**************************************************************************************************)
-
-lemma 
-  fixes \<tau>::real
-  assumes invH: "2 \<cdot> g \<cdot> x = 2 \<cdot> g \<cdot> h + v \<cdot> v \<or> 
-  (\<exists>n. v\<^sup>2 = 2 \<cdot> g \<cdot> (x - h - h \<cdot> (c\<^sup>2 - 1) \<cdot> (\<Sum>m\<le>n. c ^ (2 \<cdot> m))))"
-    and posH: "g \<cdot> \<tau>\<^sup>2 / 2 + v \<cdot> \<tau> + x = 0"
-  shows "2 \<cdot> g \<cdot> h + c \<cdot> (g \<cdot> \<tau> + v) \<cdot> (c \<cdot> (g \<cdot> \<tau> + v)) = 0 \<or> 
-  (\<exists>n::nat. (c \<cdot> (g \<cdot> \<tau> + v))\<^sup>2 = 2 \<cdot> g \<cdot> (- h - h \<cdot> (c\<^sup>2 - 1) \<cdot> (\<Sum>m\<le>n. c ^ (2 \<cdot> m))))"
-proof(rule disjE[OF invH])
-  assume invH1: "2 \<cdot> g \<cdot> x = 2 \<cdot> g \<cdot> h + v \<cdot> v"
-  define n::nat where n_def: "n \<equiv> 0"
-  note arg_cong[OF posH, of "\<lambda>t. 2 \<cdot> g \<cdot> t"]
-  hence "g\<^sup>2 \<cdot> \<tau>\<^sup>2 + 2 \<cdot> g \<cdot> v \<cdot> \<tau> + 2 \<cdot> g \<cdot> x = 0"
-    by (simp add: distrib_left[of "2 \<cdot> g"] mult_ac(1)[symmetric] power2_eq_square)
-  hence "(g \<cdot> \<tau> + v)\<^sup>2 = - 2 \<cdot> g \<cdot> h"
-    by (simp add: power2_sum[of "g \<cdot> \<tau>" v] field_simps(48) mult_ac(1)[symmetric] invH1 
-        power2_eq_square[symmetric, of v]) (simp add: mult.commute mult_ac(3))
-  hence "c\<^sup>2 \<cdot> (g \<cdot> \<tau> + v)\<^sup>2 = 2 \<cdot> g \<cdot> (- h - h \<cdot> (c\<^sup>2 - 1))"
-    by (simp add: cross3_simps(25) field_simps(48))
-  hence "(c \<cdot> (g \<cdot> \<tau> + v))\<^sup>2 = 2 \<cdot> g \<cdot> (- h - h \<cdot> (c\<^sup>2 - 1) \<cdot> (\<Sum>m\<le>n. c ^ (2 \<cdot> m)))"
-    by (simp add: n_def field_simps(48))
-  thus ?thesis
-    by blast
-next
-  assume "\<exists>n. v\<^sup>2 = 2 \<cdot> g \<cdot> (x - h - h \<cdot> (c\<^sup>2 - 1) \<cdot> (\<Sum>m\<le>n. c ^ (2 \<cdot> m)))"
-  then obtain n where invH2: "v\<^sup>2 = 2 \<cdot> g \<cdot> (x - h - h \<cdot> (c\<^sup>2 - 1) \<cdot> (\<Sum>m\<le>n. c ^ (2 \<cdot> m)))"
-    by blast
-
-thm mult_ac(1,3) mult_minus_left mult_zero_right power2_eq_square distrib_left 
-  mult.commute field_simps(48) cross3_simps(25)
-  oops
-
-notation constant_acceleration_kinematics_matrix ("A")
-
-lemma bouncing_ball:
-  assumes "(h::real) > 0" and "0 < c" and "c < 1"
-  shows "{s. s $ 0 = h \<and> s $ 1 = 0 \<and> 0 > s $ 2} \<le> fb\<^sub>\<F> 
-  (kstar ((x\<acute>=(*v) A & (\<lambda> s. s $ 0 \<ge> 0)) \<circ>\<^sub>K
-  (IF (\<lambda> s. s $ 0 = 0) THEN (1 ::= (\<lambda>s. - c * s $ 1)) ELSE \<eta> FI)))
-  {s. 0 \<le> s $ 0 \<and> s $ 0 \<le> h}"  
-  apply(rule ffb_kstarI[of _ "{s. 0 \<le> s$0 \<and> s$0 \<le> h \<and> 0 > s$2 \<and> 
-  (2 \<cdot> s$2 \<cdot> s$0 = 2 \<cdot> s$2 \<cdot> h + s$1 \<cdot> s$1 \<or> (\<exists>n::nat. s$1^2 = 2 * (s$2) * ((s$0) - h - h * (c^2 - 1) * (\<Sum>m \<le> n. c ^ (2 \<cdot> m)))))}"])
-  using \<open>h > 0\<close> apply force 
-  prefer 2 apply force
-   apply(subst ffb_kcomp)
-  apply(subst local_flow.ffb_g_orbit[OF local_flow_cnst_acc_matrix], simp)
-apply(subst ffb_if_then_else)
-  apply(safe, simp add: )
-  oops
-
-thm continuous_on_cases
-thm vec_tendstoI continuous_on_vec_lambda
-
-lemma bouncing_ball:
-  shows "{s. 0 \<le> s $ 0 \<and> s $ 0 = h \<and> s $ 1 = 0 \<and> 0 > s $ 2} \<le> fb\<^sub>\<F> 
-  (kstar ((x\<acute>=(*v) A & (\<lambda> s. s $ 0 \<ge> 0)) \<circ>\<^sub>K
-  (IF (\<lambda> s. s $ 0 = 0) THEN (1 ::= (\<lambda>s. - s $ 1)) ELSE \<eta> FI)))
-  {s. 0 \<le> s $ 0 \<and> s $ 0 \<le> h}"
-  apply(rule ffb_kstarI[of _ "{s. 0 \<le> s$0 \<and> 0 > s$2 \<and>  2 \<cdot> s$2 \<cdot> s$0 = 2 \<cdot> s$2 \<cdot> h + (s$1 \<cdot> s$1)}"])
-    apply(clarsimp, simp only: ffb_kcomp)
-  prefer 2 apply (force simp: bb_real_arith)
-  apply(subst ffb_g_orbital, subst ffb_if_then_else)
-   apply(simp add: ivp_sols_def, clarsimp)
-   apply(frule_tac i=0 in has_vderiv_on_vec_nth)
-  apply(frule_tac i=1 in has_vderiv_on_vec_nth)
-  apply(drule_tac i=2 in has_vderiv_on_vec_nth)
-   apply(simp add: matrix_vector_mult_def axis_def)
-  oops
-
-no_notation constant_acceleration_kinematics_matrix ("A")
 
 end

@@ -239,7 +239,7 @@ lemma circle_invariant:
 
 lemma circular_motion_invariants:
   "\<lceil>\<lambda>s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2\<rceil> \<le> wp (x\<acute>=(*v) C & G) \<lceil>\<lambda>s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2\<rceil>"
-  unfolding dInvariant using circle_invariant by auto
+  unfolding wp_diff_inv using circle_invariant by auto
 
 \<comment> \<open>Proof of the same specification by providing solutions:\<close>
 
@@ -360,7 +360,7 @@ subsubsection\<open> Bouncing Ball with invariants \<close>
 text\<open> We prove again the bouncing ball but this time with differential invariants. \<close>
 
 lemma gravity_invariant: "diff_invariant (\<lambda>s. s $ 2 < 0) ((*v) A) UNIV UNIV 0 G"
-  apply(rule_tac \<theta>'="\<lambda>s. 0" and \<nu>'="\<lambda>s. 0" in diff_invariant_rules(3), clarsimp, simp, clarsimp)
+  apply(rule_tac \<mu>'="\<lambda>s. 0" and \<nu>'="\<lambda>s. 0" in diff_invariant_rules(3), clarsimp, simp, clarsimp)
   apply(drule_tac i="2" in has_vderiv_on_vec_nth)
   apply(rule_tac S="UNIV" in has_vderiv_on_subset)
   by(auto intro!: poly_derivatives simp: vec_eq_iff matrix_vector_mult_def)
@@ -385,15 +385,15 @@ lemma bouncing_ball_invariants:
   apply(rule_tac I="\<lceil>\<lambda>s. 0 \<le> s$0 \<and> I s\<rceil>" in wp_starI)
     apply(simp add: dinv, simp only: fbox_mult)
    apply(subst p2ndf_ndf2p_wp[symmetric, of "(IF (\<lambda>s. s $ 0 = 0) THEN (1 ::= (\<lambda>s. - s $ 1)) ELSE \<eta>\<^sup>\<bullet> FI)"])
-  apply(rule_tac I="\<lambda>s. 0 \<le> s$0 \<and> I s" in dI, simp, simp, simp)
-    apply(subst wp_guard_eq, simp)
+   apply(rule order.trans[where b="wp (x\<acute>=(*v) A & (\<lambda> s. s $ 0 \<ge> 0)) \<lceil>\<lambda>s. 0 \<le> s$0 \<and> I s\<rceil>"])
+    apply(simp only: wp_g_evolution_guard)
     apply(rule order.trans[where b="\<lceil>I\<rceil>"], simp)
-    apply(unfold dInvariant dinv)
-     apply(intro diff_invariant_rules(4))
+    apply(subst wp_diff_inv, unfold dinv)
+    apply(rule diff_invariant_rules)
   using gravity_invariant apply force
   using energy_conservation_invariant apply force
-   apply(simp only: p2ndf_ndf2p_wp)
-   apply(rule wp_if_then_else)
+   apply(rule fbox_iso)
+   apply(simp add: plus_nd_fun_def f2r_def times_nd_fun_def kcomp_def )
   by(auto simp: bb_real_arith le_fun_def)
 
 no_notation constant_acceleration_kinematics_matrix ("A")

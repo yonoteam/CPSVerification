@@ -240,7 +240,7 @@ lemma circle_invariant:
 
 lemma circular_motion_invariants: "rel_kat.H 
   \<lceil>\<lambda>s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2\<rceil> (x\<acute>=(*v) C & G) \<lceil>\<lambda>s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2\<rceil>"
-  unfolding dInvariant using circle_invariant by auto
+  unfolding sH_diff_inv using circle_invariant by auto
 
 \<comment> \<open>Proof of the same specification by providing solutions:\<close>
 
@@ -359,7 +359,7 @@ subsubsection\<open> Bouncing Ball with invariants \<close>
 text\<open> We prove again the bouncing ball but this time with differential invariants. \<close>
 
 lemma gravity_invariant: "diff_invariant (\<lambda>s. s $ 2 < 0) ((*v) A) UNIV UNIV 0 G"
-  apply(rule_tac \<theta>'="\<lambda>s. 0" and \<nu>'="\<lambda>s. 0" in diff_invariant_rules(3), clarsimp, simp, clarsimp)
+  apply(rule_tac \<mu>'="\<lambda>s. 0" and \<nu>'="\<lambda>s. 0" in diff_invariant_rules(3), clarsimp, simp, clarsimp)
   apply(drule_tac i="2" in has_vderiv_on_vec_nth)
   apply(rule_tac S="UNIV" in has_vderiv_on_subset)
   by(auto intro!: poly_derivatives simp: vec_eq_iff matrix_vector_mult_def)
@@ -381,15 +381,14 @@ lemma bouncing_ball_invariants:
   (((x\<acute>=(*v) A & (\<lambda> s. s $ 0 \<ge> 0));
   (IF (\<lambda> s. s $ 0 = 0) THEN (1 ::= (\<lambda>s. - s $ 1)) ELSE Id FI))\<^sup>*)
   \<lceil>\<lambda>s. 0 \<le> s $ 0 \<and> s $ 0 \<le> h\<rceil>"
-  apply(rule sH_star [of _ "\<lambda>s. 0 \<le> s$0 \<and> I s"], simp add: dinv)
+  apply(rule sH_star[of _ "\<lambda>s. 0 \<le> s$0 \<and> I s"], simp add: dinv)
    apply(rule sH_relcomp[where R="\<lambda>s. 0 \<le> s$0 \<and> I s"])
-    apply(rule_tac I="\<lambda>s. 0 \<le> s$0 \<and> I s" in dI, simp, simp, simp)
-  apply(rule sH_guard_rule, simp)
-     apply(rule sH_weaken_pre[of I])
-  apply(unfold dInvariant dinv)
-apply(intro diff_invariant_rules(4))
+    apply(rule sH_g_evolution_guard, simp)
+    apply(rule_tac p'="\<lceil>I\<rceil>" in rel_kat.H_cons_1, simp)
+    apply(unfold dinv, subst sH_diff_inv)
+    apply(rule diff_invariant_rules)
   using gravity_invariant apply force
-  using energy_conservation_invariant apply(force, force simp: p2r_def, simp)
+  using energy_conservation_invariant apply force
    apply(rule sH_cond, subst sH_assign_iff, force simp: bb_real_arith)
   by(subst sH_H, simp_all, force simp: bb_real_arith)
 

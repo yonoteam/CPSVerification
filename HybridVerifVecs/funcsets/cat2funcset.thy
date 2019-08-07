@@ -17,17 +17,15 @@ lemma "fb\<^sub>\<F> F S = {s. F s \<subseteq> S}"
   unfolding ffb_def map_dual_def klift_def kop_def dual_set_def
   by(auto simp: Compl_eq_Diff_UNIV fun_eq_iff f2r_def converse_def r2f_def)
 
-lemma ffb_eta[simp]: "fb\<^sub>\<F> \<eta> X = X"
-  unfolding ffb_def by(simp add: kop_def klift_def map_dual_def)
-
 lemma ffb_eq: "fb\<^sub>\<F> F X = {s. \<forall>y. y \<in> F s \<longrightarrow> y \<in> X}"
   unfolding ffb_def apply(simp add: kop_def klift_def map_dual_def)
   unfolding dual_set_def f2r_def r2f_def by auto
 
-lemma ffb_mono_ge:
-  assumes "P \<le> fb\<^sub>\<F> F R" and "R \<le> Q"
-  shows "P \<le> fb\<^sub>\<F> F Q"
-  using assms unfolding ffb_eq by auto
+lemma ffb_eta[simp]: "fb\<^sub>\<F> \<eta> X = X"
+  unfolding ffb_def by(simp add: kop_def klift_def map_dual_def)
+
+lemma ffb_iso: "P \<le> Q \<Longrightarrow> fb\<^sub>\<F> F P \<le> fb\<^sub>\<F> F Q"
+  unfolding ffb_eq by auto
 
 lemma ffb_eq_univD: "fb\<^sub>\<F> F P = UNIV \<Longrightarrow> (\<forall>y. y \<in> (F x) \<longrightarrow> y \<in> P)"
 proof
@@ -39,6 +37,13 @@ proof
   then show "s2p (F x) y \<longrightarrow> y \<in> P" 
     by auto
 qed
+
+lemma ffb_invariants: 
+  assumes "{s. I s} \<le> fb\<^sub>\<F> F {s. I s}"
+      and "{s. J s} \<le> fb\<^sub>\<F> F {s. J s}"
+    shows "{s. I s \<and> J s} \<le> fb\<^sub>\<F> F {s. I s \<and> J s}"
+      and "{s. I s \<or> J s} \<le> fb\<^sub>\<F> F {s. I s \<or> J s}"
+  using assms unfolding ffb_eq by auto
 
 text \<open>Next, we introduce assignments and their wlps.\<close>
 
@@ -60,7 +65,8 @@ lemma ffb_kcomp: "fb\<^sub>\<F> (G \<circ>\<^sub>K F) P = fb\<^sub>\<F> G (fb\<^
 lemma ffb_kcomp_ge:
   assumes "P \<le> fb\<^sub>\<F> F R" "R \<le> fb\<^sub>\<F> G Q"
   shows "P \<le> fb\<^sub>\<F> (F \<circ>\<^sub>K G) Q"
-  by(subst ffb_kcomp) (rule ffb_mono_ge[OF assms])
+  apply(subst ffb_kcomp) 
+  by (rule order.trans[OF assms(1)]) (rule ffb_iso[OF assms(2)])
 
 text \<open>We also have an implementation of the conditional operator and its wlp.\<close>
 
@@ -95,8 +101,7 @@ lemma kstar_inv: "I \<le> {s. \<forall>y. y \<in> F s \<longrightarrow> y \<in> 
   by(auto simp: kcomp_prop) 
 
 lemma ffb_star_induct_self: "I \<le> fb\<^sub>\<F> F I \<Longrightarrow> I \<subseteq> fb\<^sub>\<F> (kstar F) I"
-  apply(subst ffb_eq, subst (asm) ffb_eq)
-  unfolding kstar_def apply clarsimp
+  unfolding kstar_def ffb_eq apply clarsimp
   using kstar_inv by blast
 
 lemma ffb_kstarI:
@@ -107,8 +112,9 @@ proof-
     using assms(2) ffb_star_induct_self by blast
   hence "P \<le> fb\<^sub>\<F> (kstar F) I"
     using assms(1) by auto
-  thus ?thesis
-    using assms(3) ffb_mono_ge by blast
+  also have "fb\<^sub>\<F> (kstar F) I \<le> fb\<^sub>\<F> (kstar F) Q"
+    by (rule ffb_iso[OF assms(3)])
+  finally show ?thesis .
 qed
 
 section \<open>Verification of hybrid programs\<close>
@@ -120,81 +126,102 @@ abbreviation g_evol ::"(('a::banach)\<Rightarrow>'a) \<Rightarrow> 'a pred \<Rig
 
 subsection \<open>Verification by providing solutions\<close>
 
-lemma ffb_g_orbital: "fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) Q = 
-  {s. \<forall>X\<in>ivp_sols (\<lambda>t. f) T S t\<^sub>0 s. \<forall>t\<in>T. (\<P> X (down T t) \<subseteq> {s. G s}) \<longrightarrow> (X t) \<in> Q}"
-  unfolding ffb_eq g_orbital_eq(1) by auto
+lemma ffb_g_orbital_eq: "fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) Q = 
+  {s. \<forall>X\<in>ivp_sols (\<lambda>t. f) T S t\<^sub>0 s. \<forall>t\<in>T. (\<P> X (down T t) \<subseteq> {s. G s}) \<longrightarrow> \<P> X (down T t) \<subseteq> Q}"
+  unfolding ffb_eq g_orbital_eq image_le_pred subset_eq apply(clarsimp, safe)
+   apply(erule_tac x="X xa" in allE, erule impE, force, simp)
+  by (erule_tac x=X in ballE, simp_all)
 
-lemma ffb_guard_eq: 
-  assumes "R = (\<lambda>s. G s \<and> Q s)"
-  shows "fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) {s. R s} = fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) {s. Q s}"
-  unfolding ffb_g_orbital using assms by auto
+lemma ffb_g_orbital: "fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) Q = 
+  {s. \<forall>X\<in>ivp_sols (\<lambda>t. f) T S t\<^sub>0 s. \<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (X \<tau>)) \<longrightarrow> (X t) \<in> Q}"
+  unfolding ffb_eq g_orbital_eq by auto
 
 context local_flow
 begin
 
+lemma "{s\<in>S. \<forall>y. y \<in> \<gamma>\<^sup>\<phi> s \<longrightarrow> y \<in> Q} = {s\<in>S. \<forall> t \<in> T. \<phi> t s \<in> Q}"
+  apply(rule subset_antisym, clarsimp)
+  by(erule_tac x="\<phi> t x" in allE, auto)
+
 lemma ffb_orbit: 
   assumes "S = UNIV"
-  shows "fb\<^sub>\<F> \<gamma>\<^sup>\<phi> Q = {s. \<forall> t \<in> T. \<phi> t s \<in> Q}"
+  shows "fb\<^sub>\<F> \<gamma>\<^sup>\<phi> Q = {s\<in>S. \<forall> t \<in> T. \<phi> t s \<in> Q}"
   using orbit_eq unfolding assms ffb_eq by auto
 
 lemma ffb_g_orbit: 
   assumes "S = UNIV"
-  shows "fb\<^sub>\<F> (x\<acute>=f & G on T S @ 0) Q = {s. \<forall>t\<in>T. (\<P> (\<lambda>t. \<phi> t s) (down T t) \<subseteq> {s. G s}) \<longrightarrow> (\<phi> t s) \<in> Q}"
+  shows "fb\<^sub>\<F> (x\<acute>=f & G on T S @ 0) Q = {s. \<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (\<phi> \<tau> s)) \<longrightarrow> (\<phi> t s) \<in> Q}"
   using g_orbital_collapses unfolding assms ffb_eq by auto
-
-lemma invariant_set_eq_dl_invariant:
-  assumes "S = UNIV"
-  shows "(\<forall>s\<in>S. \<forall>t\<in>T. I s \<longrightarrow> I (\<phi> t s)) = ({s. I s} = fb\<^sub>\<F> (orbit) {s. I s})"
-  apply(safe, simp_all add: ffb_orbit[OF assms])
-    apply(erule_tac x=x in ballE, simp_all add: assms)
-  apply(erule_tac x=0 in ballE, erule_tac x=x in allE)
-  by(auto simp: ivp(2) init_time assms)
 
 end
 
-text\<open> The previous lemma allows us to compute wlps for known systems of ODEs. We can also implement
-a version of it as an inference rule. A simple computation of a wlp is shown immediately after.\<close>
 
-lemma dSolution:
+subsection\<open> Verification with differential invariants \<close>
+
+lemma ffb_g_orbital_guard: 
+  assumes "H = (\<lambda>s. G s \<and> Q s)"
+  shows "fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) {s. H s} = fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) {s. Q s}"
+  unfolding ffb_g_orbital using assms by auto
+
+lemma ffb_g_orbital_inv:
+  assumes "P \<le> I" and "I \<le> fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) I" and "I \<le> Q"
+  shows "P \<le> fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) Q"
+  using assms(1) apply(rule order.trans)
+  using assms(2) apply(rule order.trans)
+  by (rule ffb_iso[OF assms(3)])
+
+lemma ffb_diff_inv: 
+  "({s. I s} \<le> fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) {s. I s}) = diff_invariant I f T S t\<^sub>0 G"
+  by (auto simp: diff_invariant_def ivp_sols_def ffb_eq g_orbital_eq)
+
+lemma diff_inv_guard_ignore:
+  assumes "{s. I s} \<le> fb\<^sub>\<F> (x\<acute>=f & (\<lambda>s. True) on T S @ t\<^sub>0) {s. I s}"
+  shows "{s. I s} \<le> fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) {s. I s}"
+  using assms unfolding ffb_diff_inv diff_invariant_eq image_le_pred by auto
+
+context local_flow
+begin
+
+lemma ffb_diff_inv_eq:
+  assumes "S = UNIV"
+  shows "({s. I s} = fb\<^sub>\<F> (x\<acute>=f & (\<lambda>s. True) on T S @ 0) {s. I s}) = diff_invariant I f T S 0 (\<lambda>s. True)"
+  unfolding diff_invariant_eq[OF assms] ffb_g_orbit[OF assms] image_le_pred 
+  using in_ivp_sols ivp(2) init_time unfolding assms by auto
+
+lemma ffb_orbit_inv_eq:
+  assumes "S = UNIV"
+  shows "({s. I s} = fb\<^sub>\<F> (\<gamma>\<^sup>\<phi>) {s. I s}) = (\<forall>s\<in>S. \<forall>t\<in>T. I s \<longrightarrow> I (\<phi> t s))"
+  unfolding orbit_def ffb_diff_inv_eq[OF assms] diff_invariant_eq[OF assms] 
+  using in_ivp_sols ivp(2) init_time unfolding assms by auto
+
+end
+
+
+subsection\<open> Derivation of the rules of dL \<close>
+
+text\<open> We derive domain specific rules of differential dynamic logic (dL). In each subsubsection, 
+we first derive the dL axioms (named below with two capital letters and ``D'' being the first one). 
+This is done mainly to prove that there are minimal requirements in Isabelle to get the dL calculus.\<close>
+
+lemma diff_solve_axiom: 
+  fixes c::"'a::{heine_borel, banach}"
+  assumes "0 \<in> T" and "is_interval T" "open T"
+  shows "fb\<^sub>\<F> (x\<acute>=(\<lambda>s. c) & G on T UNIV @ 0) Q = 
+  {s. \<forall>t\<in>T. (\<P> (\<lambda>\<tau>. s + \<tau> *\<^sub>R c) (down T t) \<subseteq> {s. G s}) \<longrightarrow> (s + t *\<^sub>R c) \<in> Q}"
+  apply(subst local_flow.ffb_g_orbit[of "\<lambda>s. c" _ _ "(\<lambda>t s. s + t *\<^sub>R c)"])
+  using line_is_local_flow assms unfolding image_le_pred by auto
+
+lemma diff_solve_rule:
   assumes "local_flow f T UNIV \<phi>"
     and "\<forall>s. s \<in> P \<longrightarrow> (\<forall> t\<in>T. (\<P> (\<lambda>t. \<phi> t s) (down T t) \<subseteq> {s. G s}) \<longrightarrow> (\<phi> t s) \<in> Q)"
   shows "P \<le> fb\<^sub>\<F> (x\<acute>=f & G on T UNIV @ 0) Q"
   using assms by(subst local_flow.ffb_g_orbit) auto
 
-lemma line_is_local_flow: 
-  "0 \<in> T \<Longrightarrow> is_interval T \<Longrightarrow> open T \<Longrightarrow> local_flow (\<lambda> s. c) T UNIV (\<lambda> t s. s + t *\<^sub>R c)"
-  apply(unfold_locales, simp_all add: local_lipschitz_def lipschitz_on_def, clarsimp)
-   apply(rule_tac x=1 in exI, clarsimp, rule_tac x="1/2" in exI, simp)
-  apply(rule_tac f'1="\<lambda> s. 0" and g'1="\<lambda> s. c" in derivative_intros(191))
-  apply(rule derivative_intros, simp)+
-  by simp_all
-
-lemma ffb_line: 
-  fixes c::"'a::{heine_borel, banach}"
-  assumes "0 \<in> T" and "is_interval T" "open T"
-  shows "fb\<^sub>\<F> (x\<acute>=(\<lambda>s. c) & G on T UNIV @ 0) Q = 
-  {x. \<forall>t\<in>T. (\<P> (\<lambda>\<tau>. x + \<tau> *\<^sub>R c) (down T t) \<subseteq> {s. G s}) \<longrightarrow> (x + t *\<^sub>R c) \<in> Q}"
-  apply(subst local_flow.ffb_g_orbit[of "\<lambda>s. c" _ _ "(\<lambda>t x. x + t *\<^sub>R c)"])
-  using line_is_local_flow assms by auto
-
-subsection\<open> Verification with differential invariants \<close>
-
-text\<open> We derive domain specific rules of differential dynamic logic (dL). In each subsubsection, 
-we first derive the dL axioms (named below with two capital letters and ``D'' being the first one). 
-This is done mainly to prove that there are minimal requirements in Isabelle to get the dL calculus. 
-Then we prove the inference rules which are used in our verification proofs.\<close>
-
-subsubsection\<open> Differential Weakening \<close>
-
-lemma DW: "fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) Q = fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) {s. G s \<longrightarrow> s \<in> Q}"
+lemma diff_weak_axiom: "fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) Q = fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) {s. G s \<longrightarrow> s \<in> Q}"
   unfolding ffb_g_orbital image_def by force
   
-lemma dWeakening: 
-  assumes "{s. G s} \<le> Q"
-  shows "P \<le> fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) Q"
-  using assms by(auto intro: g_orbitalD simp: le_fun_def g_orbital_eq ffb_eq)
-
-subsubsection\<open> Differential Cut \<close>
+lemma diff_weak_rule: "{s. G s} \<le> Q \<Longrightarrow> P \<le> fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) Q"
+  by(auto intro: g_orbitalD simp: le_fun_def g_orbital_eq ffb_eq)
 
 lemma ffb_g_orbital_eq_univD:
   assumes "fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) {s. C s} = UNIV" 
@@ -209,7 +236,7 @@ proof
   ultimately show "C (x \<tau>)" by blast
 qed
 
-lemma DC:
+lemma diff_cut_axiom:
   assumes Thyp: "is_interval T" "t\<^sub>0 \<in> T"
     and "fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) {s. C s} = UNIV"
   shows "fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) Q = fb\<^sub>\<F> (x\<acute>=f & (\<lambda>s. G s \<and> C s) on T S @ t\<^sub>0) Q"
@@ -236,7 +263,7 @@ next show "\<And>s. (x\<acute>=f & (\<lambda>s. G s \<and> C s) on T S @ t\<^sub
     by (auto simp: g_orbital_eq)
 qed
 
-lemma dCut:
+lemma diff_cut_rule:
   assumes Thyp: "is_interval T" "t\<^sub>0 \<in> T"
     and ffb_C: "P \<le> fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) {s. C s}"
     and ffb_Q: "P \<le> fb\<^sub>\<F> (x\<acute>=f & (\<lambda>s. G s \<and> C s) on T S @ t\<^sub>0) Q"
@@ -255,45 +282,40 @@ proof(subst ffb_eq, subst g_orbital_eq, clarsimp)
     using \<open>s \<in> P\<close> ffb_Q by (subst (asm) ffb_eq) auto
 qed
 
+lemma solve:
+  assumes "local_flow f UNIV UNIV \<phi>"
+    and "\<forall>s. s \<in> P \<longrightarrow> (\<forall>t. (\<forall>\<tau>\<le>t. G (\<phi> \<tau> s)) \<longrightarrow> (\<phi> t s) \<in> Q)"
+  shows "P \<le> fb\<^sub>\<F> (x\<acute>=f & G) Q"
+  apply(rule diff_solve_rule[OF assms(1)])
+  using assms(2) unfolding image_le_pred by simp
 
-subsubsection\<open> Differential Invariant \<close>
+lemma DS: 
+  fixes c::"'a::{heine_borel, banach}"
+  shows "fb\<^sub>\<F> (x\<acute>=(\<lambda>s. c) & G) Q = {x. \<forall>t. (\<forall>\<tau>\<le>t. G (x + \<tau> *\<^sub>R c)) \<longrightarrow> (x + t *\<^sub>R c) \<in> Q}"
+  by (subst diff_solve_axiom[of UNIV]) auto
 
-lemma DI_sufficiency:
-  assumes "\<forall>s. \<exists>x. x \<in> ivp_sols (\<lambda>t. f) T S t\<^sub>0 s" 
-    and "t\<^sub>0 \<in> T" and "\<forall>s. \<forall>x \<in> ivp_sols (\<lambda>t. f) T S t\<^sub>0 s. \<forall>\<tau>. s2p T \<tau> \<and> \<tau> \<le> t\<^sub>0 \<longrightarrow> G (x \<tau>)"
-  shows "fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) Q \<le> fb\<^sub>\<F> (\<lambda> x. {s. s = x \<and> G s}) Q"
-  unfolding ffb_g_orbital using assms(1) unfolding ffb_eq apply clarsimp
-  apply(rename_tac s, erule_tac x="s" in allE, clarsimp)
-  apply(erule_tac x="x" in ballE, erule_tac x="t\<^sub>0" in ballE, erule impE)
-  using assms(3) unfolding image_le_pred by (simp_all add: \<open>t\<^sub>0 \<in> T\<close> ivp_solsD(2))
+lemma DW: "fb\<^sub>\<F> (x\<acute>=f & G) Q = fb\<^sub>\<F> (x\<acute>=f & G) {s. G s \<longrightarrow> s \<in> Q}"
+  by (rule diff_weak_axiom)
+  
+lemma dW: "{s. G s} \<le> Q \<Longrightarrow> P \<le> fb\<^sub>\<F> (x\<acute>=f & G) Q"
+  by (rule diff_weak_rule)
 
-lemma (in local_flow) DI_necessity: (* Not true... check Bohrer formalisation *)
-  assumes "S = UNIV" "T = UNIV"
-  shows "fb\<^sub>\<F> (\<lambda> x. {s. s = x \<and> G s}) Q \<le> fb\<^sub>\<F> (x\<acute>=f & G on T S @ 0) Q"
-  apply(subst ffb_g_orbit, simp add: assms, subst ffb_eq, clarsimp)
-  oops
+lemma DC:
+  assumes "fb\<^sub>\<F> (x\<acute>=f & G) {s. C s} = UNIV"
+  shows "fb\<^sub>\<F> (x\<acute>=f & G) Q = fb\<^sub>\<F> (x\<acute>=f & (\<lambda>s. G s \<and> C s)) Q"
+  by (rule diff_cut_axiom) (auto simp: assms)
 
-lemma dInvariant: "({s. I s} \<le> fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) {s. I s}) = diff_invariant I f T S t\<^sub>0 G"
-  by(auto simp: diff_invariant_def ivp_sols_def ffb_eq g_orbital_eq)
-
-lemma ffb_g_orbital_le_requires:
-  assumes "\<forall>s. \<exists>x. x \<in> (x\<acute>=f & G on T S @ t\<^sub>0) s" "\<forall>t\<in>T. t\<^sub>0 \<le> t" "t\<^sub>0\<in>T"
-  shows "fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) {s. I s} \<le> {s. I s}"
-  using assms unfolding ffb_eq apply clarsimp
-  apply(erule_tac x=x in allE, erule exE)
-  apply(drule g_orbitalE, clarsimp)
-  apply(frule ivp_solsD(2))
-  unfolding image_le_pred
-  apply(erule_tac x="x" in allE)
-  by(auto intro!: g_orbitalI dest: ivp_solsD)
+lemma dC:
+  assumes "P \<le> fb\<^sub>\<F> (x\<acute>=f & G) {s. C s}"
+    and "P \<le> fb\<^sub>\<F> (x\<acute>=f & (\<lambda>s. G s \<and> C s)) Q"
+  shows "P \<le> fb\<^sub>\<F> (x\<acute>=f & G) Q"
+  apply(rule diff_cut_rule)
+  using assms by auto
 
 lemma dI:
-  assumes Thyp: "is_interval T" "t\<^sub>0 \<in> T"
-    and "P \<le> I" and "I \<le> fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) I" and "I \<le> Q"
-  shows "P \<le> fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) Q"
-  apply(rule_tac C="\<lambda>s. s \<in> I" in dCut[OF Thyp])
-  using assms apply force
-  apply(rule dWeakening)
-  using assms by auto
+  assumes "P \<le> {s. I s}" and "diff_invariant I f UNIV UNIV 0 G" and "{s. I s} \<le> Q"
+  shows "P \<le> fb\<^sub>\<F> (x\<acute>=f & G) Q"
+  apply(rule ffb_g_orbital_inv[OF assms(1) _ assms(3)])
+  unfolding ffb_diff_inv using assms(2) .
 
 end

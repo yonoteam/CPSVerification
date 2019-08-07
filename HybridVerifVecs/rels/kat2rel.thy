@@ -37,19 +37,10 @@ abbreviation assign :: "'b \<Rightarrow> ('a^'b \<Rightarrow> 'a) \<Rightarrow> 
 lemma sH_assign_iff [simp]: "rel_kat.H \<lceil>P\<rceil> (x ::= e) \<lceil>Q\<rceil> \<longleftrightarrow> (\<forall>s. P s \<longrightarrow> Q (vec_upd s x (e s)))"
   unfolding sH_H by simp
 
-(*lemma wp_assign_var [simp]: "\<lfloor>wp (x ::= e) \<lceil>Q\<rceil>\<rfloor> = (\<lambda>s. Q (vec_upd s x (e s)))"
-  by(subst wp_assign, simp add: pointfree_idE)*)
-
-text\<open> Next, the Hoare triple of the composition:\<close>
+text\<open> Next, the Hoare rule of the composition:\<close>
 
 lemma sH_relcomp: "rel_kat.H \<lceil>P\<rceil> X \<lceil>R\<rceil> \<Longrightarrow> rel_kat.H \<lceil>R\<rceil> Y \<lceil>Q\<rceil> \<Longrightarrow> rel_kat.H \<lceil>P\<rceil> (X ; Y) \<lceil>Q\<rceil>"
   using rel_kat.H_seq_swap by force
-
-(* "|x \<cdot> y] q = |x] |y] q" *)
-
-lemma "rel_kat.H \<lceil>P\<rceil> (X ; Y) \<lceil>Q\<rceil> = rel_kat.H \<lceil>P\<rceil> (X) {(s,s') |s s'. (s,s') \<in> Y \<longrightarrow> Q s' }"
-  unfolding rel_kat.H_def apply(auto simp: subset_eq p2r_def Int_def)
-  oops
 
 text\<open> There is also already an implementation of the conditional operator 
 @{thm ifthenelse_def[no_vars]} and its Hoare triple rule: @{thm sH_cond[no_vars]}. \<close>
@@ -93,11 +84,6 @@ lemma sH_g_evolution:
   shows "rel_kat.H \<lceil>P\<rceil> (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>Q\<rceil>"
   using assms unfolding g_orbital_eq(1) sH_H by auto
 
-lemma sH_guard_rule: 
-  assumes "R = (\<lambda>s. G s \<and> Q s)" and "rel_kat.H \<lceil>P\<rceil> (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>Q\<rceil>" 
-  shows "rel_kat.H \<lceil>P\<rceil> (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>R\<rceil>"
-  using assms unfolding g_orbital_eq sH_H ivp_sols_def by auto
-
 context local_flow
 begin
 
@@ -107,59 +93,73 @@ lemma sH_orbit:
   using orbit_eq assms(2) unfolding assms(1) sH_H by auto
 
 lemma sH_g_orbit: 
-  assumes "S = UNIV" and "\<forall>s. P s \<longrightarrow> (\<forall>t\<in>T. (\<P> (\<lambda>t. \<phi> t s) (down T t) \<subseteq> {s. G s}) \<longrightarrow> Q (\<phi> t s))"
+  assumes "S = UNIV" and "\<forall>s. P s \<longrightarrow> (\<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (\<phi> \<tau> s)) \<longrightarrow> Q (\<phi> t s))"
   shows "rel_kat.H \<lceil>P\<rceil> (x\<acute>=f & G on T S @ 0) \<lceil>Q\<rceil>"
   using g_orbital_collapses assms(2) unfolding assms(1) by (auto simp: sH_H)
 
-lemma invariant_set_eq_dl_invariant:
+end
+
+
+subsection\<open> Verification with differential invariants \<close>
+
+lemma sH_g_evolution_guard: 
+  assumes "R = (\<lambda>s. G s \<and> Q s)" and "rel_kat.H \<lceil>P\<rceil> (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>Q\<rceil>" 
+  shows "rel_kat.H \<lceil>P\<rceil> (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>R\<rceil>"
+  using assms unfolding g_orbital_eq sH_H ivp_sols_def by auto
+
+lemma sH_g_evolution_inv:
+  assumes "\<lceil>P\<rceil> \<le> \<lceil>I\<rceil>" and "rel_kat.H \<lceil>I\<rceil> (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>I\<rceil>" and "\<lceil>I\<rceil> \<le> \<lceil>Q\<rceil>"
+  shows "rel_kat.H \<lceil>P\<rceil> (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>Q\<rceil>"
+  using assms(1) apply(rule_tac p'="\<lceil>I\<rceil>" in rel_kat.H_cons_1, simp)
+  using assms(3) apply(rule_tac q'="\<lceil>I\<rceil>" in rel_kat.H_cons_2, simp)
+  using assms(2) by simp
+
+lemma sH_diff_inv: "rel_kat.H \<lceil>I\<rceil> (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>I\<rceil> = diff_invariant I f T S t\<^sub>0 G"
+  unfolding diff_invariant_eq sH_H g_orbital_eq by auto
+
+context local_flow
+begin
+
+lemma wp_diff_inv_eq:
   assumes "S = UNIV"
-  shows "(\<forall>s. \<forall>t\<in>T. I s \<longrightarrow> I (\<phi> t s)) = (rel_kat.H \<lceil>I\<rceil> ({(s,s') | s s'. s' \<in> \<gamma>\<^sup>\<phi> s}) \<lceil>I\<rceil>)"
-  using orbit_eq unfolding assms(1) sH_H apply(safe, clarsimp, clarsimp)
-  by (erule_tac x=s in allE, simp, erule_tac x="\<phi> t s" in allE) force
+  shows "(rel_kat.H  \<lceil>I\<rceil> (x\<acute>=f & (\<lambda>s. True) on T S @ 0) \<lceil>I\<rceil>) = diff_invariant I f T S 0 (\<lambda>s. True)"
+  unfolding diff_invariant_eq[OF assms] sH_H using g_orbital_collapses unfolding assms 
+  by clarsimp force
+
+lemma wp_orbit_inv_eq:
+  assumes "S = UNIV"
+  shows "(rel_kat.H  \<lceil>I\<rceil>  ({(s,s') | s s'. s' \<in> \<gamma>\<^sup>\<phi> s}) \<lceil>I\<rceil>) = (\<forall>s\<in>S. \<forall>t\<in>T. I s \<longrightarrow> I (\<phi> t s))"
+  unfolding orbit_def wp_diff_inv_eq[OF assms] diff_invariant_eq[OF assms] 
+  using in_ivp_sols ivp(2) init_time unfolding assms by auto
 
 end
 
-text\<open> The previous theorem allows us to compute wlps for known systems of ODEs. We can also implement
-a version of it as an inference rule. A simple computation of a wlp is shown immmediately after.\<close>
+subsection\<open> Derivation of the rules of dL \<close>
 
-lemma dSolution:
+text\<open> We derive domain specific rules of differential dynamic logic (dL). In each subsubsection, 
+we first derive the dL axioms (named below with two capital letters and ``D'' being the first one). 
+This is done mainly to prove that there are minimal requirements in Isabelle to get the dL calculus.\<close>
+
+lemma diff_solve_axiom: 
+  fixes c::"'a::{heine_borel, banach}"
+  assumes "0 \<in> T" and "is_interval T" "open T"
+    and "\<forall>s. P s \<longrightarrow> (\<forall>t\<in>T. (\<P> (\<lambda> t. s + t *\<^sub>R c) (down T t) \<subseteq> {s. G s}) \<longrightarrow> Q (s + t *\<^sub>R c))"
+  shows "rel_kat.H \<lceil>P\<rceil> (x\<acute>=(\<lambda>s. c) & G on T UNIV @ 0) \<lceil>Q\<rceil>"
+  apply(subst local_flow.sH_g_orbit[where f="\<lambda>s. c" and \<phi>="(\<lambda> t x. x + t *\<^sub>R c)"])
+  using line_is_local_flow assms unfolding image_le_pred by auto
+
+lemma diff_solve_rule:
   assumes "local_flow f T UNIV \<phi>"
     and "\<forall>s. P s \<longrightarrow> (\<forall> t\<in>T. (\<P> (\<lambda>t. \<phi> t s) (down T t) \<subseteq> {s. G s}) \<longrightarrow> Q (\<phi> t s))"
   shows "rel_kat.H \<lceil>P\<rceil> (x\<acute>=f & G on T UNIV @ 0) \<lceil>Q\<rceil>"
   using assms by(subst local_flow.sH_g_orbit, auto)
 
-lemma line_is_local_flow: 
-  "0 \<in> T \<Longrightarrow> is_interval T \<Longrightarrow> open T \<Longrightarrow> local_flow (\<lambda> s. c) T UNIV (\<lambda> t s. s + t *\<^sub>R c)"
-  apply(unfold_locales, simp_all add: local_lipschitz_def lipschitz_on_def, clarsimp)
-   apply(rule_tac x=1 in exI, clarsimp, rule_tac x="1/2" in exI, simp)
-  apply(rule_tac f'1="\<lambda> s. 0" and g'1="\<lambda> s. c" in derivative_intros(191))
-  apply(rule derivative_intros, simp)+
-  by simp_all
-
-lemma line_DS: fixes c::"'a::{heine_borel, banach}"
-  assumes "0 \<in> T" and "is_interval T" "open T"
-    and "\<forall>s. P s \<longrightarrow> (\<forall>t\<in>T. (\<P> (\<lambda> t. s + t *\<^sub>R c) (down T t) \<subseteq> {s. G s}) \<longrightarrow> Q (s + t *\<^sub>R c))"
-  shows "rel_kat.H \<lceil>P\<rceil> (x\<acute>=(\<lambda>s. c) & G on T UNIV @ 0) \<lceil>Q\<rceil>"
-  apply(subst local_flow.sH_g_orbit[where f="\<lambda>s. c" and \<phi>="(\<lambda> t x. x + t *\<^sub>R c)"])
-  using line_is_local_flow assms by auto
-
-subsection\<open> Verification with differential invariants \<close>
-
-text\<open> We derive the domain specific rules of differential dynamic logic (dL). In each subsubsection, 
-we first derive the dL axioms (named below with two capital letters and ``D'' being the first one). 
-This is done mainly to prove that there are minimal requirements in Isabelle to get the dL calculus. 
-Then we prove the inference rules which are used in verification proofs.\<close>
-
-subsubsection\<open> Differential Weakening \<close>
-
-lemma dWeakening: 
+lemma diff_weak_rule: 
   assumes "\<lceil>G\<rceil> \<le> \<lceil>Q\<rceil>"
   shows "rel_kat.H \<lceil>P\<rceil> (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>Q\<rceil>"
   using assms unfolding g_orbital_eq sH_H ivp_sols_def by auto
 
-subsubsection\<open> Differential Cut \<close>
-
-theorem dCut:
+lemma diff_cut_rule:
   assumes Thyp: "is_interval T" "t\<^sub>0 \<in> T"
     and wp_C:"rel_kat.H \<lceil>P\<rceil> (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>C\<rceil>"
     and wp_Q:"rel_kat.H \<lceil>P\<rceil> (x\<acute>=f & (\<lambda> s. G s \<and> C s) on T S @ t\<^sub>0) \<lceil>Q\<rceil>"
@@ -177,19 +177,5 @@ proof(subst sH_H, simp add: g_orbital_eq p2r_def image_le_pred, clarsimp)
   thus "Q (X t)"
     using \<open>P s\<close> wp_Q by (subst (asm) sH_H) auto
 qed
-
-subsubsection\<open> Differential Invariant \<close>
-
-lemma dInvariant:"rel_kat.H \<lceil>I\<rceil> (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>I\<rceil> = diff_invariant I f T S t\<^sub>0 G"
-  unfolding diff_invariant_eq sH_H g_orbital_eq by auto
-
-lemma dI:
-  assumes Thyp: "is_interval T" "t\<^sub>0 \<in> T"
-    and "\<lceil>P\<rceil> \<le> \<lceil>I\<rceil>" and "rel_kat.H \<lceil>I\<rceil> (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>I\<rceil>" and "\<lceil>I\<rceil> \<le> \<lceil>Q\<rceil>"
-  shows "rel_kat.H \<lceil>P\<rceil> (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>Q\<rceil>"
-  apply(rule_tac C="I" in dCut[OF Thyp])
-  using assms(3,4) apply (simp add: sH_cons_1) 
-  apply(rule dWeakening)
-  using assms by auto
 
 end

@@ -267,13 +267,8 @@ abbreviation g_evol ::"(('a::banach)\<Rightarrow>'a) \<Rightarrow> 'a pred \<Rig
 subsection \<open>Verification by providing solutions\<close>
 
 lemma wp_g_evolution: "wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>Q\<rceil>= 
-  \<lceil>\<lambda> s. \<forall>X\<in>ivp_sols (\<lambda>t. f) T S t\<^sub>0 s. \<forall>t\<in>T. (\<P> X (down T t) \<subseteq> {s. G s}) \<longrightarrow> Q (X t)\<rceil>"
+  \<lceil>\<lambda> s. \<forall>X\<in>ivp_sols (\<lambda>t. f) T S t\<^sub>0 s. \<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (X \<tau>)) \<longrightarrow> Q (X t)\<rceil>"
   unfolding g_orbital_eq(1) wp_nd_fun by (auto simp: fun_eq_iff image_le_pred)
-
-lemma wp_guard_eq: 
-  assumes "R = (\<lambda>s. G s \<and> Q s)"
-  shows "wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>R\<rceil> = wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>Q\<rceil>"
-  unfolding wp_g_evolution image_le_pred using assms by auto
 
 context local_flow
 begin
@@ -286,62 +281,71 @@ lemma wp_orbit:
 lemma wp_g_orbit: 
   assumes "S = UNIV"
   shows "wp (x\<acute>=f & G on T S @ 0) \<lceil>Q\<rceil> = 
-  \<lceil>\<lambda> s. \<forall>t\<in>T. (\<P> (\<lambda>t. \<phi> t s) (down T t) \<subseteq> {s. G s}) \<longrightarrow> Q (\<phi> t s)\<rceil>"
+  \<lceil>\<lambda> s. \<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (\<phi> \<tau> s)) \<longrightarrow> Q (\<phi> t s)\<rceil>"
   using g_orbital_collapses unfolding assms by (auto simp: wp_nd_fun fun_eq_iff)
-
-lemma invariant_set_eq_dl_invariant:
-  assumes "S = UNIV"
-  shows "(\<forall>s\<in>S. \<forall>t\<in>T. I s \<longrightarrow> I (\<phi> t s)) = (\<lceil>I\<rceil> = wp (\<gamma>\<^sup>\<phi>\<^sup>\<bullet>) \<lceil>I\<rceil>)"
-  unfolding wp_orbit[OF assms] apply simp
-  using ivp(2) unfolding assms apply simp
-  using init_time by (auto simp: fun_eq_iff)
 
 end
 
-text\<open> The previous theorem allows us to compute wlps for known systems of ODEs. We can also implement
-a version of it as an inference rule. A simple computation of a wlp is shown immmediately after.\<close>
+subsection\<open> Verification with differential invariants \<close>
 
-lemma dSolution:
+lemma wp_g_evolution_guard: 
+  assumes "H = (\<lambda>s. G s \<and> Q s)"
+  shows "wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>H\<rceil> = wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>Q\<rceil>"
+  unfolding wp_g_evolution using assms by auto
+
+lemma wp_g_evolution_inv:
+  assumes "\<lceil>P\<rceil> \<le> \<lceil>I\<rceil>" and "\<lceil>I\<rceil> \<le> wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>I\<rceil>" and "\<lceil>I\<rceil> \<le> \<lceil>Q\<rceil>"
+  shows "\<lceil>P\<rceil> \<le> wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>Q\<rceil>"
+  using assms(1) apply(rule order.trans)
+  using assms(2) apply(rule order.trans)
+  apply(rule fbox_iso)
+  using assms(3) by auto
+
+lemma wp_diff_inv: "(\<lceil>I\<rceil> \<le> wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>I\<rceil>) = diff_invariant I f T S t\<^sub>0 G"
+  unfolding diff_invariant_eq wp_g_evolution image_le_pred by(auto simp: fun_eq_iff)
+
+context local_flow
+begin
+
+lemma wp_diff_inv_eq:
+  assumes "S = UNIV"
+  shows "(\<lceil>I\<rceil> = wp (x\<acute>=f & (\<lambda>s. True) on T S @ 0) \<lceil>I\<rceil>) = diff_invariant I f T S 0 (\<lambda>s. True)"
+  unfolding diff_invariant_eq[OF assms] wp_g_orbit[OF assms] image_le_pred 
+  using in_ivp_sols ivp(2) init_time unfolding assms by(auto simp: fun_eq_iff)
+
+lemma wp_orbit_inv_eq:
+  assumes "S = UNIV"
+  shows "(\<lceil>I\<rceil> = wp (\<gamma>\<^sup>\<phi>\<^sup>\<bullet>) \<lceil>I\<rceil>) = (\<forall>s\<in>S. \<forall>t\<in>T. I s \<longrightarrow> I (\<phi> t s))"
+  unfolding orbit_def wp_diff_inv_eq[OF assms] diff_invariant_eq[OF assms] 
+  using in_ivp_sols ivp(2) init_time unfolding assms by auto
+
+end
+
+subsection\<open> Derivation of the rules of dL \<close>
+
+text\<open> We derive domain specific rules of differential dynamic logic (dL). In each subsubsection, 
+we first derive the dL axioms (named below with two capital letters and ``D'' being the first one). 
+This is done mainly to prove that there are minimal requirements in Isabelle to get the dL calculus.\<close>
+
+lemma diff_solve_axiom: 
+  fixes c::"'a::{heine_borel, banach}"
+  assumes "0 \<in> T" and "is_interval T" "open T"
+  shows "wp (x\<acute>=(\<lambda>s. c) & G on T UNIV @ 0) \<lceil>Q\<rceil> = 
+  \<lceil>\<lambda> s. \<forall>t\<in>T. (\<P> (\<lambda> t. s + t *\<^sub>R c) (down T t) \<subseteq> {s. G s}) \<longrightarrow> Q (s + t *\<^sub>R c)\<rceil>"
+  apply(subst local_flow.wp_g_orbit[where f="\<lambda>s. c" and \<phi>="(\<lambda> t s. s + t *\<^sub>R c)"])
+  using line_is_local_flow[OF assms] unfolding image_le_pred by auto
+
+lemma diff_solve_rule:
   assumes "local_flow f T UNIV \<phi>"
     and "\<forall>s. P s \<longrightarrow> (\<forall> t\<in>T. (\<P> (\<lambda>t. \<phi> t s) (down T t) \<subseteq> {s. G s}) \<longrightarrow> Q (\<phi> t s))"
   shows "\<lceil>P\<rceil> \<le> wp (x\<acute>=f & G on T UNIV @ 0) \<lceil>Q\<rceil>"
   using assms by(subst local_flow.wp_g_orbit, auto)
 
-lemma line_is_local_flow: 
-  "0 \<in> T \<Longrightarrow> is_interval T \<Longrightarrow> open T \<Longrightarrow> local_flow (\<lambda> s. c) T UNIV (\<lambda> t s. s + t *\<^sub>R c)"
-  apply(unfold_locales, simp_all add: local_lipschitz_def lipschitz_on_def, clarsimp)
-   apply(rule_tac x=1 in exI, clarsimp, rule_tac x="1/2" in exI, simp)
-  apply(rule_tac f'1="\<lambda> s. 0" and g'1="\<lambda> s. c" in derivative_intros(191))
-  apply(rule derivative_intros, simp)+
-  by simp_all
-
-lemma line_DS: fixes c::"'a::{heine_borel, banach}"
-  assumes "0 \<in> T" and "is_interval T" "open T"
-  shows "wp (x\<acute>=(\<lambda>s. c) & G on T UNIV @ 0) \<lceil>Q\<rceil> = 
-  \<lceil>\<lambda> s. \<forall>t\<in>T. (\<P> (\<lambda> t. s + t *\<^sub>R c) (down T t) \<subseteq> {s. G s}) \<longrightarrow> Q (s + t *\<^sub>R c)\<rceil>"
-  apply(subst local_flow.wp_g_orbit[where f="\<lambda>s. c" and \<phi>="(\<lambda> t s. s + t *\<^sub>R c)"])
-  using line_is_local_flow assms by auto
-  
-
-subsection\<open> Verification with differential invariants \<close>
-
-text\<open> We derive the domain specific rules of differential dynamic logic (dL). In each subsubsection, 
-we first derive the dL axioms (named below with two capital letters and ``D'' being the first one). 
-This is done mainly to prove that there are minimal requirements in Isabelle to get the dL calculus. 
-Then we prove the inference rules which are used in verification proofs.\<close>
-
-subsubsection\<open> Differential Weakening \<close>
-
-lemma DW: "wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>Q\<rceil> = wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>\<lambda> s. G s \<longrightarrow> Q s\<rceil>"
+lemma diff_weak_axiom: "wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>Q\<rceil> = wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>\<lambda> s. G s \<longrightarrow> Q s\<rceil>"
   unfolding wp_g_evolution image_def by force
 
-lemma dWeakening: 
-  assumes "\<lceil>G\<rceil> \<le> \<lceil>Q\<rceil>"
-  shows "\<lceil>P\<rceil> \<le> wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>Q\<rceil>"
-  using assms apply(subst wp_nd_fun)
-  by(auto simp: g_orbital_eq)
-
-subsubsection\<open> Differential Cut \<close>
+lemma diff_weak_rule: "\<lceil>G\<rceil> \<le> \<lceil>Q\<rceil> \<Longrightarrow> \<lceil>P\<rceil> \<le> wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>Q\<rceil>"
+  by (subst wp_nd_fun) (auto simp: g_orbital_eq)
 
 lemma wp_g_orbit_IdD:
   assumes "wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>C\<rceil> = \<eta>\<^sup>\<bullet>"
@@ -357,7 +361,7 @@ proof
     by blast
 qed
 
-lemma DC:
+lemma diff_cut_axiom:
   assumes Thyp: "is_interval T" "t\<^sub>0 \<in> T"
     and "wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>C\<rceil> = \<eta>\<^sup>\<bullet>"
   shows "wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>Q\<rceil> = wp (x\<acute>=f & (\<lambda>s. G s \<and> C s) on T S @ t\<^sub>0) \<lceil>Q\<rceil>"
@@ -386,7 +390,7 @@ next
     by (auto simp: g_orbital_eq)
 qed
 
-lemma dCut:
+lemma diff_cut_rule:
   assumes Thyp: "is_interval T" "t\<^sub>0 \<in> T"
     and wp_C: "\<lceil>P\<rceil> \<le> wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>C\<rceil>"
     and wp_Q: "\<lceil>P\<rceil> \<le> wp (x\<acute>=f & (\<lambda>s. G s \<and> C s) on T S @ t\<^sub>0) \<lceil>Q\<rceil>"
@@ -405,18 +409,41 @@ proof(simp add: wp_nd_fun g_orbital_eq image_le_pred, clarsimp)
     using \<open>P s\<close> wp_Q by (subst (asm) wp_nd_fun) auto
 qed
 
-subsubsection\<open> Differential Invariant \<close>
+lemma DS: 
+  fixes c::"'a::{heine_borel, banach}"
+  shows "wp (x\<acute>=(\<lambda>s. c) & G) \<lceil>Q\<rceil> = \<lceil>\<lambda>x. \<forall>t. (\<forall>\<tau>\<le>t. G (x + \<tau> *\<^sub>R c)) \<longrightarrow> Q (x + t *\<^sub>R c)\<rceil>"
+  by (subst diff_solve_axiom[of UNIV]) (auto simp: fun_eq_iff)
 
-lemma dInvariant:"(\<lceil>I\<rceil> \<le> wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>I\<rceil>) = diff_invariant I f T S t\<^sub>0 G"
-  unfolding diff_invariant_eq wp_g_evolution by(auto simp: ivp_sols_def)
+lemma solve:
+  assumes "local_flow f UNIV UNIV \<phi>"
+    and "\<forall>s. P s \<longrightarrow> (\<forall>t. (\<forall>\<tau>\<le>t. G (\<phi> \<tau> s)) \<longrightarrow> Q (\<phi> t s))"
+  shows "\<lceil>P\<rceil> \<le> wp (x\<acute>=f & G) \<lceil>Q\<rceil>"
+  apply(rule diff_solve_rule[OF assms(1)])
+  using assms(2) unfolding image_le_pred by simp
+
+lemma DW: "wp (x\<acute>=f & G) \<lceil>Q\<rceil> = wp (x\<acute>=f & G) \<lceil>\<lambda>s. G s \<longrightarrow> Q s\<rceil>"
+  by (rule diff_weak_axiom)
+  
+lemma dW: "\<lceil>G\<rceil> \<le> \<lceil>Q\<rceil> \<Longrightarrow> \<lceil>P\<rceil> \<le> wp (x\<acute>=f & G) \<lceil>Q\<rceil>"
+  by (rule diff_weak_rule)
+
+lemma DC:
+  assumes "wp (x\<acute>=f & G) \<lceil>C\<rceil> = \<eta>\<^sup>\<bullet>"
+  shows "wp (x\<acute>=f & G) \<lceil>Q\<rceil> = wp (x\<acute>=f & (\<lambda>s. G s \<and> C s)) \<lceil>Q\<rceil>"
+  apply (rule diff_cut_axiom) 
+  using assms by auto
+
+lemma dC:
+  assumes "\<lceil>P\<rceil> \<le> wp (x\<acute>=f & G) \<lceil>C\<rceil>"
+    and "\<lceil>P\<rceil> \<le> wp (x\<acute>=f & (\<lambda>s. G s \<and> C s)) \<lceil>Q\<rceil>"
+  shows "\<lceil>P\<rceil> \<le> wp (x\<acute>=f & G) \<lceil>Q\<rceil>"
+  apply(rule diff_cut_rule)
+  using assms by auto
 
 lemma dI:
-  assumes Thyp: "is_interval T" "t\<^sub>0 \<in> T"
-    and "\<lceil>P\<rceil> \<le> \<lceil>I\<rceil>" and "\<lceil>I\<rceil> \<le> wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>I\<rceil>" and "\<lceil>I\<rceil> \<le> \<lceil>Q\<rceil>"
-  shows "\<lceil>P\<rceil> \<le> wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>Q\<rceil>"
-  apply(rule_tac C="I" in dCut[OF Thyp])
-  using order.trans[OF assms(3,4)] apply assumption
-  apply(rule dWeakening)
-  using assms by auto
+  assumes "\<lceil>P\<rceil> \<le> \<lceil>I\<rceil>" and "diff_invariant I f UNIV UNIV 0 G" and "\<lceil>I\<rceil> \<le> \<lceil>Q\<rceil>"
+  shows "\<lceil>P\<rceil> \<le> wp (x\<acute>=f & G) \<lceil>Q\<rceil>"
+  apply(rule wp_g_evolution_inv[OF assms(1) _ assms(3)])
+  unfolding wp_diff_inv using assms(2) .
 
 end
