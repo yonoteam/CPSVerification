@@ -232,7 +232,6 @@ lemma circle_invariant:
   "diff_invariant (\<lambda>s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2) ((*v) C) UNIV UNIV 0 G"
   apply(rule_tac diff_invariant_rules, clarsimp, simp, clarsimp)
   apply(frule_tac i="0" in has_vderiv_on_vec_nth, drule_tac i="1" in has_vderiv_on_vec_nth)
-  apply(rule_tac S="UNIV" in has_vderiv_on_subset)
   by(auto intro!: poly_derivatives simp: matrix_vector_mult_def)
 
 lemma circular_motion_invariants:
@@ -357,7 +356,6 @@ text\<open> We prove again the bouncing ball but this time with differential inv
 lemma gravity_invariant: "diff_invariant (\<lambda>s. s $ 2 < 0) ((*v) A) UNIV UNIV 0 G"
   apply(rule_tac \<mu>'="\<lambda>s. 0" and \<nu>'="\<lambda>s. 0" in diff_invariant_rules(3), clarsimp, simp, clarsimp)
   apply(drule_tac i="2" in has_vderiv_on_vec_nth)
-  apply(rule_tac S="UNIV" in has_vderiv_on_subset)
   by(auto intro!: poly_derivatives simp: vec_eq_iff matrix_vector_mult_def)
 
 lemma energy_conservation_invariant: 

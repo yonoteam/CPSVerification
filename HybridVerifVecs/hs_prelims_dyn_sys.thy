@@ -12,21 +12,6 @@ notation image ("\<P>")
 lemma image_le_pred: "(\<P> f A \<subseteq> {s. G s}) = (\<forall>x\<in>A. G (f x))"
   unfolding image_def by force
 
-abbreviation "down T t \<equiv> {\<tau>\<in>T. \<tau>\<le> t}"
-
-definition g_orbit :: "(real \<Rightarrow> 'a) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> real set \<Rightarrow> 'a set" ("\<gamma>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d")
-  where "\<gamma>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d X G T = \<Union> {\<P> X (down T t) |t. \<P> X (down T t) \<subseteq> {s. G s}}"
-
-lemma g_orbit_eq: "\<gamma>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d X G T = {X t |t. t \<in> T \<and> (\<P> X (down T t) \<subseteq> {s. G s})}"
-  unfolding g_orbit_def apply(rule subset_antisym, simp_all add: subset_eq, safe)
-  by (intro exI conjI, simp, simp, force) (intro exI conjI, simp_all, force)
-
-lemma "\<gamma>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d X G T = {X t |t. t \<in> T \<and> (\<forall>\<tau>\<in>down T t. G (X \<tau>))}"
-  unfolding g_orbit_eq image_le_pred by auto
-
-lemma "\<gamma>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d X (\<lambda>s. True) T = {X t |t. t \<in> T}"
-  unfolding g_orbit_eq by simp
-
 definition "ivp_sols f T S t\<^sub>0 s = {X |X. (D X = (\<lambda>t. f t (X t)) on T) \<and> X t\<^sub>0 = s \<and> X \<in> T \<rightarrow> S}"
 
 lemma ivp_solsI: 
@@ -40,17 +25,28 @@ lemma ivp_solsD:
     and "X t\<^sub>0 = s" and "X \<in> T \<rightarrow> S"
   using assms unfolding ivp_sols_def by auto
 
+abbreviation "down T t \<equiv> {\<tau>\<in>T. \<tau>\<le> t}"
+
+definition g_orbit :: "(real \<Rightarrow> 'a) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> real set \<Rightarrow> 'a set" ("\<gamma>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d")
+  where "\<gamma>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d X G T = \<Union> {\<P> X (down T t) |t. \<P> X (down T t) \<subseteq> {s. G s}}"
+
+lemma g_orbit_eq: "\<gamma>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d X G T = {X t |t. t \<in> T \<and> (\<forall>\<tau>\<in>down T t. G (X \<tau>))}"
+  unfolding g_orbit_def by safe (auto simp: subset_eq)
+
+lemma "\<gamma>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d X (\<lambda>s. True) T = {X t |t. t \<in> T}"
+  unfolding g_orbit_eq by simp
+
 definition g_orbital :: "('a \<Rightarrow> 'a) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> real set \<Rightarrow> 'a set \<Rightarrow> real \<Rightarrow> 
   ('a::real_normed_vector) \<Rightarrow> 'a set" 
   where "g_orbital f G T S t\<^sub>0 s = \<Union>{\<gamma>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d X G T |X. X \<in> ivp_sols (\<lambda>t. f) T S t\<^sub>0 s}"
 
 lemma g_orbital_eq: "g_orbital f G T S t\<^sub>0 s = 
-  {X t|t X. t \<in> T \<and> X \<in> ivp_sols (\<lambda>t. f) T S t\<^sub>0 s \<and> (\<P> X (down T t) \<subseteq> {s. G s})}" 
-  unfolding g_orbital_def ivp_sols_def g_orbit_eq by auto
+  {X t|t X. t \<in> T \<and> (\<P> X (down T t) \<subseteq> {s. G s}) \<and> X \<in> ivp_sols (\<lambda>t. f) T S t\<^sub>0 s }" 
+  unfolding g_orbital_def ivp_sols_def g_orbit_eq image_le_pred by auto
 
 lemma "g_orbital f G T S t\<^sub>0 s = 
   {X t|t X. t \<in> T \<and> (D X = (f \<circ> X) on T) \<and> X t\<^sub>0 = s \<and> X \<in> T \<rightarrow> S \<and> (\<P> X (down T t) \<subseteq> {s. G s})}"
-  unfolding g_orbital_def ivp_sols_def g_orbit_eq by auto
+  unfolding g_orbital_eq ivp_sols_def by auto
 
 lemma "g_orbital f G T S t\<^sub>0 s = (\<Union> X\<in>ivp_sols (\<lambda>t. f) T S t\<^sub>0 s. \<gamma>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d X G T)"
   unfolding g_orbital_def ivp_sols_def g_orbit_eq by auto
@@ -77,16 +73,15 @@ subsection\<open> Differential Invariants \<close>
 
 definition diff_invariant :: "('a \<Rightarrow> bool) \<Rightarrow> (('a::real_normed_vector) \<Rightarrow> 'a) \<Rightarrow> real set \<Rightarrow> 
   'a set \<Rightarrow> real \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> bool" 
-  (*"(_)/ is'_diff'_invariant'_of (_)/ along (_ _)/ from (_)" [70,65]61*) 
   where "diff_invariant I f T S t\<^sub>0 G \<equiv> (\<Union> \<circ> (\<P> (g_orbital f G T S t\<^sub>0))) {s. I s} \<subseteq> {s. I s}"
 
 lemma diff_invariant_eq: "diff_invariant I f T S t\<^sub>0 G = 
-  (\<forall>s. I s \<longrightarrow> (\<forall>X. X \<in> ivp_sols (\<lambda>t. f) T S t\<^sub>0 s \<longrightarrow> (\<forall> t \<in> T. \<P> X (down T t) \<subseteq> {s. G s} \<longrightarrow> I (X t))))"
+  (\<forall>s. I s \<longrightarrow> (\<forall>X\<in>ivp_sols (\<lambda>t. f) T S t\<^sub>0 s. (\<forall>t\<in>T.(\<forall>\<tau>\<in>(down T t). G (X \<tau>)) \<longrightarrow> I (X t))))"
   unfolding diff_invariant_def g_orbital_eq image_le_pred by auto
 
-lemma invariant_to_set: "diff_invariant I f T S t\<^sub>0 G = 
-  (\<forall>s. I s \<longrightarrow> (g_orbital f G T S t\<^sub>0 s) \<subseteq> {s. I s})"
-  unfolding diff_invariant_eq g_orbital_eq(1) image_le_pred by auto
+lemma diff_inv_eq_inv_set: 
+  "diff_invariant I f T S t\<^sub>0 G = (\<forall>s. I s \<longrightarrow> (g_orbital f G T S t\<^sub>0 s) \<subseteq> {s. I s})"
+  unfolding diff_invariant_eq g_orbital_eq image_le_pred by auto
 
 text\<open> Finally, we obtain some conditions to prove specific instances of differential invariants. \<close>
 
@@ -208,7 +203,8 @@ text\<open> The next locale makes explicit the conditions for applying the Picar
 guarantees a unique solution for every initial value problem represented with a vector field 
 @{term f} and an initial time @{term t\<^sub>0}. It is mostly a simplified reformulation of the approach 
 taken by the people who created the Ordinary Differential Equations entry in the AFP. \<close>
-thm ll_on_open_def
+thm ll_on_open_def local_lipschitz_def lipschitz_on_def preflect_def unique_on_cylinder_def
+
 locale picard_lindeloef =
   fixes f::"real \<Rightarrow> ('a::{heine_borel,banach}) \<Rightarrow> 'a" and T::"real set" and S::"'a set" and t\<^sub>0::real
   assumes init_time: "t\<^sub>0 \<in> T"
@@ -293,6 +289,13 @@ lemma in_ivp_sols_ivl:
   shows "(\<lambda>t. \<phi> t s) \<in> ivp_sols (\<lambda>t. f) {0--t} S 0 s"
   apply(rule ivp_solsI)
   using ivp assms by auto
+
+lemma eq_solution_ivl:
+  assumes xivp: "D X = (\<lambda>t. f (X t)) on {0--t}" "X 0 = s" "X \<in> {0--t} \<rightarrow> S" 
+    and indom: "t \<in> T" "s \<in> S"
+  shows "X t = \<phi> t s"
+  apply(rule unique_solution[OF xivp \<open>t \<in> T\<close>])
+  using \<open>s \<in> S\<close> ivp indom by auto
 
 lemma ex_ivl_eq:
   assumes "s \<in> S"
@@ -457,32 +460,23 @@ lemma in_ivp_sols:
   using has_vderiv_on_domain ivp(2) in_domain apply(rule ivp_solsI)
   using assms by auto
 
-lemma eq_solution_ivl:
-  assumes xivp: "D X = (\<lambda>t. f (X t)) on {0--t}" "X 0 = s" "X \<in> {0--t} \<rightarrow> S" 
-    and indom: "t \<in> T" "s \<in> S"
-  shows "X t = \<phi> t s"
-  apply(rule unique_solution[OF xivp \<open>t \<in> T\<close>])
-  using \<open>s \<in> S\<close> ivp indom by auto
-
 lemma additive_in_ivp_sols:
-  assumes "s \<in> S" and "(\<lambda>\<tau>. \<tau> + t) ` T \<subseteq> T"
+  assumes "s \<in> S" and "\<P> (\<lambda>\<tau>. \<tau> + t) T \<subseteq> T"
   shows "(\<lambda>\<tau>. \<phi> (\<tau> + t) s) \<in> ivp_sols (\<lambda>t. f) T S 0 (\<phi> (0 + t) s)"
   apply(rule ivp_solsI, rule vderiv_on_compose_add)
   using has_vderiv_on_domain has_vderiv_on_subset assms apply blast
   using in_domain assms by auto
 
 lemma is_monoid_action:
-  assumes indom: "t\<^sub>1 \<in> T" "t\<^sub>2 \<in> T" "s \<in> S" 
-    and "(\<lambda>\<tau>. \<tau> + t\<^sub>2) ` T \<subseteq> T"
-  shows "\<phi> 0 s = s"
-    and "\<phi> (t\<^sub>1 + t\<^sub>2) s = \<phi> t\<^sub>1 (\<phi> t\<^sub>2 s)"
+  assumes "s \<in> S" and "T = UNIV"
+  shows "\<phi> 0 s = s" and "\<phi> (t\<^sub>1 + t\<^sub>2) s = \<phi> t\<^sub>1 (\<phi> t\<^sub>2 s)"
 proof-
   show "\<phi> 0 s = s"
-    using ivp indom by simp
+    using ivp assms by simp
   have "\<phi> (0 + t\<^sub>2) s = \<phi> t\<^sub>2 s" 
     by simp
   also have "\<phi> t\<^sub>2 s \<in> S"
-    using in_domain indom by auto
+    using in_domain assms by auto
   finally show "\<phi> (t\<^sub>1 + t\<^sub>2) s = \<phi> t\<^sub>1 (\<phi> t\<^sub>2 s)"
     using eq_solution[OF additive_in_ivp_sols] assms by auto
 qed
@@ -528,17 +522,11 @@ next
 qed
 
 lemma ivp_sols_collapse: 
-  assumes "S = UNIV" "T = UNIV"
+  assumes "S = UNIV" and "T = UNIV"
   shows "ivp_sols (\<lambda>t. f) T S 0 s = {(\<lambda>t. \<phi> t s)}"
   using in_ivp_sols eq_solution unfolding assms by auto
 
-lemma diff_invariant_eq:
-  assumes "S = UNIV"
-  shows "(diff_invariant I f T S 0 (\<lambda>s. True)) = (\<forall>s. \<forall>t\<in>T. I s \<longrightarrow> I (\<phi> t s))"
-  unfolding diff_invariant_def using g_orbital_collapses unfolding assms by(force simp: subset_eq)
-
 end
-
 
 lemma line_is_local_flow: 
   "0 \<in> T \<Longrightarrow> is_interval T \<Longrightarrow> open T \<Longrightarrow> local_flow (\<lambda> s. c) T UNIV (\<lambda> t s. s + t *\<^sub>R c)"

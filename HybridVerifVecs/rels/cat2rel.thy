@@ -143,23 +143,6 @@ lemma wp_g_evolution_inv:
 lemma wp_diff_inv: "(\<lceil>I\<rceil> \<le> wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>I\<rceil>) = diff_invariant I f T S t\<^sub>0 G"
   unfolding diff_invariant_eq wp_g_evolution image_le_pred by(auto simp: p2r_def)
 
-context local_flow
-begin
-
-lemma wp_diff_inv_eq:
-  assumes "S = UNIV"
-  shows "(\<lceil>I\<rceil> = wp (x\<acute>=f & (\<lambda>s. True) on T S @ 0) \<lceil>I\<rceil>) = diff_invariant I f T S 0 (\<lambda>s. True)"
-  unfolding diff_invariant_eq[OF assms] wp_g_orbit[OF assms] image_le_pred 
-  using in_ivp_sols ivp(2) init_time unfolding assms by auto
-
-lemma wp_orbit_inv_eq:
-  assumes "S = UNIV"
-  shows "(\<lceil>I\<rceil> = wp ({(s,s') | s s'. s' \<in> \<gamma>\<^sup>\<phi> s}) \<lceil>I\<rceil>) = (\<forall>s\<in>S. \<forall>t\<in>T. I s \<longrightarrow> I (\<phi> t s))"
-  unfolding orbit_def wp_diff_inv_eq[OF assms] diff_invariant_eq[OF assms] 
-  using in_ivp_sols ivp(2) init_time unfolding assms by auto
-
-end
-
 
 subsection\<open> Derivation of the rules of dL \<close>
 
