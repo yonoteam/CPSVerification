@@ -3,11 +3,14 @@ theory hs_prelims
 
 begin
 
+
 chapter\<open> Hybrid Systems Preliminaries \<close>
 
 text\<open> This chapter contains preliminary lemmas for verification of Hybrid Systems.\<close>
 
+
 section\<open> Miscellaneous \<close>
+
 
 subsection\<open> Functions \<close>
 
@@ -17,7 +20,8 @@ lemma case_of_fst[simp]: "(\<lambda>x. case x of (t, x) \<Rightarrow> f t) = (\<
 lemma case_of_snd[simp]: "(\<lambda>x. case x of (t, x) \<Rightarrow> f x) = (\<lambda> x. (f \<circ> snd) x)"
   by auto
 
-subsection\<open> Orders \<close>
+
+subsection\<open> Limits \<close>
 
 lemma cSup_eq_linorder:
   fixes c::"'a::conditionally_complete_linorder"
@@ -71,6 +75,13 @@ proof-
   thus "\<exists>N. \<forall>i n. N \<le> n \<longrightarrow> P i n" 
     by blast
 qed
+
+lemma suminf_eq_sum:
+  fixes f :: "nat \<Rightarrow> ('a::real_normed_vector)"
+  assumes "\<And>n. n > m \<Longrightarrow> f n = 0"
+  shows "(\<Sum>n. f n) = (\<Sum>n \<le> m. f n)"
+  using assms by (meson atMost_iff finite_atMost not_le suminf_finite)
+
 
 subsection\<open> Real numbers \<close>
 
@@ -133,9 +144,16 @@ proof-
     by (simp add: Groups.mult_ac(2) Groups.mult_ac(3) right_diff_distrib sin_squared_eq) 
 qed
 
+lemma [trig_simps, simp]:
+  fixes x :: "'a:: {banach,real_normed_field}"
+  shows "(x * cos t + y * sin t)\<^sup>2 + (y * cos t - x * sin t)\<^sup>2 = x\<^sup>2 + y\<^sup>2"
+  using trig_simps(10)[of y t x] by (simp add: add.commute)
+
 thm trig_simps
 
+
 section\<open> Analisys \<close>
+
 
 subsection \<open> Single variable derivatives \<close>
 
@@ -152,8 +170,8 @@ proof -
   from assms have "bounded_linear f'" by auto
   with real_bounded_linear obtain m where f': "f' = (\<lambda>h. h * m)" by blast
   show ?thesis
-    using vector_diff_chain_within[OF _ exp_scaleR_has_vector_derivative_right, of f m x s A] assms f'
-    by (auto simp: has_vector_derivative_def o_def)
+    using vector_diff_chain_within[OF _ exp_scaleR_has_vector_derivative_right, of f m x s A] 
+      assms f' by (auto simp: has_vector_derivative_def o_def)
 qed
 
 named_theorems poly_derivatives "compilation of derivatives for kinematics and polynomials."
@@ -258,6 +276,7 @@ thm poly_derivatives
 
 
 subsection\<open> Filters \<close>
+
 
 lemma eventually_at_within_mono:
   assumes "t \<in> interior T" and "T \<subseteq> S" 

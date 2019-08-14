@@ -37,10 +37,19 @@ abbreviation assign :: "'b \<Rightarrow> ('a^'b \<Rightarrow> 'a) \<Rightarrow> 
 lemma sH_assign_iff [simp]: "rel_kat.H \<lceil>P\<rceil> (x ::= e) \<lceil>Q\<rceil> \<longleftrightarrow> (\<forall>s. P s \<longrightarrow> Q (vec_upd s x (e s)))"
   unfolding sH_H by simp
 
+(*lemma wp_assign_var [simp]: "\<lfloor>wp (x ::= e) \<lceil>Q\<rceil>\<rfloor> = (\<lambda>s. Q (vec_upd s x (e s)))"
+  by(subst wp_assign, simp add: pointfree_idE)*)
+
 text\<open> Next, the Hoare rule of the composition:\<close>
 
 lemma sH_relcomp: "rel_kat.H \<lceil>P\<rceil> X \<lceil>R\<rceil> \<Longrightarrow> rel_kat.H \<lceil>R\<rceil> Y \<lceil>Q\<rceil> \<Longrightarrow> rel_kat.H \<lceil>P\<rceil> (X ; Y) \<lceil>Q\<rceil>"
   using rel_kat.H_seq_swap by force
+
+(* "|x \<cdot> y] q = |x] |y] q" *)
+
+lemma "rel_kat.H \<lceil>P\<rceil> (X ; Y) \<lceil>Q\<rceil> = rel_kat.H \<lceil>P\<rceil> (X) {(s,s') |s s'. (s,s') \<in> Y \<longrightarrow> Q s' }"
+  unfolding rel_kat.H_def apply(auto simp: subset_eq p2r_def Int_def)
+  oops
 
 text\<open> There is also already an implementation of the conditional operator 
 @{thm ifthenelse_def[no_vars]} and its Hoare triple rule: @{thm sH_cond[no_vars]}. \<close>
@@ -80,22 +89,29 @@ abbreviation g_evol ::"(('a::banach)\<Rightarrow>'a) \<Rightarrow> 'a pred \<Rig
 subsection \<open>Verification by providing solutions\<close>
 
 lemma sH_g_evolution: 
-  assumes "\<forall>s. P s \<longrightarrow> (\<forall>X\<in>ivp_sols (\<lambda>t. f) T S t\<^sub>0 s. \<forall>t\<in>T. (\<P> X (down T t) \<subseteq> {s. G s}) \<longrightarrow> Q (X t))"
+  assumes "\<forall>s. P s \<longrightarrow> (\<forall>X\<in>ivp_sols (\<lambda>t. f) T S t\<^sub>0 s. \<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (X \<tau>)) \<longrightarrow> Q (X t))"
   shows "rel_kat.H \<lceil>P\<rceil> (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>Q\<rceil>"
-  using assms unfolding g_orbital_eq(1) sH_H by auto
+  using assms unfolding g_orbital_eq(1) sH_H image_le_pred by auto
 
 context local_flow
 begin
 
-lemma sH_orbit: 
-  assumes "S = UNIV" and "\<forall>s. P s \<longrightarrow> (\<forall> t \<in> T. Q (\<phi> t s))"
-  shows "rel_kat.H \<lceil>P\<rceil> ({(s,s') | s s'. s' \<in> \<gamma>\<^sup>\<phi> s}) \<lceil>Q\<rceil>"
-  using orbit_eq assms(2) unfolding assms(1) sH_H by auto
-
 lemma sH_g_orbit: 
-  assumes "S = UNIV" and "\<forall>s. P s \<longrightarrow> (\<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (\<phi> \<tau> s)) \<longrightarrow> Q (\<phi> t s))"
+  assumes "\<forall>s. s \<in> S \<longrightarrow> P s \<longrightarrow> (\<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (\<phi> \<tau> s)) \<longrightarrow> Q (\<phi> t s))"
   shows "rel_kat.H \<lceil>P\<rceil> (x\<acute>=f & G on T S @ 0) \<lceil>Q\<rceil>"
-  using g_orbital_collapses assms(2) unfolding assms(1) by (auto simp: sH_H)
+  apply(rule sH_g_evolution) 
+  using assms apply(safe, simp add: ivp_sols_def, clarsimp) 
+  apply(erule_tac x="X 0" in allE, erule impE)
+  using init_time apply force
+  apply(subgoal_tac "\<forall>\<tau>\<in>down T t. X \<tau> = \<phi> \<tau> (X 0)", simp_all, clarsimp)
+  apply(subst eq_solution, simp_all add: ivp_sols_def)
+  using init_time by auto
+
+lemma sH_orbit: 
+  assumes "\<forall>s. s \<in> S \<longrightarrow> P s \<longrightarrow> (\<forall> t \<in> T. Q (\<phi> t s))"
+  shows "rel_kat.H \<lceil>P\<rceil> ({(s,s') | s s'. s' \<in> \<gamma>\<^sup>\<phi> s}) \<lceil>Q\<rceil>"
+  unfolding orbit_def apply(rule sH_g_orbit)
+  using assms by auto
 
 end
 
@@ -116,6 +132,7 @@ lemma sH_g_evolution_inv:
 
 lemma sH_diff_inv: "rel_kat.H \<lceil>I\<rceil> (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>I\<rceil> = diff_invariant I f T S t\<^sub>0 G"
   unfolding diff_invariant_eq sH_H g_orbital_eq image_le_pred by auto
+
 
 subsection\<open> Derivation of the rules of dL \<close>
 

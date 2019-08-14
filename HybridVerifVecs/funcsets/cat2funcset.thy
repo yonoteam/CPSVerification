@@ -3,13 +3,17 @@ theory cat2funcset
                         
 begin
 
+
 chapter \<open>Hybrid System Verification\<close>
 
 \<comment> \<open>We start by deleting some conflicting notation and introducing some new.\<close>
 
 type_synonym 'a pred = "'a \<Rightarrow> bool"
+
 no_notation bres (infixr "\<rightarrow>" 60)
+
 no_notation dagger ("_\<^sup>\<dagger>" [101] 100)
+
 
 section \<open>Verification of regular programs\<close>
 
@@ -19,24 +23,24 @@ lemma "fb\<^sub>\<F> F S = {s. F s \<subseteq> S}"
   unfolding ffb_def map_dual_def klift_def kop_def dual_set_def
   by(auto simp: Compl_eq_Diff_UNIV fun_eq_iff f2r_def converse_def r2f_def)
 
-lemma ffb_eq: "fb\<^sub>\<F> F X = {s. \<forall>y. y \<in> F s \<longrightarrow> y \<in> X}"
+lemma ffb_eq: "fb\<^sub>\<F> F S = {s. \<forall>y. y \<in> F s \<longrightarrow> y \<in> S}"
   unfolding ffb_def apply(simp add: kop_def klift_def map_dual_def)
   unfolding dual_set_def f2r_def r2f_def by auto
 
-lemma ffb_eta[simp]: "fb\<^sub>\<F> \<eta> X = X"
+lemma ffb_eta[simp]: "fb\<^sub>\<F> \<eta> S = S"
   unfolding ffb_def by(simp add: kop_def klift_def map_dual_def)
 
 lemma ffb_iso: "P \<le> Q \<Longrightarrow> fb\<^sub>\<F> F P \<le> fb\<^sub>\<F> F Q"
   unfolding ffb_eq by auto
 
-lemma ffb_eq_univD: "fb\<^sub>\<F> F P = UNIV \<Longrightarrow> (\<forall>y. y \<in> (F x) \<longrightarrow> y \<in> P)"
+lemma ffb_eq_univD: "fb\<^sub>\<F> F P = UNIV \<Longrightarrow> (\<forall>y. y \<in> (F s) \<longrightarrow> y \<in> P)"
 proof
   fix y assume "fb\<^sub>\<F> F P = UNIV"
   hence "UNIV = {s. \<forall>y. y \<in> (F s) \<longrightarrow> y \<in> P}" 
     by(subst ffb_eq[symmetric], simp)
   hence "\<And>x. {x} = {s. s = x \<and> (\<forall>y. y \<in> (F s) \<longrightarrow> y \<in> P)}" 
     by auto
-  then show "s2p (F x) y \<longrightarrow> y \<in> P" 
+  then show "s2p (F s) y \<longrightarrow> y \<in> P" 
     by auto
 qed
 
@@ -49,7 +53,7 @@ lemma ffb_invariants:
 text \<open>Next, we introduce assignments and their wlps.\<close>
 
 definition vec_upd :: "('a^'n) \<Rightarrow> 'n \<Rightarrow> 'a \<Rightarrow> 'a^'n"
-  where "vec_upd x i a \<equiv> \<chi> j. ((($) x)(i := a)) j"
+  where "vec_upd s i a \<equiv> \<chi> j. ((($) s)(i := a)) j"
 
 definition assign :: "'n \<Rightarrow> ('a^'n \<Rightarrow> 'a) \<Rightarrow> ('a^'n) \<Rightarrow> ('a^'n) set" ("(2_ ::= _)" [70, 65] 61) 
   where "(x ::= e) \<equiv> (\<lambda>s. {vec_upd s x (e s)})" 
@@ -118,12 +122,14 @@ proof-
   finally show ?thesis .
 qed
 
+
 section \<open>Verification of hybrid programs\<close>
 
 notation g_orbital ("(1x\<acute>=_ & _ on _ _ @ _)")
 
 abbreviation g_evol ::"(('a::banach)\<Rightarrow>'a) \<Rightarrow> 'a pred \<Rightarrow> 'a \<Rightarrow> 'a set" 
   ("(1x\<acute>=_ & _)") where "(x\<acute>=f & G) s \<equiv> (x\<acute>=f & G on UNIV UNIV @ 0) s"
+
 
 subsection \<open>Verification by providing solutions\<close>
 
@@ -172,19 +178,20 @@ lemma ffb_g_orbital_inv:
 lemma "diff_invariant I f T S t\<^sub>0 G = (((g_orbital f G T S t\<^sub>0)\<^sup>\<dagger>) {s. I s} \<subseteq> {s. I s})"
   unfolding klift_def diff_invariant_def by simp
 
-lemma "diff_invariant I f T S t\<^sub>0 G = (bd\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) {s. I s} \<le> {s. I s}) "
+lemma bdf_diff_inv: (* for paper... *)
+  "diff_invariant I f T S t\<^sub>0 G = (bd\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) {s. I s} \<le> {s. I s})"
   unfolding ffb_fbd_galois_var by (auto simp: diff_invariant_def ivp_sols_def ffb_eq g_orbital_eq)
 
 lemma ffb_diff_inv: 
   "({s. I s} \<le> fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) {s. I s}) = diff_invariant I f T S t\<^sub>0 G"
   by (auto simp: diff_invariant_def ivp_sols_def ffb_eq g_orbital_eq)
 
-lemma diff_inv_guard_ignore:
+lemma diff_inv_guard_ignore: (* for paper... *)
   assumes "{s. I s} \<le> fb\<^sub>\<F> (x\<acute>=f & (\<lambda>s. True) on T S @ t\<^sub>0) {s. I s}"
   shows "{s. I s} \<le> fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) {s. I s}"
   using assms unfolding ffb_diff_inv diff_invariant_eq image_le_pred by auto
 
-context local_flow
+context local_flow (* for paper... *)
 begin
 
 lemma ffb_diff_inv_eq: "diff_invariant I f T S 0 (\<lambda>s. True) = 
@@ -195,7 +202,7 @@ lemma ffb_diff_inv_eq: "diff_invariant I f T S 0 (\<lambda>s. True) =
   apply(erule_tac x="\<lambda>t. \<phi> t x" in allE)
   using in_domain has_vderiv_on_domain ivp(2) init_time by force
 
-lemma diff_inv_eq_inv_set: (* for paper... *)
+lemma diff_inv_eq_inv_set:
   "diff_invariant I f T S 0 (\<lambda>s. True) = (\<forall>s. I s \<longrightarrow> \<gamma>\<^sup>\<phi> s \<subseteq> {s. I s})"
   unfolding diff_inv_eq_inv_set orbit_def by simp
 
@@ -204,9 +211,7 @@ end
 
 subsection\<open> Derivation of the rules of dL \<close>
 
-text\<open> We derive domain specific rules of differential dynamic logic (dL). In each subsubsection, 
-we first derive the dL axioms (named below with two capital letters and ``D'' being the first one). 
-This is done mainly to prove that there are minimal requirements in Isabelle to get the dL calculus.\<close>
+text\<open> We derive domain specific rules of differential dynamic logic (dL).\<close>
 
 lemma diff_solve_axiom: 
   fixes c::"'a::{heine_borel, banach}"

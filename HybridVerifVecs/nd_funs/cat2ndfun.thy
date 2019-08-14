@@ -3,9 +3,11 @@ theory cat2ndfun
                         
 begin
 
+
 chapter\<open> Hybrid System Verification with nondeterministic functions \<close>
 
 \<comment> \<open>We start by deleting some conflicting notation and introducing some new.\<close>
+
 no_notation Archimedean_Field.ceiling ("\<lceil>_\<rceil>")
         and Archimedean_Field.floor_ceiling_class.floor ("\<lfloor>_\<rfloor>")
         and Range_Semiring.antirange_semiring_class.ars_r ("r")
@@ -97,7 +99,7 @@ end
 
 text\<open> Now that we know that nondeterministic functions form an Antidomain Kleene Algebra, we give
  a lifting operation from predicates to @{typ "'a nd_fun"} and prove some useful results for them. 
-Then we add an operation that does the opposite and prove the relationship between both of these. \<close>
+Then we add an operation that does the opposite and obtain a relationship between both of these. \<close>
 
 abbreviation p2ndf :: "'a pred \<Rightarrow> 'a nd_fun" ("(1\<lceil>_\<rceil>)")
   where "\<lceil>Q\<rceil> \<equiv> (\<lambda> x::'a. {s::'a. s = x \<and> Q s})\<^sup>\<bullet>"
@@ -273,16 +275,17 @@ lemma wp_g_evolution: "wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>Q\<rceil>
 context local_flow
 begin
 
-lemma wp_orbit: 
-  assumes "S = UNIV"
-  shows "wp (\<gamma>\<^sup>\<phi>\<^sup>\<bullet>) \<lceil>Q\<rceil> = \<lceil>\<lambda> s. \<forall> t \<in> T. Q (\<phi> t s)\<rceil>"
-  using orbit_eq unfolding assms by(auto simp: wp_nd_fun)
+lemma wp_g_orbit: "wp (x\<acute>=f & G on T S @ 0) \<lceil>Q\<rceil> = 
+  \<lceil>\<lambda> s. s \<in> S \<longrightarrow> (\<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (\<phi> \<tau> s)) \<longrightarrow> Q (\<phi> t s))\<rceil>"
+  unfolding wp_g_evolution apply(clarsimp, simp add: fun_eq_iff, safe)
+    apply(erule_tac x="\<lambda>t. \<phi> t x" in ballE)
+  using in_ivp_sols apply(force, force, force simp: init_time ivp_sols_def)
+  apply(subgoal_tac "\<forall>\<tau>\<in>down T t. X \<tau> = \<phi> \<tau> x", simp_all, clarsimp)
+  apply(subst eq_solution, simp_all add: ivp_sols_def)
+  using init_time by auto
 
-lemma wp_g_orbit: 
-  assumes "S = UNIV"
-  shows "wp (x\<acute>=f & G on T S @ 0) \<lceil>Q\<rceil> = 
-  \<lceil>\<lambda> s. \<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (\<phi> \<tau> s)) \<longrightarrow> Q (\<phi> t s)\<rceil>"
-  using g_orbital_collapses unfolding assms by (auto simp: wp_nd_fun fun_eq_iff)
+lemma wp_orbit: "wp (\<gamma>\<^sup>\<phi>\<^sup>\<bullet>) \<lceil>Q\<rceil> = \<lceil>\<lambda> s. s \<in> S \<longrightarrow> (\<forall> t \<in> T. Q (\<phi> t s))\<rceil>"
+  unfolding orbit_def wp_g_orbit by auto
 
 end
 
@@ -303,6 +306,7 @@ lemma wp_g_evolution_inv:
 
 lemma wp_diff_inv: "(\<lceil>I\<rceil> \<le> wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>I\<rceil>) = diff_invariant I f T S t\<^sub>0 G"
   unfolding diff_invariant_eq wp_g_evolution image_le_pred by(auto simp: fun_eq_iff)
+
 
 subsection\<open> Derivation of the rules of dL \<close>
 

@@ -111,17 +111,17 @@ lemma wp_g_evolution: "wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>Q\<rceil>
 context local_flow
 begin
 
-lemma wp_orbit: 
-  assumes "S = UNIV"
-  shows "wp ({(s,s') | s s'. s' \<in> \<gamma>\<^sup>\<phi> s}) \<lceil>Q\<rceil> = \<lceil>\<lambda> s. \<forall> t \<in> T. Q (\<phi> t s)\<rceil>"
-  unfolding wp_rel apply(simp, safe)
-  using orbit_eq unfolding assms by(auto simp: wp_rel)
+lemma wp_g_orbit: "wp (x\<acute>=f & G on T S @ 0) \<lceil>Q\<rceil> = 
+  \<lceil>\<lambda> s. s \<in> S \<longrightarrow> (\<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (\<phi> \<tau> s)) \<longrightarrow> Q (\<phi> t s))\<rceil>"
+  unfolding wp_g_evolution apply(clarsimp, safe)
+    apply(erule_tac x="\<lambda>t. \<phi> t s" in ballE)
+  using in_ivp_sols apply(force, force, force simp: init_time ivp_sols_def)
+  apply(subgoal_tac "\<forall>\<tau>\<in>down T t. X \<tau> = \<phi> \<tau> s", simp_all, clarsimp)
+  apply(subst eq_solution, simp_all add: ivp_sols_def)
+  using init_time by auto
 
-lemma wp_g_orbit: 
-  assumes "S = UNIV"
-  shows "wp (x\<acute>=f & G on T S @ 0) \<lceil>Q\<rceil> = 
-  \<lceil>\<lambda> s. \<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (\<phi> \<tau> s)) \<longrightarrow> Q (\<phi> t s)\<rceil>"
-  using g_orbital_collapses unfolding assms by (auto simp: wp_rel)
+lemma wp_orbit: "wp ({(s,s') | s s'. s' \<in> \<gamma>\<^sup>\<phi> s}) \<lceil>Q\<rceil> = \<lceil>\<lambda> s. s \<in> S \<longrightarrow> (\<forall> t \<in> T. Q (\<phi> t s))\<rceil>"
+  unfolding orbit_def wp_g_orbit by auto
 
 end
 
@@ -142,7 +142,6 @@ lemma wp_g_evolution_inv:
 
 lemma wp_diff_inv: "(\<lceil>I\<rceil> \<le> wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>I\<rceil>) = diff_invariant I f T S t\<^sub>0 G"
   unfolding diff_invariant_eq wp_g_evolution image_le_pred by(auto simp: p2r_def)
-
 
 subsection\<open> Derivation of the rules of dL \<close>
 

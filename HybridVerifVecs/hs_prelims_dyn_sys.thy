@@ -3,7 +3,9 @@ theory hs_prelims_dyn_sys
 
 begin
 
+
 section\<open> Dynamical Systems \<close>
+
 
 subsection\<open> Initial value problems and orbits \<close>
 
@@ -57,11 +59,6 @@ lemma g_orbitalI:
   shows "X t \<in> g_orbital f G T S t\<^sub>0 s"
   using assms unfolding g_orbital_eq(1) by auto
 
-lemma g_orbitalE:
-  assumes "s' \<in> g_orbital f G T S t\<^sub>0 s"
-  shows "\<exists> X t. X \<in> ivp_sols (\<lambda>t. f) T S t\<^sub>0 s \<and> X t = s' \<and> t \<in> T \<and> (\<P> X (down T t) \<subseteq> {s. G s})"
-  using assms unfolding g_orbital_def ivp_sols_def g_orbit_eq by auto
-
 lemma g_orbitalD:
   assumes "s' \<in> g_orbital f G T S t\<^sub>0 s"
   obtains X and t where "X \<in> ivp_sols (\<lambda>t. f) T S t\<^sub>0 s"
@@ -79,13 +76,11 @@ lemma diff_invariant_eq: "diff_invariant I f T S t\<^sub>0 G =
   (\<forall>s. I s \<longrightarrow> (\<forall>X\<in>ivp_sols (\<lambda>t. f) T S t\<^sub>0 s. (\<forall>t\<in>T.(\<forall>\<tau>\<in>(down T t). G (X \<tau>)) \<longrightarrow> I (X t))))"
   unfolding diff_invariant_def g_orbital_eq image_le_pred by auto
 
-lemma diff_inv_eq_inv_set: 
+lemma diff_inv_eq_inv_set: (* for paper... *)
   "diff_invariant I f T S t\<^sub>0 G = (\<forall>s. I s \<longrightarrow> (g_orbital f G T S t\<^sub>0 s) \<subseteq> {s. I s})"
   unfolding diff_invariant_eq g_orbital_eq image_le_pred by auto
 
-text\<open> Finally, we obtain some conditions to prove specific instances of differential invariants. \<close>
-
-named_theorems diff_invariant_rules "compilation of rules for differential invariants."
+named_theorems diff_invariant_rules "rules for obtainin differential invariants."
 
 lemma [diff_invariant_rules]:
   assumes Thyp: "is_interval T" "t\<^sub>0 \<in> T"
@@ -199,19 +194,16 @@ shows "diff_invariant (\<lambda>s. I\<^sub>1 s \<or> I\<^sub>2 s) f T S t\<^sub>
 
 subsection\<open> Picard-Lindeloef \<close>
 
-text\<open> The next locale makes explicit the conditions for applying the Picard-Lindeloef theorem. This
-guarantees a unique solution for every initial value problem represented with a vector field 
-@{term f} and an initial time @{term t\<^sub>0}. It is mostly a simplified reformulation of the approach 
-taken by the people who created the Ordinary Differential Equations entry in the AFP. \<close>
-thm ll_on_open_def local_lipschitz_def lipschitz_on_def preflect_def unique_on_cylinder_def
+text\<open> A locale with the assumptions of Picard-Lindeloef theorem. It extends @{term "ll_on_open_it"} 
+by assuming that @{term "t\<^sub>0 \<in> T"}.\<close>
 
 locale picard_lindeloef =
   fixes f::"real \<Rightarrow> ('a::{heine_borel,banach}) \<Rightarrow> 'a" and T::"real set" and S::"'a set" and t\<^sub>0::real
-  assumes init_time: "t\<^sub>0 \<in> T"
+  assumes open_domain: "open T" "open S"
+    and interval_time: "is_interval T"
+    and init_time: "t\<^sub>0 \<in> T"
     and cont_vec_field: "\<forall>s \<in> S. continuous_on T (\<lambda>t. f t s)"
     and lipschitz_vec_field: "local_lipschitz T S f"
-    and interval_time: "is_interval T"
-    and open_domain: "open T" "open S"
 begin
 
 sublocale ll_on_open_it T f S t\<^sub>0
@@ -268,13 +260,12 @@ qed
 
 end
 
+
 subsection\<open> Flows for ODEs \<close>
 
-text\<open> This locale is a particular case of the previous one. It makes the unique solution for initial 
-value problems explicit, it restricts the vector field to reflect autonomous systems (those that do 
-not depend explicitly on time), and it sets the initial time equal to 0. This is the first step 
-towards formalizing the flow of a differential equation, i.e. the function that maps every point to 
-the unique trajectory tangent to the vector field. \<close>
+text\<open> A locale designed for verification of hybrid systems. The user can select both, the interval
+of existence of her choice, and the computation rule of the flow via the variables @{term "T"} and 
+@{term "\<phi>"}.\<close>
 
 locale local_flow = picard_lindeloef "(\<lambda> t. f)" T S 0 
   for f::"('a::{heine_borel,banach}) \<Rightarrow> 'a" and T S L +
@@ -303,12 +294,6 @@ lemma ex_ivl_eq:
   using existence_ivl_subset[of s] apply safe
   unfolding existence_ivl_def csols_eq 
   using in_ivp_sols_ivl[OF _ assms] by blast
-
-lemma in_domain:
-  assumes "s \<in> S"
-  shows "(\<lambda>t. \<phi> t s) \<in> T \<rightarrow> S"
-  unfolding ex_ivl_eq[symmetric] existence_ivl_def
-  using local.mem_existence_ivl_subset ivp(3)[OF _ assms] by blast
 
 lemma has_derivative_on_open1: 
   assumes  "t > 0" "t \<in> T" "s \<in> S"
@@ -423,6 +408,12 @@ lemma has_derivative_on_open:
   using has_derivative_on_open1[OF _ assms] has_derivative_on_open2[OF _ assms]
     has_derivative_on_open3[OF \<open>s \<in> S\<close>] by blast force
 
+lemma in_domain:
+  assumes "s \<in> S"
+  shows "(\<lambda>t. \<phi> t s) \<in> T \<rightarrow> S"
+  unfolding ex_ivl_eq[symmetric] existence_ivl_def
+  using local.mem_existence_ivl_subset ivp(3)[OF _ assms] by blast
+
 lemma has_vderiv_on_domain:
   assumes "s \<in> S"
   shows "D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on T"
@@ -436,6 +427,12 @@ proof(unfold has_vderiv_on_def has_vector_derivative_def, clarsimp)
   thus "D (\<lambda>t. \<phi> t s) \<mapsto> (\<lambda>\<tau>. \<tau> *\<^sub>R f (\<phi> t s)) at t within T"
     using has_derivative_at_within_mono[OF _ \<open>B \<subseteq> T\<close> Dhyp] by blast
 qed
+
+lemma in_ivp_sols: 
+  assumes "s \<in> S"
+  shows "(\<lambda>t. \<phi> t s) \<in> ivp_sols (\<lambda>t. f) T S 0 s"
+  using has_vderiv_on_domain ivp(2) in_domain apply(rule ivp_solsI)
+  using assms by auto
 
 lemma eq_solution:
   assumes "X \<in> (ivp_sols (\<lambda>t. f) T S 0 s)" and "t \<in> T" and "s \<in> S"
@@ -454,11 +451,10 @@ proof-
     by simp
 qed
 
-lemma in_ivp_sols: 
-  assumes "s \<in> S"
-  shows "(\<lambda>t. \<phi> t s) \<in> ivp_sols (\<lambda>t. f) T S 0 s"
-  using has_vderiv_on_domain ivp(2) in_domain apply(rule ivp_solsI)
-  using assms by auto
+lemma ivp_sols_collapse: 
+  assumes "T = UNIV" and "s \<in> S"
+  shows "ivp_sols (\<lambda>t. f) T S 0 s = {(\<lambda>t. \<phi> t s)}"
+  using in_ivp_sols eq_solution assms by auto
 
 lemma additive_in_ivp_sols:
   assumes "s \<in> S" and "\<P> (\<lambda>\<tau>. \<tau> + t) T \<subseteq> T"
@@ -520,11 +516,6 @@ next
   thus "\<forall>s'\<in>?gorbit. s' \<in> g_orbital f G T S 0 s"
     by blast
 qed
-
-lemma ivp_sols_collapse: 
-  assumes "S = UNIV" and "T = UNIV"
-  shows "ivp_sols (\<lambda>t. f) T S 0 s = {(\<lambda>t. \<phi> t s)}"
-  using in_ivp_sols eq_solution unfolding assms by auto
 
 end
 
