@@ -14,6 +14,13 @@ no_notation bres (infixr "\<rightarrow>" 60)
 
 no_notation dagger ("_\<^sup>\<dagger>" [101] 100)
 
+no_notation "Relation.relcomp" (infixl ";" 75) 
+
+no_notation kcomp (infixl "\<circ>\<^sub>K" 75)
+
+notation kcomp (infixl ";" 75)
+
+notation kstar ("loop")
 
 section \<open>Verification of regular programs\<close>
 
@@ -63,30 +70,30 @@ lemma ffb_assign[simp]: "fb\<^sub>\<F> (x ::= e) Q = {s. (\<chi> j. ((($) s)(x :
 
 text \<open>The wlp of a (kleisli) composition is just the composition of the wlps.\<close>
 
-lemma ffb_kcomp: "fb\<^sub>\<F> (G \<circ>\<^sub>K F) P = fb\<^sub>\<F> G (fb\<^sub>\<F> F P)"
+lemma ffb_kcomp: "fb\<^sub>\<F> (G ; F) P = fb\<^sub>\<F> G (fb\<^sub>\<F> F P)"
   unfolding ffb_def apply(simp add: kop_def klift_def map_dual_def)
   unfolding dual_set_def f2r_def r2f_def by(auto simp: kcomp_def)
 
 lemma ffb_kcomp_ge:
   assumes "P \<le> fb\<^sub>\<F> F R" "R \<le> fb\<^sub>\<F> G Q"
-  shows "P \<le> fb\<^sub>\<F> (F \<circ>\<^sub>K G) Q"
+  shows "P \<le> fb\<^sub>\<F> (F ; G) Q"
   apply(subst ffb_kcomp) 
   by (rule order.trans[OF assms(1)]) (rule ffb_iso[OF assms(2)])
 
 text \<open>We also have an implementation of the conditional operator and its wlp.\<close>
 
 definition ifthenelse :: "'a pred \<Rightarrow> ('a \<Rightarrow> 'b set) \<Rightarrow> ('a \<Rightarrow> 'b set) \<Rightarrow> ('a \<Rightarrow> 'b set)"
-  ("IF _ THEN _ ELSE _ FI" [64,64,64] 63) where 
-  "IF P THEN X ELSE Y FI \<equiv> (\<lambda> x. if P x then X x else Y x)"
+  ("IF _ THEN _ ELSE _" [64,64,64] 63) where 
+  "IF P THEN X ELSE Y \<equiv> (\<lambda> x. if P x then X x else Y x)"
 
 lemma ffb_if_then_else:
-  "fb\<^sub>\<F> (IF T THEN X ELSE Y FI) Q = {s. T s \<longrightarrow> s \<in> fb\<^sub>\<F> X Q} \<inter> {s. \<not> T s \<longrightarrow> s \<in> fb\<^sub>\<F> Y Q}"
+  "fb\<^sub>\<F> (IF T THEN X ELSE Y) Q = {s. T s \<longrightarrow> s \<in> fb\<^sub>\<F> X Q} \<inter> {s. \<not> T s \<longrightarrow> s \<in> fb\<^sub>\<F> Y Q}"
   unfolding ffb_eq ifthenelse_def by auto
 
 lemma ffb_if_then_else_ge:
   assumes "P \<inter> {s. T s} \<le> fb\<^sub>\<F> X Q"
     and "P \<inter> {s. \<not> T s} \<le> fb\<^sub>\<F> Y Q"
-  shows "P \<le> fb\<^sub>\<F> (IF T THEN X ELSE Y FI) Q"
+  shows "P \<le> fb\<^sub>\<F> (IF T THEN X ELSE Y) Q"
   using assms apply(subst ffb_eq)
   apply(subst (asm) ffb_eq)+
   unfolding ifthenelse_def by auto
@@ -94,7 +101,7 @@ lemma ffb_if_then_else_ge:
 lemma ffb_if_then_elseI:
   assumes "T s \<longrightarrow> s \<in> fb\<^sub>\<F> X Q"
     and "\<not> T s \<longrightarrow> s \<in> fb\<^sub>\<F> Y Q"
-  shows "s \<in> fb\<^sub>\<F> (IF T THEN X ELSE Y FI) Q"
+  shows "s \<in> fb\<^sub>\<F> (IF T THEN X ELSE Y) Q"
   using assms apply(subst ffb_eq)
   apply(subst (asm) ffb_eq)+
   unfolding ifthenelse_def by auto
@@ -105,19 +112,19 @@ lemma kstar_inv: "I \<le> {s. \<forall>y. y \<in> F s \<longrightarrow> y \<in> 
   apply(induct n, simp)
   by(auto simp: kcomp_prop) 
 
-lemma ffb_star_induct_self: "I \<le> fb\<^sub>\<F> F I \<Longrightarrow> I \<subseteq> fb\<^sub>\<F> (kstar F) I"
+lemma ffb_star_induct_self: "I \<le> fb\<^sub>\<F> F I \<Longrightarrow> I \<subseteq> fb\<^sub>\<F> (loop F) I"
   unfolding kstar_def ffb_eq apply clarsimp
   using kstar_inv by blast
 
 lemma ffb_kstarI:
   assumes "P \<le> I" and "I \<le> fb\<^sub>\<F> F I" and "I \<le> Q"
-  shows "P \<le> fb\<^sub>\<F> (kstar F) Q"
+  shows "P \<le> fb\<^sub>\<F> (loop F) Q"
 proof-
-  have "I \<subseteq> fb\<^sub>\<F> (kstar F) I"
+  have "I \<subseteq> fb\<^sub>\<F> (loop F) I"
     using assms(2) ffb_star_induct_self by blast
-  hence "P \<le> fb\<^sub>\<F> (kstar F) I"
+  hence "P \<le> fb\<^sub>\<F> (loop F) I"
     using assms(1) by auto
-  also have "fb\<^sub>\<F> (kstar F) I \<le> fb\<^sub>\<F> (kstar F) Q"
+  also have "fb\<^sub>\<F> (loop F) I \<le> fb\<^sub>\<F> (loop F) Q"
     by (rule ffb_iso[OF assms(3)])
   finally show ?thesis .
 qed

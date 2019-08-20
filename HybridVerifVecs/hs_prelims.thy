@@ -247,6 +247,13 @@ lemma has_vderiv_on_sin: "D f = f' on T \<Longrightarrow> D (\<lambda>t. sin (f 
   unfolding has_vderiv_on_def has_vector_derivative_def apply clarify
   by(auto intro!: derivative_eq_intros simp: fun_eq_iff)
 
+lemma exp_vderiv: "D (\<lambda>t. exp t) = (\<lambda>t. exp t) on T"
+  unfolding has_vderiv_on_def has_vector_derivative_def by (auto intro: derivative_intros)
+
+lemma has_vderiv_on_exp: "D f = f' on T \<Longrightarrow> D (\<lambda>t. exp (f t)) = (\<lambda>t. exp (f t) *\<^sub>R (f' t)) on T"
+  apply(rule has_vderiv_on_compose_eq[of "\<lambda>t. exp t"])
+  by (rule exp_vderiv, simp_all add: mult.commute)
+
 lemma [poly_derivatives]:
   assumes "D f = f' on T" and "g = (\<lambda>t. - sin (f t) *\<^sub>R (f' t))"
   shows "D (\<lambda>t. cos (f t)) = g on T"
@@ -256,6 +263,11 @@ lemma [poly_derivatives]:
   assumes "D f = f' on T" and "g = (\<lambda>t. cos (f t) *\<^sub>R (f' t))"
   shows "D (\<lambda>t. sin (f t)) = g on T"
   using assms and has_vderiv_on_sin by auto
+
+lemma [poly_derivatives]:
+  assumes "D f = f' on T" and "g = (\<lambda>t. exp (f t) *\<^sub>R (f' t))"
+  shows "D (\<lambda>t. exp (f t)) = g on T"
+  using assms and has_vderiv_on_exp by auto
 
 lemma "D (\<lambda>t. a * t\<^sup>2 / 2) = (*) a on T"
   by(auto intro!: poly_derivatives)

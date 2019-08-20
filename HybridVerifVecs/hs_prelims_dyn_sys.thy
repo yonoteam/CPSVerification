@@ -4,9 +4,6 @@ theory hs_prelims_dyn_sys
 begin
 
 
-section\<open> Dynamical Systems \<close>
-
-
 subsection\<open> Initial value problems and orbits \<close>
 
 notation image ("\<P>")
