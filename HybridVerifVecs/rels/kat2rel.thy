@@ -5,8 +5,8 @@ theory kat2rel
 
 begin
 
-chapter\<open> Hybrid System Verification with relations \<close>
 
+chapter\<open> Hybrid System Verification with relations \<close>
 
 \<comment> \<open>We start by deleting some conflicting notation.\<close>
 no_notation Archimedean_Field.ceiling ("\<lceil>_\<rceil>")
@@ -14,6 +14,11 @@ no_notation Archimedean_Field.ceiling ("\<lceil>_\<rceil>")
         and Relation.Domain ("r2s")
         and VC_KAT.gets ("_ ::= _" [70, 65] 61)
         and tau ("\<tau>")
+        and if_then_else_sugar  ("IF _ THEN _ ELSE _ FI" [64,64,64] 63)
+
+notation Id ("skip")
+     and if_then_else_sugar ("IF _ THEN _ ELSE _" [64,64,64] 63)
+     and rtrancl ("loop")
 
 section\<open> Verification of regular programs \<close>
 
@@ -28,17 +33,14 @@ lemma sH_weaken_pre: "rel_kat.H \<lceil>P2\<rceil> R \<lceil>Q\<rceil> \<Longrig
 
 text\<open> Next, we introduce assignments and compute their Hoare triple. \<close>
 
-abbreviation vec_upd :: "('a^'b) \<Rightarrow> 'b \<Rightarrow> 'a \<Rightarrow> 'a^'b"
-  where "vec_upd x i a \<equiv> vec_lambda ((vec_nth x)(i := a))"
+definition vec_upd :: "('a^'b) \<Rightarrow> 'b \<Rightarrow> 'a \<Rightarrow> 'a^'b"
+  where "vec_upd s i a \<equiv> (\<chi> j. ((($) s)(i := a)) j)"
 
-abbreviation assign :: "'b \<Rightarrow> ('a^'b \<Rightarrow> 'a) \<Rightarrow> ('a^'b) rel" ("(2_ ::= _)" [70, 65] 61) 
+definition assign :: "'b \<Rightarrow> ('a^'b \<Rightarrow> 'a) \<Rightarrow> ('a^'b) rel" ("(2_ ::= _)" [70, 65] 61) 
   where "(x ::= e) \<equiv> {(s, vec_upd s x (e s))| s. True}" 
 
-lemma sH_assign_iff [simp]: "rel_kat.H \<lceil>P\<rceil> (x ::= e) \<lceil>Q\<rceil> \<longleftrightarrow> (\<forall>s. P s \<longrightarrow> Q (vec_upd s x (e s)))"
-  unfolding sH_H by simp
-
-(*lemma wp_assign_var [simp]: "\<lfloor>wp (x ::= e) \<lceil>Q\<rceil>\<rfloor> = (\<lambda>s. Q (vec_upd s x (e s)))"
-  by(subst wp_assign, simp add: pointfree_idE)*)
+lemma sH_assign_iff [simp]: "rel_kat.H \<lceil>P\<rceil> (x ::= e) \<lceil>Q\<rceil> \<longleftrightarrow> (\<forall>s. P s \<longrightarrow> Q (\<chi> j. ((($) s)(x := (e s))) j))"
+  unfolding sH_H vec_upd_def assign_def by (auto simp: fun_upd_def)
 
 text\<open> Next, the Hoare rule of the composition:\<close>
 
@@ -72,9 +74,9 @@ proof-
     unfolding H_def using assms(3) local.phl_cons2 by blast 
 qed
 
-lemma sH_star:
-  assumes "\<lceil>P\<rceil> \<subseteq> \<lceil>I\<rceil>" and "rel_kat.H \<lceil>I\<rceil> R \<lceil>I\<rceil>" and "\<lceil>I\<rceil> \<subseteq> \<lceil>Q\<rceil>"
-  shows "rel_kat.H \<lceil>P\<rceil> (R\<^sup>*) \<lceil>Q\<rceil>"
+lemma sH_loop:
+  assumes "\<lceil>P\<rceil> \<subseteq> \<lceil>I\<rceil>" and "\<lceil>I\<rceil> \<subseteq> \<lceil>Q\<rceil>" and "rel_kat.H \<lceil>I\<rceil> R \<lceil>I\<rceil>"
+  shows "rel_kat.H \<lceil>P\<rceil> (loop R) \<lceil>Q\<rceil>"
   using rel_kat.H_star[of "\<lceil>P\<rceil>" "\<lceil>I\<rceil>" R "\<lceil>Q\<rceil>"] assms by auto
 
 section\<open> Verification of hybrid programs \<close>
@@ -82,9 +84,6 @@ section\<open> Verification of hybrid programs \<close>
 abbreviation g_evolution ::"(('a::banach)\<Rightarrow>'a) \<Rightarrow> 'a pred \<Rightarrow> real set \<Rightarrow> 'a set \<Rightarrow> 
   real \<Rightarrow> 'a rel" ("(1x\<acute>=_ & _ on _ _ @ _)") 
   where "(x\<acute>=f & G on T S @ t\<^sub>0) \<equiv> {(s,s') |s s'. s' \<in> g_orbital f G T S t\<^sub>0 s}"
-
-abbreviation g_evol ::"(('a::banach)\<Rightarrow>'a) \<Rightarrow> 'a pred \<Rightarrow> 'a rel" ("(1x\<acute>=_ & _)") 
-  where "(x\<acute>=f & G) \<equiv> (x\<acute>=f & G on UNIV UNIV @ 0)"
 
 subsection \<open>Verification by providing solutions\<close>
 
@@ -177,5 +176,8 @@ proof(subst sH_H, simp add: g_orbital_eq p2r_def image_le_pred, clarsimp)
   thus "Q (X t)"
     using \<open>P s\<close> wp_Q by (subst (asm) sH_H) auto
 qed
+
+abbreviation g_evol ::"(('a::banach)\<Rightarrow>'a) \<Rightarrow> 'a pred \<Rightarrow> 'a rel" ("(1x\<acute>=_ & _)") 
+  where "(x\<acute>=f & G) \<equiv> (x\<acute>=f & G on UNIV UNIV @ 0)"
 
 end

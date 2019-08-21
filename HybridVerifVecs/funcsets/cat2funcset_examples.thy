@@ -6,38 +6,7 @@ begin
 
 subsection\<open> Examples \<close>
 
-text\<open> Preliminary preparation for the examples.\<close>
-
-\<comment> \<open>Finite set of program variables.\<close>
-
-typedef program_vars = "{''x'',''y''}"
-  morphisms to_str to_var
-  apply(rule_tac x="''x''" in exI)
-  by simp
-
-notation to_var ("\<restriction>\<^sub>V")
-
-lemma number_of_program_vars: "CARD(program_vars) = 2"
-  using type_definition.card type_definition_program_vars by fastforce
-
-instance program_vars::finite
-  apply(standard, subst bij_betw_finite[of to_str UNIV "{''x'',''y''}"])
-   apply(rule bij_betwI')
-     apply (simp add: to_str_inject)
-  using to_str apply blast
-   apply (metis to_var_inverse UNIV_I)
-  by simp
-
-lemma program_vars_univ_eq: "(UNIV::program_vars set) = {\<restriction>\<^sub>V''x'', \<restriction>\<^sub>V''y''}"
-  apply auto by (metis to_str to_str_inverse insertE singletonD) 
-
-lemma program_vars_exhaust: "x = \<restriction>\<^sub>V''x'' \<or> x = \<restriction>\<^sub>V''y''"
-  using program_vars_univ_eq by auto
-
-\<comment> \<open>Alternative to the finite set of program variables.\<close>
-
-lemma "CARD(2) = CARD(program_vars)"
-  unfolding number_of_program_vars by simp
+text\<open> Preliminary lemmas for the examples.\<close>
 
 lemma [simp]: "i \<noteq> (0::2) \<longrightarrow> i = 1" 
   using exhaust_2 by fastforce
@@ -56,82 +25,66 @@ lemma sum_axis_UNIV_3[simp]: "(\<Sum>j\<in>(UNIV::3 set). axis i 1 $ j \<cdot> f
   using exhaust_3 by force
 
 
-subsubsection\<open>Circular Motion\<close>
+subsubsection\<open>Pendulum\<close>
 
 \<comment> \<open>Verified with differential invariants. \<close>
 
-abbreviation circular_motion_kinematics :: "real^program_vars \<Rightarrow> real^program_vars" 
-  where "circular_motion_kinematics s \<equiv> (\<chi> i. if i=(\<restriction>\<^sub>V''x'') then s$(\<restriction>\<^sub>V''y'') else -s$(\<restriction>\<^sub>V''x''))"
+abbreviation fpend :: "real^2 \<Rightarrow> real^2" ("f")
+  where "f s \<equiv> (\<chi> i. if i=0 then s$1 else -s $ 0)"
 
-notation circular_motion_kinematics ("C")
-
-lemma circle_invariant: 
-  "diff_invariant (\<lambda>s. (r::real)\<^sup>2 = (s$(\<restriction>\<^sub>V''x''))\<^sup>2 + (s$(\<restriction>\<^sub>V''y''))\<^sup>2) C UNIV UNIV 0 G"
+lemma pendulum_invariant: 
+  "diff_invariant (\<lambda>s. (r::real)\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2) fpend UNIV UNIV 0 G"
   apply(rule_tac diff_invariant_rules, clarsimp, simp, clarsimp)
-  apply(frule_tac i="\<restriction>\<^sub>V''x''" in has_vderiv_on_vec_nth, drule_tac i="\<restriction>\<^sub>V''y''" in has_vderiv_on_vec_nth)
-  by(auto intro!: poly_derivatives simp: to_var_inject)
+  apply(frule_tac i="0" in has_vderiv_on_vec_nth, drule_tac i="1" in has_vderiv_on_vec_nth)
+  by (auto intro!: poly_derivatives)
 
-lemma circular_motion_invariant:
-  "{s. r\<^sup>2 = (s$\<restriction>\<^sub>V''x'')\<^sup>2 + (s$\<restriction>\<^sub>V''y'')\<^sup>2} \<le> fb\<^sub>\<F> (x\<acute>=C & G) {s. r\<^sup>2 = (s$\<restriction>\<^sub>V''x'')\<^sup>2 + (s$\<restriction>\<^sub>V''y'')\<^sup>2}"
-  unfolding ffb_diff_inv using circle_invariant by simp
+lemma pendulum_invariants:
+  "{s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2} \<le> fb\<^sub>\<F> (x\<acute>=f & G) {s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2}"
+  unfolding ffb_diff_inv using pendulum_invariant by simp
 
 \<comment> \<open>Verified with the flow. \<close>
 
-abbreviation "circular_motion_flow t s \<equiv> 
-  (\<chi> i. if i=\<restriction>\<^sub>V''x'' then s$(\<restriction>\<^sub>V''x'') \<cdot> cos t + s$(\<restriction>\<^sub>V''y'') \<cdot> sin t
-  else - s$(\<restriction>\<^sub>V''x'') \<cdot> sin t + s$(\<restriction>\<^sub>V''y'') \<cdot> cos t)"
+abbreviation pend_flow :: "real \<Rightarrow> real^2 \<Rightarrow> real^2" ("\<phi>")
+  where "\<phi> t s \<equiv> (\<chi> i. if i = 0 then s $ 0 \<cdot> cos t + s $ 1 \<cdot> sin t 
+  else - s $ 0 \<cdot> sin t + s $ 1 \<cdot> cos t)"
 
-notation circular_motion_flow ("\<phi>\<^sub>C")
-
-lemma picard_lindeloef_circ_motion: "picard_lindeloef (\<lambda>t. C) UNIV UNIV 0"
+lemma picard_lindeloef_pend: "picard_lindeloef (\<lambda>t. f) UNIV UNIV 0"
   apply(unfold_locales, simp_all add: local_lipschitz_def lipschitz_on_def, clarsimp)
   apply(rule_tac x="1" in exI, clarsimp, rule_tac x=1 in exI)
-  by(simp add: dist_norm norm_vec_def L2_set_def program_vars_univ_eq to_var_inject power2_commute)
+  by (simp add: dist_norm norm_vec_def L2_set_def power2_commute UNIV_2)
 
-lemma local_flow_circ_motion: "local_flow C UNIV UNIV \<phi>\<^sub>C"
+lemma local_flow_pend: "local_flow f UNIV UNIV \<phi>"
   unfolding local_flow_def local_flow_axioms_def apply safe
-  apply(rule picard_lindeloef_circ_motion, simp_all add: vec_eq_iff)
+  apply(rule picard_lindeloef_pend, simp_all add: vec_eq_iff)
    apply(rule has_vderiv_on_vec_lambda, clarify)
-   apply(case_tac "i = \<restriction>\<^sub>V''x''", simp)
-    apply(force intro!: poly_derivatives derivative_intros simp: to_var_inject)
-  apply(force intro!: poly_derivatives derivative_intros simp: to_var_inject)
-  using program_vars_exhaust by force
+   apply(case_tac "i = 0", simp)
+    apply(force intro!: poly_derivatives derivative_intros)
+   apply(force intro!: poly_derivatives derivative_intros)
+  using exhaust_2 two_eq_zero by force
 
-lemma circular_motion:
-  "{s. r\<^sup>2 = (s$\<restriction>\<^sub>V''x'')\<^sup>2 + (s$\<restriction>\<^sub>V''y'')\<^sup>2} \<le> fb\<^sub>\<F> (x\<acute>=C & G) {s. r\<^sup>2 = (s$\<restriction>\<^sub>V''x'')\<^sup>2 + (s$\<restriction>\<^sub>V''y'')\<^sup>2}"
-  by (subst local_flow.ffb_g_orbit[OF local_flow_circ_motion]) (auto simp: to_var_inject)
-
-no_notation circular_motion_kinematics ("C")
-
-no_notation circular_motion_flow ("\<phi>\<^sub>C")
+lemma pendulum:
+  "{s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2} \<le> fb\<^sub>\<F> (x\<acute>=f & G) {s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2}"
+  by (subst local_flow.ffb_g_orbit[OF local_flow_pend]) auto
 
 \<comment> \<open>Verified as a linear system (using uniqueness). \<close>
 
-abbreviation circular_motion_sq_mtx :: "2 sq_mtx" 
-  where "circular_motion_sq_mtx \<equiv> sq_mtx_chi (\<chi> i. if i=0 then - \<e> 1 else \<e> 0)"
+abbreviation pend_sq_mtx :: "2 sq_mtx" ("A")
+  where "A \<equiv> sq_mtx_chi (\<chi> i. if i=0 then \<e> 1 else - \<e> 0)"
 
-abbreviation circular_motion_mtx_flow :: "real \<Rightarrow> real^2 \<Rightarrow> real^2" 
-  where "circular_motion_mtx_flow t s \<equiv> 
-  (\<chi> i. if i=(0::2) then s$0 \<cdot> cos t - s$1 \<cdot> sin t else s$0 \<cdot> sin t + s$1 \<cdot> cos t)"
-
-notation circular_motion_sq_mtx ("C")
-
-notation circular_motion_mtx_flow ("\<phi>\<^sub>C")
-
-lemma circular_motion_mtx_exp_eq: "exp (t *\<^sub>R C) *\<^sub>V s = \<phi>\<^sub>C t s"
+lemma pend_sq_mtx_exp_eq_flow: "exp (t *\<^sub>R A) *\<^sub>V s = \<phi> t s"
   apply(rule local_flow.eq_solution[OF local_flow_exp, symmetric])
     apply(rule ivp_solsI, rule has_vderiv_on_vec_lambda, clarsimp)
   unfolding sq_mtx_vec_prod_def matrix_vector_mult_def apply simp
       apply(force intro!: poly_derivatives simp: matrix_vector_mult_def)
   using exhaust_2 two_eq_zero by (force simp: vec_eq_iff, auto)
 
-lemma circular_motion_sq_mtx:
-  "{s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2} \<le> fb\<^sub>\<F> (x\<acute>=(*\<^sub>V) C & G) {s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2}"
-  unfolding local_flow.ffb_g_orbit[OF local_flow_exp] circular_motion_mtx_exp_eq by auto
+lemma pendulum_sq_mtx:
+  "{s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2} \<le> fb\<^sub>\<F> (x\<acute>=(*\<^sub>V) A & G) {s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2}"
+  unfolding local_flow.ffb_g_orbit[OF local_flow_exp] pend_sq_mtx_exp_eq_flow by auto
 
-no_notation circular_motion_sq_mtx ("C")
-
-no_notation circular_motion_mtx_flow ("\<phi>\<^sub>C")
+no_notation fpend ("f")
+        and pend_sq_mtx ("A")
+        and pend_flow ("\<phi>")
 
 
 subsubsection\<open> Bouncing Ball \<close>
@@ -157,60 +110,57 @@ proof-
   thus ?thesis by auto
 qed
 
-abbreviation "constant_acceleration_kinematics g s \<equiv> (\<chi> i. if i=(\<restriction>\<^sub>V''x'') then s$(\<restriction>\<^sub>V''y'') else g)"
+abbreviation fball :: "real \<Rightarrow> real^2 \<Rightarrow> real^2" ("f") 
+  where "f g s \<equiv> (\<chi> i. if i=(0) then s $ 1 else g)"
 
-notation constant_acceleration_kinematics ("K")
-
-lemma energy_conservation_invariant: 
+lemma fball_invariant: 
   fixes g h :: real
-  defines dinv: "I \<equiv> (\<lambda>s. 2 \<cdot> g \<cdot> s$(\<restriction>\<^sub>V''x'') - 2 \<cdot> g \<cdot> h - (s$(\<restriction>\<^sub>V''y'') \<cdot> s$(\<restriction>\<^sub>V''y'')) = 0)"
-  shows "diff_invariant I (K g) UNIV UNIV 0 G"
+  defines dinv: "I \<equiv> (\<lambda>s. 2 \<cdot> g \<cdot> s $ 0 - 2 \<cdot> g \<cdot> h - (s $ 1 \<cdot> s $ 1) = 0)"
+  shows "diff_invariant I (f g) UNIV UNIV 0 G"
   unfolding dinv apply(rule diff_invariant_rules, simp, simp, clarify)
-  apply(frule_tac i="\<restriction>\<^sub>V''y''" in has_vderiv_on_vec_nth)
-  apply(drule_tac i="\<restriction>\<^sub>V''x''" in has_vderiv_on_vec_nth)
-  by(auto intro!: poly_derivatives simp: to_var_inject)
+  apply(frule_tac i="1" in has_vderiv_on_vec_nth)
+  apply(drule_tac i="0" in has_vderiv_on_vec_nth)
+  by(auto intro!: poly_derivatives)
 
 lemma bouncing_ball_invariants:
   fixes h::real 
   assumes "g < 0" and "h \<ge> 0"
-  defines diff_inv: "I \<equiv> (\<lambda>s. 2 \<cdot> g \<cdot> s$(\<restriction>\<^sub>V''x'') - 2 \<cdot> g \<cdot> h - (s$(\<restriction>\<^sub>V''y'') \<cdot> s$(\<restriction>\<^sub>V''y'')) = 0)"
-  shows "{s. s$(\<restriction>\<^sub>V''x'') = h \<and> s$(\<restriction>\<^sub>V''y'') = 0} \<le> fb\<^sub>\<F> 
-  (kstar ((x\<acute>=K g & (\<lambda> s. s$(\<restriction>\<^sub>V''x'') \<ge> 0)) \<circ>\<^sub>K 
-  (IF (\<lambda> s. s$(\<restriction>\<^sub>V''x'') = 0) THEN ((\<restriction>\<^sub>V''y'') ::= (\<lambda>s. - s$(\<restriction>\<^sub>V''y''))) ELSE \<eta> FI)))
-  {s. 0 \<le> s$(\<restriction>\<^sub>V''x'') \<and> s$(\<restriction>\<^sub>V''x'') \<le> h}"
-  apply(rule ffb_kstarI[of _ "{s. 0 \<le> s$(\<restriction>\<^sub>V''x'') \<and> I s}"])
-  using \<open>h \<ge> 0\<close> apply(subst diff_inv, clarsimp, simp only: ffb_kcomp)
-   apply(rule_tac b="fb\<^sub>\<F> (x\<acute>=(K g) & (\<lambda> s. s$(\<restriction>\<^sub>V''x'')\<ge>0)) {s. 0\<le>s$(\<restriction>\<^sub>V''x'') \<and> I s}" in order.trans)
+  defines diff_inv: "I \<equiv> (\<lambda>s::real^2. 2 \<cdot> g \<cdot> s $ 0 - 2 \<cdot> g \<cdot> h - s $ 1 \<cdot> s $ 1 = 0)"
+  shows "{s. s $ 0 = h \<and> s $ 1 = 0} \<le> fb\<^sub>\<F> 
+  (loop ((x\<acute>=(f g) & (\<lambda> s. s $ 0 \<ge> 0)) ; 
+  (IF (\<lambda> s. s $ 0 = 0) THEN (1 ::= (\<lambda>s. - s $ 1)) ELSE skip)))
+  {s. 0 \<le> s $ 0 \<and> s $ 0 \<le> h}"
+  apply(rule ffb_kloopI[of _ "{s. 0 \<le> s $ 0 \<and> I s}"])
+  using \<open>h \<ge> 0\<close> apply(subst diff_inv, clarsimp)
+  using \<open>g < 0\<close> apply(subst diff_inv, force simp: bb_real_arith)
+  apply(simp only: ffb_kcomp)
+   apply(rule_tac b="fb\<^sub>\<F> (x\<acute>=(f g) & (\<lambda> s. s $ 0 \<ge> 0)) {s. 0 \<le> s $ 0 \<and> I s}" in order.trans)
   apply(simp add: ffb_g_orbital_guard)
     apply(rule_tac b="{s. I s}" in order.trans, force)
   unfolding ffb_diff_inv apply(simp_all add: diff_inv)
-  using energy_conservation_invariant apply force
-   apply(rule ffb_iso)
-  using assms unfolding diff_inv ffb_if_then_else
-  by (auto simp: bb_real_arith to_var_inject)
+  using fball_invariant apply force
+   apply(rule ffb_iso, subst ffb_if_then_else)
+  using assms by (force simp: bb_real_arith)
 
 \<comment> \<open>Verified with the flow. \<close>
 
-lemma picard_lindeloef_cnst_acc:
+lemma picard_lindeloef_fball:
   fixes g::real
-  shows "picard_lindeloef (\<lambda>t. K g) UNIV UNIV 0"
+  shows "picard_lindeloef (\<lambda>t. f g) UNIV UNIV 0"
   apply(unfold_locales)
   apply(unfold_locales, simp_all add: local_lipschitz_def lipschitz_on_def, clarsimp)
   apply(rule_tac x="1/2" in exI, clarsimp, rule_tac x=1 in exI)
-  by(simp add: dist_norm norm_vec_def L2_set_def program_vars_univ_eq to_var_inject)
+  by(simp add: dist_norm norm_vec_def L2_set_def UNIV_2)
 
-abbreviation "constant_acceleration_kinematics_flow g t s \<equiv> 
-  (\<chi> i. if i=(\<restriction>\<^sub>V ''x'') then g \<cdot> t ^ 2/2 + s $ (\<restriction>\<^sub>V ''y'') \<cdot> t + s $ (\<restriction>\<^sub>V ''x'') 
-        else g \<cdot> t + s $ (\<restriction>\<^sub>V ''y''))"
+abbreviation ball_flow :: "real \<Rightarrow> real \<Rightarrow> real^2 \<Rightarrow> real^2" ("\<phi>") 
+  where "\<phi> g t s \<equiv> (\<chi> i. if i=0 then g \<cdot> t ^ 2/2 + s $ 1 \<cdot> t + s $ 0 else g \<cdot> t + s $ 1)"
 
-notation constant_acceleration_kinematics_flow ("\<phi>\<^sub>K")
-
-lemma local_flow_cnst_acc: "local_flow (K g) UNIV UNIV (\<phi>\<^sub>K g)"
+lemma local_flow_ball: "local_flow (f g) UNIV UNIV (\<phi> g)"
   unfolding local_flow_def local_flow_axioms_def apply safe
-  using picard_lindeloef_cnst_acc apply blast
+  using picard_lindeloef_fball apply blast
    apply(rule has_vderiv_on_vec_lambda, clarify)
-   apply(case_tac "i = \<restriction>\<^sub>V ''x''")
-  using program_vars_exhaust by(auto intro!: poly_derivatives simp: to_var_inject vec_eq_iff)
+   apply(case_tac "i = 0")
+  using exhaust_2 two_eq_zero by (auto intro!: poly_derivatives simp: vec_eq_iff) force
 
 lemma [bb_real_arith]:
   assumes invar: "2 \<cdot> g \<cdot> x = 2 \<cdot> g \<cdot> h + v \<cdot> v"
@@ -255,70 +205,58 @@ qed
 lemma bouncing_ball:
   fixes h::real 
   assumes "g < 0" and "h \<ge> 0"
-  defines loop_inv: "I \<equiv> (\<lambda>s. 0 \<le> s$(\<restriction>\<^sub>V''x'') \<and>  2 \<cdot> g \<cdot> s$(\<restriction>\<^sub>V''x'') = 
-    2 \<cdot> g \<cdot> h + (s$(\<restriction>\<^sub>V''y'') \<cdot> s$(\<restriction>\<^sub>V''y'')))"
-  shows "{s. s$(\<restriction>\<^sub>V''x'') = h \<and> s$(\<restriction>\<^sub>V''y'') = 0} \<le> fb\<^sub>\<F> 
-  (kstar ((x\<acute>=K g & (\<lambda> s. s $ (\<restriction>\<^sub>V ''x'') \<ge> 0)) \<circ>\<^sub>K 
-  (IF (\<lambda> s. s$(\<restriction>\<^sub>V''x'') = 0) THEN ((\<restriction>\<^sub>V''y'') ::= (\<lambda>s. - s$(\<restriction>\<^sub>V''y''))) ELSE \<eta> FI)))
-  {s. 0 \<le> s$(\<restriction>\<^sub>V''x'') \<and> s$(\<restriction>\<^sub>V''x'') \<le> h}"
-  apply(rule ffb_kstarI[of _ "{s. I s}"])
-  unfolding loop_inv using \<open>h \<ge> 0\<close> apply(clarsimp, simp only: ffb_kcomp)
-   apply(subst local_flow.ffb_g_orbit[OF local_flow_cnst_acc], simp)
-  unfolding ffb_if_then_else using assms
-  by (auto simp: bb_real_arith to_var_inject)
-
-no_notation constant_acceleration_kinematics ("K")
-
-no_notation constant_acceleration_kinematics_flow ("\<phi>\<^sub>K")
-
-no_notation to_var ("\<restriction>\<^sub>V")
+  defines loop_inv: "I \<equiv> (\<lambda>s::real^2. 0 \<le> s $ 0 \<and> 2 \<cdot> g \<cdot> s $ 0 = 2 \<cdot> g \<cdot> h + (s $ 1 \<cdot> s $ 1))"
+  shows "{s. s $ 0 = h \<and> s $ 1 = 0} \<le> fb\<^sub>\<F> 
+  (loop ((x\<acute>=(f g) & (\<lambda> s. s $ 0 \<ge> 0)) ; 
+  (IF (\<lambda> s. s $ 0 = 0) THEN (1 ::= (\<lambda>s. - s $ 1)) ELSE skip)))
+  {s. 0 \<le> s $ 0 \<and> s $ 0 \<le> h}"
+  apply(rule ffb_kloopI[of _ "{s. I s}"])
+  unfolding loop_inv using \<open>h \<ge> 0\<close> \<open>g < 0\<close> apply(clarsimp, force simp: bb_real_arith)
+  apply(simp only: ffb_kcomp local_flow.ffb_g_orbit[OF local_flow_ball])
+  unfolding ffb_if_then_else using assms by (auto simp: bb_real_arith)
 
 \<comment> \<open>Verified as a linear system (computing exponential). \<close>
 
-abbreviation constant_acceleration_kinematics_sq_mtx :: "3 sq_mtx" 
-  where "constant_acceleration_kinematics_sq_mtx \<equiv> 
-    sq_mtx_chi (\<chi> i::3. if i=0 then \<e> 1 else if i=1 then \<e> 2 else 0)"
+abbreviation ball_sq_mtx :: "3 sq_mtx" ("A")
+  where "ball_sq_mtx \<equiv> sq_mtx_chi (\<chi> i. if i=0 then \<e> 1 else if i=1 then \<e> 2 else 0)"
 
-notation constant_acceleration_kinematics_sq_mtx ("K")
-
-lemma const_acc_mtx_pow2: "K\<^sup>2 = sq_mtx_chi (\<chi> i. if i=0 then \<e> 2 else 0)"
+lemma ball_sq_mtx_pow2: "A\<^sup>2 = sq_mtx_chi (\<chi> i. if i=0 then \<e> 2 else 0)"
   unfolding power2_eq_square times_sq_mtx_def 
   by(simp add: sq_mtx_chi_inject vec_eq_iff matrix_matrix_mult_def)
 
-lemma const_acc_mtx_powN: "n > 2 \<Longrightarrow> (\<tau> *\<^sub>R K)^n = 0"
+lemma ball_sq_mtx_powN: "n > 2 \<Longrightarrow> (\<tau> *\<^sub>R A)^n = 0"
   apply(induct n, simp, case_tac "n \<le> 2")
    apply(simp only: le_less_Suc_eq power_Suc, simp)
-  by(auto simp: const_acc_mtx_pow2 sq_mtx_chi_inject vec_eq_iff 
+  by(auto simp: ball_sq_mtx_pow2 sq_mtx_chi_inject vec_eq_iff 
       times_sq_mtx_def zero_sq_mtx_def matrix_matrix_mult_def)
 
-lemma exp_cnst_acc_sq_mtx: "exp (\<tau> *\<^sub>R K) = ((\<tau> *\<^sub>R K)\<^sup>2/\<^sub>R 2) + (\<tau> *\<^sub>R K) + 1"
+lemma exp_ball_sq_mtx: "exp (\<tau> *\<^sub>R A) = ((\<tau> *\<^sub>R A)\<^sup>2/\<^sub>R 2) + (\<tau> *\<^sub>R A) + 1"
   unfolding exp_def apply(subst suminf_eq_sum[of 2])
-  using const_acc_mtx_powN by (simp_all add: numeral_2_eq_2)
+  using ball_sq_mtx_powN by (simp_all add: numeral_2_eq_2)
  
-lemma exp_cnst_acc_sq_mtx_simps:
-  "exp (\<tau> *\<^sub>R K) $$ 0 $ 0 = 1" "exp (\<tau> *\<^sub>R K) $$ 0 $ 1 = \<tau>" "exp (\<tau> *\<^sub>R K) $$ 0 $ 2 = \<tau>^2/2"
-  "exp (\<tau> *\<^sub>R K) $$ 1 $ 0 = 0" "exp (\<tau> *\<^sub>R K) $$ 1 $ 1 = 1" "exp (\<tau> *\<^sub>R K) $$ 1 $ 2 = \<tau>"
-  "exp (\<tau> *\<^sub>R K) $$ 2 $ 0 = 0" "exp (\<tau> *\<^sub>R K) $$ 2 $ 1 = 0" "exp (\<tau> *\<^sub>R K) $$ 2 $ 2 = 1"
-  unfolding exp_cnst_acc_sq_mtx scaleR_power const_acc_mtx_pow2
+lemma exp_ball_sq_mtx_simps:
+  "exp (\<tau> *\<^sub>R A) $$ 0 $ 0 = 1" "exp (\<tau> *\<^sub>R A) $$ 0 $ 1 = \<tau>" "exp (\<tau> *\<^sub>R A) $$ 0 $ 2 = \<tau>^2/2"
+  "exp (\<tau> *\<^sub>R A) $$ 1 $ 0 = 0" "exp (\<tau> *\<^sub>R A) $$ 1 $ 1 = 1" "exp (\<tau> *\<^sub>R A) $$ 1 $ 2 = \<tau>"
+  "exp (\<tau> *\<^sub>R A) $$ 2 $ 0 = 0" "exp (\<tau> *\<^sub>R A) $$ 2 $ 1 = 0" "exp (\<tau> *\<^sub>R A) $$ 2 $ 2 = 1"
+  unfolding exp_ball_sq_mtx scaleR_power ball_sq_mtx_pow2
   by (auto simp: plus_sq_mtx_def scaleR_sq_mtx_def one_sq_mtx_def 
       mat_def scaleR_vec_def axis_def plus_vec_def)
 
-lemma bouncing_ball_K: 
+lemma bouncing_ball_sq_mtx: 
   "{s. 0 \<le> s $ 0 \<and> s $ 0 = h \<and> s $ 1 = 0 \<and> 0 > s $ 2} \<le> fb\<^sub>\<F> 
-  (kstar ((x\<acute>=(*\<^sub>V) K & (\<lambda> s. s $ 0 \<ge> 0)) \<circ>\<^sub>K
-  (IF (\<lambda> s. s $ 0 = 0) THEN (1 ::= (\<lambda>s. - s $ 1)) ELSE \<eta> FI)))
+  (kstar ((x\<acute>=(*\<^sub>V) A & (\<lambda> s. s $ 0 \<ge> 0)) ;
+  (IF (\<lambda> s. s $ 0 = 0) THEN (1 ::= (\<lambda>s. - s $ 1)) ELSE skip)))
   {s. 0 \<le> s $ 0 \<and> s $ 0 \<le> h}"
-  apply(rule ffb_kstarI[of _ "{s. 0\<le>s$0 \<and> 0>s$2 \<and> 2 \<cdot> s$2 \<cdot> s$0 = 2 \<cdot> s$2 \<cdot> h + (s$1 \<cdot> s$1)}"])
-    apply(clarsimp, simp only: ffb_kcomp)
-   apply(subst local_flow.ffb_g_orbit[OF local_flow_exp])
+  apply(rule ffb_kloopI[of _ "{s. 0\<le>s$0 \<and> 0>s$2 \<and> 2 \<cdot> s$2 \<cdot> s$0 = 2 \<cdot> s$2 \<cdot> h + (s$1 \<cdot> s$1)}"])
+    apply(clarsimp, force simp: bb_real_arith)
+  apply(simp only: ffb_kcomp local_flow.ffb_g_orbit[OF local_flow_exp])
   apply(subst ffb_if_then_else, simp add: sq_mtx_vec_prod_eq)
-  unfolding UNIV_3 apply(simp add: exp_cnst_acc_sq_mtx_simps, safe)
-  subgoal for x using bb_real_arith(2)[of "x$2"]
-    by (simp add: add.commute mult.commute)
-  subgoal for x \<tau> using bb_real_arith(3)[where g="x$2" and v="x$1"]
-    by(simp add: add.commute mult.commute)
-  by (force simp: bb_real_arith)
+  unfolding UNIV_3 apply(simp add: exp_ball_sq_mtx_simps, safe)
+  using bb_real_arith(2) apply(force simp: add.commute mult.commute)
+  using bb_real_arith(3) by (force simp: add.commute mult.commute)
 
-no_notation constant_acceleration_kinematics_sq_mtx ("K")
+no_notation fpend ("f")
+        and pend_flow ("\<phi>")
+        and ball_sq_mtx ("A")
 
 end

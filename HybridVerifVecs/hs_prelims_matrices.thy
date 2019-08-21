@@ -338,6 +338,11 @@ lemma picard_lindeloef_linear_system:
   apply(rule_tac x=1 in exI, clarsimp, rule_tac x="L" in exI, safe)
   using max_norm_ge_0[of A] unfolding assms by force (rule matrix_lipschitz_constant)
 
+lemma picard_lindeloef_affine_system:
+  fixes A::"real^'n^'n"
+  shows "picard_lindeloef (\<lambda> t s. A *v s + b) UNIV UNIV 0"
+  apply(rule picard_lindeloef_add[OF picard_lindeloef_linear_system])
+  using picard_lindeloef_constant by auto
 
 section\<open> Matrix Exponential \<close>
 
@@ -444,6 +449,10 @@ lemma mtx_vec_prod_add_rdistr:"(A + B) *\<^sub>V x = A *\<^sub>V x + B *\<^sub>V
 lemma mtx_vec_prod_minus_rdistrib:"(A - B) *\<^sub>V x = A *\<^sub>V x - B *\<^sub>V x"
   unfolding minus_sq_mtx_def by(transfer, simp add: matrix_vector_mult_diff_rdistrib)
 
+lemma mtx_vec_prod_minus_ldistrib: "A *\<^sub>V (c - d) =  A *\<^sub>V c -  A *\<^sub>V d"
+  by (metis (no_types, lifting) add_diff_cancel diff_add_cancel 
+      matrix_vector_right_distrib sq_mtx_vec_prod.rep_eq)
+
 lemma sq_mtx_times_vec_assoc: "(A * B) *\<^sub>V x0 = A *\<^sub>V (B *\<^sub>V x0)"
   by (transfer, simp add: matrix_vector_mul_assoc)
 
@@ -523,7 +532,7 @@ instance apply intro_classes
 
 end
 
-lemma sq_mtx_one_vec: "1 *\<^sub>V s = s"
+lemma sq_mtx_one_vec[simp]: "1 *\<^sub>V s = s"
   by (auto simp: sq_mtx_vec_prod_def one_sq_mtx_def 
       mat_def vec_eq_iff matrix_vector_mult_def)
 
@@ -667,18 +676,23 @@ lemma exp_has_vderiv_on_linear:
 lemma picard_lindeloef_sq_mtx:
   fixes A::"('n::finite) sq_mtx"
   defines "L \<equiv> (real CARD('n))\<^sup>2 * (\<parallel>to_vec A\<parallel>\<^sub>m\<^sub>a\<^sub>x)"
-  shows "picard_lindeloef (\<lambda> t s. A *\<^sub>V s) UNIV UNIV 0"
+  shows "picard_lindeloef (\<lambda> t s. A *\<^sub>V s) UNIV UNIV t\<^sub>0"
   apply(unfold_locales, simp_all add: local_lipschitz_def lipschitz_on_def, clarsimp)
   apply(rule_tac x=1 in exI, clarsimp, rule_tac x="L" in exI, safe)
   using max_norm_ge_0[of "to_vec A"] unfolding assms apply force
   by transfer (rule matrix_lipschitz_constant)
+
+lemma picard_lindeloef_sq_mtx_affine:
+  fixes A::"('n::finite) sq_mtx"
+  shows "picard_lindeloef (\<lambda> t s. A *\<^sub>V s + b) UNIV UNIV t\<^sub>0"
+  apply(rule picard_lindeloef_add[OF picard_lindeloef_sq_mtx])
+  using picard_lindeloef_constant by auto
 
 lemma local_flow_exp:
   fixes A::"('n::finite) sq_mtx"
   shows "local_flow ((*\<^sub>V) A) UNIV UNIV (\<lambda>t s. exp (t *\<^sub>R A) *\<^sub>V s)"
   unfolding local_flow_def local_flow_axioms_def apply safe
   using picard_lindeloef_sq_mtx apply blast
-  using exp_has_vderiv_on_linear[of 0] apply force
-  by(auto simp: sq_mtx_one_vec)
+  using exp_has_vderiv_on_linear[of 0] by auto
 
 end

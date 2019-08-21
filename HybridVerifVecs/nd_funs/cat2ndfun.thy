@@ -4,29 +4,31 @@ theory cat2ndfun
 begin
 
 
-chapter\<open> Hybrid System Verification with nondeterministic functions \<close>
+chapter\<open> Hybrid System Verification with non-deterministic functions \<close>
 
-\<comment> \<open>We start by deleting some conflicting notation and introducing some new.\<close>
+\<comment> \<open>We start by deleting some notation and introducing some new.\<close>
 
 no_notation Archimedean_Field.ceiling ("\<lceil>_\<rceil>")
         and Archimedean_Field.floor_ceiling_class.floor ("\<lfloor>_\<rfloor>")
         and Range_Semiring.antirange_semiring_class.ars_r ("r")
+        and "Relation.relcomp" (infixl ";" 75) 
         and Isotone_Transformers.bqtran ("\<lfloor>_\<rfloor>")
         and bres (infixr "\<rightarrow>" 60)
 
 type_synonym 'a pred = "'a \<Rightarrow> bool"
 
-notation Abs_nd_fun ("_\<^sup>\<bullet>" [101] 100) and Rep_nd_fun ("_\<^sub>\<bullet>" [101] 100)
+notation Abs_nd_fun ("_\<^sup>\<bullet>" [101] 100) 
+     and Rep_nd_fun ("_\<^sub>\<bullet>" [101] 100)
+     and fbox ("wp")
+     and qstar ("loop")
 
 section\<open> Nondeterministic Functions \<close>
 
-text\<open> Our semantics correspond now to nondeterministic functions @{typ "'a nd_fun"}. Below we prove
+text\<open> Our semantics now corresponds to nondeterministic functions @{typ "'a nd_fun"}. Below we prove
 some auxiliary lemmas for them and show that they form an antidomain kleene algebra. The proof just 
 extends the results on the Transformer\_Semantics.Kleisli\_Quantale theory.\<close>
 
 declare Abs_nd_fun_inverse [simp]
-
-\<comment> \<open>Analog of already existing @{thm ext[no_vars]}.\<close>
 
 lemma nd_fun_ext: "(\<And>x. (f\<^sub>\<bullet>) x = (g\<^sub>\<bullet>) x) \<Longrightarrow> f = g"
   apply(subgoal_tac "Rep_nd_fun f = Rep_nd_fun g")
@@ -46,7 +48,7 @@ lift_definition zero_nd_fun :: "'a nd_fun"
   is "\<zeta>\<^sup>\<bullet>".
 
 lift_definition star_nd_fun :: "'a nd_fun \<Rightarrow> 'a nd_fun" 
-  is "\<lambda>(f::'a nd_fun).qstar f".
+  is "\<lambda>(f::'a nd_fun). qstar f".
 
 lift_definition plus_nd_fun :: "'a nd_fun \<Rightarrow> 'a nd_fun \<Rightarrow> 'a nd_fun" 
   is "\<lambda>f g.((f\<^sub>\<bullet>) \<squnion> (g\<^sub>\<bullet>))\<^sup>\<bullet>".
@@ -98,8 +100,7 @@ instance
 end
 
 text\<open> Now that we know that nondeterministic functions form an Antidomain Kleene Algebra, we give
- a lifting operation from predicates to @{typ "'a nd_fun"} and prove some useful results for them. 
-Then we add an operation that does the opposite and obtain a relationship between both of these. \<close>
+ a lifting operation from @{typ "'a pred"} to @{typ "'a nd_fun"}.\<close>
 
 abbreviation p2ndf :: "'a pred \<Rightarrow> 'a nd_fun" ("(1\<lceil>_\<rceil>)")
   where "\<lceil>Q\<rceil> \<equiv> (\<lambda> x::'a. {s::'a. s = x \<and> Q s})\<^sup>\<bullet>"
@@ -113,8 +114,13 @@ lemma eq_p2ndf_iff[simp]: "(\<lceil>P\<rceil> = \<lceil>Q\<rceil>) = (P = Q)"
 lemma p2ndf_le_eta[simp]: "\<lceil>P\<rceil> \<le> \<eta>\<^sup>\<bullet>"
   by(transfer, simp add: le_fun_def, clarify)
 
-lemma ads_d_p2ndf[simp]: "d \<lceil>P\<rceil> = \<lceil>P\<rceil>"
-  unfolding ads_d_def antidomain_op_nd_fun_def by(rule nd_fun_ext, auto)
+lemma ads_d_p2ndf_simps[simp]: 
+  "d (\<lceil>P\<rceil> \<cdot> \<lceil>Q\<rceil>) = \<lceil>\<lambda> s. P s \<and> Q s\<rceil>"
+  "d (\<lceil>P\<rceil> + \<lceil>Q\<rceil>) = \<lceil>\<lambda> s. P s \<or> Q s\<rceil>"
+  "d \<lceil>P\<rceil> = \<lceil>P\<rceil>"
+  apply(simp_all add: ads_d_def times_nd_fun_def plus_nd_fun_def kcomp_def)
+   apply(simp_all add: antidomain_op_nd_fun_def)
+  by (rule nd_fun_ext, force)+
 
 lemma ad_p2ndf[simp]: "ad \<lceil>P\<rceil> = \<lceil>\<lambda>s. \<not> P s\<rceil>"
   unfolding antidomain_op_nd_fun_def by(rule nd_fun_ext, auto)
@@ -129,34 +135,15 @@ lemma p2ndf_ndf2p_id: "F \<le> \<eta>\<^sup>\<bullet> \<Longrightarrow> \<lceil>
 
 section\<open> Verification of regular programs \<close>
 
-text\<open> As expected, the weakest precondition is just the forward box operator from the KAD. Below 
-we explore its behavior with the previously defined lifting ($\lceil-\rceil$*) and dropping 
-($\lfloor-\rfloor$*) operators \<close>
+text \<open>Properties of the forward box operator. \<close>
 
-abbreviation "wp f \<equiv> fbox (f::'a nd_fun)"
-
-lemma wp_eta[simp]: "wp (\<eta>\<^sup>\<bullet>) \<lceil>P\<rceil> = \<lceil>P\<rceil>"
+lemma wp_nd_fun: "wp (F\<^sup>\<bullet>) \<lceil>P\<rceil> = \<lceil>\<lambda>s. \<forall>s'. s' \<in> (F s) \<longrightarrow> P s'\<rceil>"
   apply(simp add: fbox_def, transfer, simp)
   by(rule nd_fun_ext, auto simp: kcomp_def)
 
-lemma wp_nd_fun: "wp (F\<^sup>\<bullet>) \<lceil>P\<rceil> = \<lceil>\<lambda> x. \<forall> y. y \<in> (F x) \<longrightarrow> P y\<rceil>"
-  apply(simp add: fbox_def, transfer, simp)
-  by(rule nd_fun_ext, auto simp: kcomp_def)
-
-lemma wp_nd_fun2: "wp F \<lceil>P\<rceil> = \<lceil>\<lambda> x. \<forall> y. y \<in> ((F\<^sub>\<bullet>) x) \<longrightarrow> P y\<rceil>"
+lemma wp_nd_fun2: "wp F \<lceil>P\<rceil> = \<lceil>\<lambda>s. \<forall>s'. s' \<in> ((F\<^sub>\<bullet>) s) \<longrightarrow> P s'\<rceil>"
   apply(simp add: fbox_def antidomain_op_nd_fun_def)
   by(rule nd_fun_ext, auto simp: Rep_comp_hom kcomp_prop)
-
-lemma wp_nd_fun_etaD: "wp (F\<^sup>\<bullet>) \<lceil>P\<rceil> = \<eta>\<^sup>\<bullet> \<Longrightarrow>  (\<forall>y. y \<in> (F x) \<longrightarrow> P y)"
-proof
-  fix y assume "wp (F\<^sup>\<bullet>) \<lceil>P\<rceil> = (\<eta>\<^sup>\<bullet>)"
-  from this have "\<eta>\<^sup>\<bullet> = \<lceil>\<lambda>s. \<forall>y. s2p (F s) y \<longrightarrow> P y\<rceil>" 
-    by(subst wp_nd_fun[THEN sym], simp)
-  hence "\<And>x. {x} = {s. s = x \<and> (\<forall>y. s2p (F s) y \<longrightarrow> P y)}"
-    apply(subst (asm) Abs_nd_fun_inject, simp_all)
-    by(drule_tac x="x" in fun_cong, simp)
-  then show "s2p (F x) y \<longrightarrow> P y" by auto
-qed
 
 lemma p2ndf_ndf2p_wp: "\<lceil>\<lfloor>wp R P\<rfloor>\<rceil> = wp R P"
   apply(rule p2ndf_ndf2p_id)
@@ -168,8 +155,14 @@ lemma ndf2p_wpD: "\<lfloor>wp F \<lceil>Q\<rceil>\<rfloor> s = (\<forall>s'. s' 
   apply(subst wp_nd_fun)
   by(simp_all add: f2r_def)
 
-text\<open> We can verify that our introduction of @{text "wp"} coincides with another definition of the 
-forward box operator @{thm ffb_def[no_vars]} with the following characterization lemmas. \<close>
+lemma wp_invariants: 
+  assumes "\<lceil>I\<rceil> \<le> wp F \<lceil>I\<rceil>" and "\<lceil>J\<rceil> \<le> wp F \<lceil>J\<rceil>"
+  shows "\<lceil>\<lambda>s. I s \<and> J s\<rceil> \<le> wp F \<lceil>\<lambda>s. I s \<and> J s\<rceil>"
+    and "\<lceil>\<lambda>s. I s \<or> J s\<rceil> \<le> wp F \<lceil>\<lambda>s. I s \<or> J s\<rceil>"
+  using assms unfolding wp_nd_fun2 by simp_all force
+
+text\<open> We check that @{term "fbox"} coincides with our other definition of the forward box operator 
+@{thm ffb_def[no_vars]}. \<close>
 
 lemma ffb_is_wp: "fb\<^sub>\<F> (F\<^sub>\<bullet>) {x. P x} = {s. \<lfloor>wp F \<lceil>P\<rceil>\<rfloor> s}"
   unfolding ffb_def unfolding map_dual_def klift_def kop_def fbox_def
@@ -185,19 +178,30 @@ lemma wp_is_ffb: "wp F P = (\<lambda>x. {x} \<inter> fb\<^sub>\<F> (F\<^sub>\<bu
   unfolding times_nd_fun_def apply auto
   unfolding kcomp_prop by auto
 
-text\<open> Next, we introduce assignments and compute their @{text "wp"}. \<close>
+text \<open>The weakest liberal precondition (wlp) of the ``skip'' program is the identity. \<close>
 
-abbreviation vec_upd :: "('a^'b) \<Rightarrow> 'b \<Rightarrow> 'a \<Rightarrow> 'a^'b"
-  where "vec_upd x i a \<equiv> vec_lambda ((vec_nth x)(i := a))"
+abbreviation "skip \<equiv> \<eta>\<^sup>\<bullet>"
 
-abbreviation assign :: "'b \<Rightarrow> ('a^'b \<Rightarrow> 'a) \<Rightarrow> ('a^'b) nd_fun" ("(2_ ::= _)" [70, 65] 61) 
-  where "(x ::= e)\<equiv> (\<lambda>s. {vec_upd s x (e s)})\<^sup>\<bullet>" 
+lemma wp_eta[simp]: "wp skip \<lceil>P\<rceil> = \<lceil>P\<rceil>"
+  apply(simp add: fbox_def, transfer, simp)
+  by(rule nd_fun_ext, auto simp: kcomp_def)
 
-lemma wp_assign[simp]: "wp (x ::= e) \<lceil>Q\<rceil> = \<lceil>\<lambda>s. Q (vec_upd s x (e s))\<rceil>"
-  by(subst wp_nd_fun, rule nd_fun_ext, simp)
+text\<open> Next, we introduce assignments and their @{text "wp"}. \<close>
+
+definition vec_upd :: "('a^'b) \<Rightarrow> 'b \<Rightarrow> 'a \<Rightarrow> 'a^'b"
+  where "vec_upd s i a = (\<chi> j. ((($) s)(i := a)) j)"
+
+definition assign :: "'b \<Rightarrow> ('a^'b \<Rightarrow> 'a) \<Rightarrow> ('a^'b) nd_fun" ("(2_ ::= _)" [70, 65] 61) 
+  where "(x ::= e) = (\<lambda>s. {vec_upd s x (e s)})\<^sup>\<bullet>" 
+
+lemma wp_assign[simp]: "wp (x ::= e) \<lceil>Q\<rceil> = \<lceil>\<lambda>s. Q (\<chi> j. ((($) s)(x := (e s))) j)\<rceil>"
+  unfolding wp_nd_fun2 nd_fun_eq_iff[symmetric] vec_upd_def assign_def by auto
 
 text\<open> The @{text "wp"} of the composition was already obtained in KAD.Antidomain\_Semiring:
 @{thm fbox_mult[no_vars]}. \<close>
+
+abbreviation seq_comp :: "'a nd_fun \<Rightarrow> 'a nd_fun \<Rightarrow> 'a nd_fun" (infixl ";" 75)
+  where "f ; g \<equiv> f \<cdot> g"
 
 text\<open> We also have an implementation of the conditional operator and its @{text "wp"}. \<close>
 
@@ -212,18 +216,18 @@ lemma fbox_cond_var[simp]: "|if p then x else y fi] q = (ad p + |x] q) \<cdot> (
   using cond_def a_closure' ads_d_def ans_d_def fbox_add2 fbox_export1 by (metis (no_types, lifting)) 
 
 abbreviation cond_sugar :: "'a pred \<Rightarrow> 'a nd_fun \<Rightarrow> 'a nd_fun \<Rightarrow> 'a nd_fun" 
-  ("IF _ THEN _ ELSE _ FI" [64,64,64] 63) where "IF P THEN X ELSE Y FI \<equiv> cond \<lceil>P\<rceil> X Y"
+  ("IF _ THEN _ ELSE _" [64,64,64] 63) where "IF P THEN X ELSE Y \<equiv> cond \<lceil>P\<rceil> X Y"
 
-lemma wp_if_then_else:
+lemma wp_if_then_elseI:
   assumes "\<lceil>\<lambda>s. P s \<and> T s\<rceil> \<le> wp X \<lceil>Q\<rceil>"
     and "\<lceil>\<lambda>s. P s \<and> \<not> T s\<rceil> \<le> wp Y \<lceil>Q\<rceil>"
-  shows "\<lceil>P\<rceil> \<le> wp (IF T THEN X ELSE Y FI) \<lceil>Q\<rceil>"
+  shows "\<lceil>P\<rceil> \<le> wp (IF T THEN X ELSE Y) \<lceil>Q\<rceil>"
   using assms apply(subst wp_nd_fun2)
   apply(subst (asm) wp_nd_fun2)+
   unfolding cond_def apply(clarsimp, transfer)
   by(auto simp: kcomp_prop)
 
-text\<open> Finally we also deal with finite iteration. \<close>
+text\<open> We also deal with finite iteration. \<close>
 
 lemma (in antidomain_kleene_algebra) fbox_starI: 
   assumes "d p \<le> d i" and "d i \<le> |x] i" and "d i \<le> d q"
@@ -240,19 +244,19 @@ lemma nd_fun_top_ads_d:"(x::'a nd_fun) \<le> 1 \<Longrightarrow> d x = x"
   by auto
 
 lemma wp_starI:
-  assumes "P \<le> I" and "I \<le> wp F I" and "I \<le> Q"
-  shows "P \<le> wp (qstar F) Q"
+  assumes "P \<le> I" and "I \<le> Q" and "I \<le> wp F I"
+  shows "P \<le> wp (loop (F::'a nd_fun)) Q"
 proof-
   have "P \<le> 1"
-    using assms(1,2) by (metis a_subid basic_trans_rules(23) fbox_def) 
+    using assms(1,3) by (metis a_subid basic_trans_rules(23) fbox_def) 
   hence "d P = P" using nd_fun_top_ads_d by blast
   have "\<And> x y. d (wp x y) = wp x y"
-    by(metis ds.ddual.mult_oner fbox_mult fbox_one)
+    by (metis (mono_tags, lifting) a_d_add_closure ads_d_def as2 fbox_def fbox_simp)
   hence "d P \<le> d I \<and> d I \<le> wp F I \<and> d I \<le> d Q"
     using assms by (metis (no_types) ads_d_mono assms)
   hence "d P \<le> wp (F\<^sup>\<star>) Q"
     by(simp add: fbox_starI[of _ I])
-  thus "P \<le> wp (qstar F) Q"
+  thus "P \<le> wp (loop F) Q"
     using \<open>d P = P\<close> by (transfer, simp)
 qed
 
@@ -263,10 +267,10 @@ abbreviation g_evolution ::"(('a::banach)\<Rightarrow>'a) \<Rightarrow> 'a pred 
   real \<Rightarrow> 'a nd_fun" ("(1x\<acute>=_ & _ on _ _ @ _)") 
   where "(x\<acute>=f & G on T S @ t\<^sub>0) \<equiv> (\<lambda> s. g_orbital f G T S t\<^sub>0 s)\<^sup>\<bullet>"
 
-abbreviation g_evol ::"(('a::banach)\<Rightarrow>'a) \<Rightarrow> 'a pred \<Rightarrow> 'a nd_fun" ("(1x\<acute>=_ & _)") 
-  where "(x\<acute>=f & G) \<equiv> (x\<acute>=f & G on UNIV UNIV @ 0)"
 
 subsection \<open>Verification by providing solutions\<close>
+
+text\<open>The wlp of evolution commands. \<close>
 
 lemma wp_g_evolution: "wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>Q\<rceil>= 
   \<lceil>\<lambda> s. \<forall>X\<in>ivp_sols (\<lambda>t. f) T S t\<^sub>0 s. \<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (X \<tau>)) \<longrightarrow> Q (X t)\<rceil>"
@@ -310,9 +314,8 @@ lemma wp_diff_inv: "(\<lceil>I\<rceil> \<le> wp (x\<acute>=f & G on T S @ t\<^su
 
 subsection\<open> Derivation of the rules of dL \<close>
 
-text\<open> We derive domain specific rules of differential dynamic logic (dL). In each subsubsection, 
-we first derive the dL axioms (named below with two capital letters and ``D'' being the first one). 
-This is done mainly to prove that there are minimal requirements in Isabelle to get the dL calculus.\<close>
+text\<open> We derive domain specific rules of differential dynamic logic (dL). First we present a 
+generalised version, then we show the rules as instances of the general ones.\<close>
 
 lemma diff_solve_axiom: 
   fixes c::"'a::{heine_borel, banach}"
@@ -333,6 +336,17 @@ lemma diff_weak_axiom: "wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>Q\<rceil
 
 lemma diff_weak_rule: "\<lceil>G\<rceil> \<le> \<lceil>Q\<rceil> \<Longrightarrow> \<lceil>P\<rceil> \<le> wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>Q\<rceil>"
   by (subst wp_nd_fun) (auto simp: g_orbital_eq)
+
+lemma wp_nd_fun_etaD: "wp (F\<^sup>\<bullet>) \<lceil>P\<rceil> = \<eta>\<^sup>\<bullet> \<Longrightarrow>  (\<forall>y. y \<in> (F x) \<longrightarrow> P y)"
+proof
+  fix y assume "wp (F\<^sup>\<bullet>) \<lceil>P\<rceil> = (\<eta>\<^sup>\<bullet>)"
+  from this have "\<eta>\<^sup>\<bullet> = \<lceil>\<lambda>s. \<forall>y. s2p (F s) y \<longrightarrow> P y\<rceil>" 
+    by(subst wp_nd_fun[THEN sym], simp)
+  hence "\<And>x. {x} = {s. s = x \<and> (\<forall>y. s2p (F s) y \<longrightarrow> P y)}"
+    apply(subst (asm) Abs_nd_fun_inject, simp_all)
+    by(drule_tac x="x" in fun_cong, simp)
+  then show "s2p (F x) y \<longrightarrow> P y" by auto
+qed
 
 lemma wp_g_orbit_IdD:
   assumes "wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>C\<rceil> = \<eta>\<^sup>\<bullet>"
@@ -395,6 +409,11 @@ proof(simp add: wp_nd_fun g_orbital_eq image_le_pred, clarsimp)
   thus "Q (X t)"
     using \<open>P s\<close> wp_Q by (subst (asm) wp_nd_fun) auto
 qed
+
+text\<open>The rules of dL\<close>
+
+abbreviation g_evol ::"(('a::banach)\<Rightarrow>'a) \<Rightarrow> 'a pred \<Rightarrow> 'a nd_fun" ("(1x\<acute>=_ & _)") 
+  where "(x\<acute>=f & G) \<equiv> (x\<acute>=f & G on UNIV UNIV @ 0)"
 
 lemma DS: 
   fixes c::"'a::{heine_borel, banach}"

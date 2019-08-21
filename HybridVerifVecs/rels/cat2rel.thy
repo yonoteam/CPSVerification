@@ -5,21 +5,26 @@ theory cat2rel
 
 begin
 
+
 chapter\<open> Hybrid System Verification with relations \<close>
 
-
 \<comment> \<open>We start by deleting some conflicting notation.\<close>
+
 no_notation Archimedean_Field.ceiling ("\<lceil>_\<rceil>")
         and Archimedean_Field.floor_ceiling_class.floor ("\<lfloor>_\<rfloor>")
         and Range_Semiring.antirange_semiring_class.ars_r ("r")
         and Relation.Domain ("r2s")
         and VC_KAD.gets ("_ ::= _" [70, 65] 61)
+        and cond_sugar ("IF _ THEN _ ELSE _ FI" [64,64,64] 63)
+
+notation Id ("skip")
+     and cond_sugar ("IF _ THEN _ ELSE _" [64,64,64] 63)
+     and rtrancl ("loop")
+
 
 section\<open> Verification of regular programs \<close>
 
-text\<open> Below we explore the behavior of the forward box operator from the antidomain kleene algebra
-with the lifting ($\lceil-\rceil$*) operator from predicates to relations @{thm p2r_def[no_vars]} 
-and its dropping counterpart @{thm r2p_def[no_vars]}. \<close>
+text \<open>Properties of the forward box operator. \<close>
 
 lemma wp_rel: "wp R \<lceil>P\<rceil> = \<lceil>\<lambda> x. \<forall> y. (x,y) \<in> R \<longrightarrow> P y\<rceil>"
 proof-
@@ -39,19 +44,20 @@ lemma p2r_r2p_simps:
   "\<lfloor>\<lceil>P\<rceil>\<rfloor> = P"
   unfolding p2r_def r2p_def by (auto simp: fun_eq_iff)
 
-text\<open> Next, we introduce assignments and compute their @{text "wp"}. \<close>
+text\<open> Next, we introduce assignments and their @{text "wp"}. \<close>
 
-abbreviation vec_upd :: "('a^'b) \<Rightarrow> 'b \<Rightarrow> 'a \<Rightarrow> 'a^'b"
-  where "vec_upd x i a \<equiv> vec_lambda ((vec_nth x)(i := a))"
+definition vec_upd :: "('a^'b) \<Rightarrow> 'b \<Rightarrow> 'a \<Rightarrow> 'a^'b"
+  where "vec_upd s i a \<equiv> (\<chi> j. ((($) s)(i := a)) j)"
 
-abbreviation assign :: "'b \<Rightarrow> ('a^'b \<Rightarrow> 'a) \<Rightarrow> ('a^'b) rel" ("(2_ ::= _)" [70, 65] 61) 
+definition assign :: "'b \<Rightarrow> ('a^'b \<Rightarrow> 'a) \<Rightarrow> ('a^'b) rel" ("(2_ ::= _)" [70, 65] 61) 
   where "(x ::= e) \<equiv> {(s, vec_upd s x (e s))| s. True}" 
 
-lemma wp_assign [simp]: "wp (x ::= e) \<lceil>Q\<rceil> = \<lceil>\<lambda>s. Q (vec_upd s x (e s))\<rceil>"
-  by(auto simp: rel_antidomain_kleene_algebra.fbox_def rel_ad_def p2r_def)
+lemma wp_assign [simp]: "wp (x ::= e) \<lceil>Q\<rceil> = \<lceil>\<lambda>s. Q (\<chi> j. ((($) s)(x := (e s))) j)\<rceil>"
+  unfolding wp_rel vec_upd_def assign_def by (auto simp: fun_upd_def)
 
-lemma wp_assign_var [simp]: "\<lfloor>wp (x ::= e) \<lceil>Q\<rceil>\<rfloor> = (\<lambda>s. Q (vec_upd s x (e s)))"
-  by(subst wp_assign, simp add: pointfree_idE)
+lemma assignD: "((s,s') \<in> (x ::= e)) = (s'$ x = e s \<and> (\<forall>y. y \<noteq> x \<longrightarrow> s' $ y = s $ y))"
+  unfolding vec_upd_def assign_def by (simp, subst vec_eq_iff) auto
+ 
 
 text\<open> The @{text "wp"} of the composition was already obtained in KAD.Antidomain\_Semiring:
 @{thm fbox_mult[no_vars]}. \<close>
@@ -59,7 +65,7 @@ text\<open> The @{text "wp"} of the composition was already obtained in KAD.Anti
 text\<open> There is also already an implementation of the conditional operator @{thm cond_def[no_vars]} 
 and its @{text "wp"}: @{thm fbox_cond[no_vars]}. \<close>
 
-text\<open> Finally, we add a wp-rule for a simple finite iteration. \<close>
+text\<open> We also deal with finite iteration. \<close>
 
 lemma (in antidomain_kleene_algebra) fbox_starI: 
   assumes "d p \<le> d i" and "d i \<le> |x] i" and "d i \<le> d q"
@@ -76,16 +82,16 @@ proof-
 qed
 
 lemma rel_ad_mka_starI:
-  assumes "P \<subseteq> I" and "I \<subseteq> wp R I" and "I \<subseteq> Q"
-  shows "P \<subseteq> wp (R\<^sup>*) Q"
+  assumes "P \<subseteq> I" and "I \<subseteq> Q" and "I \<subseteq> wp R I"
+  shows "P \<subseteq> wp (loop R) Q"
 proof-
   have "wp R I \<subseteq> Id"
     by (simp add: rel_antidomain_kleene_algebra.a_subid rel_antidomain_kleene_algebra.fbox_def)
   hence "P \<subseteq> Id" 
-    using assms(1,2) by blast
+    using assms(1,3) by blast
   hence "rdom P = P" 
     by (metis d_p2r p2r_surj)
-  also have "rdom P \<subseteq> wp (R\<^sup>*) Q"
+  also have "rdom P \<subseteq> wp (loop R) Q"
     by (metis \<open>wp R I \<subseteq> Id\<close> assms d_p2r p2r_surj rel_antidomain_kleene_algebra.dka.dom_iso 
         rel_antidomain_kleene_algebra.fbox_starI)
   ultimately show ?thesis 
@@ -99,10 +105,10 @@ abbreviation g_evolution ::"(('a::banach)\<Rightarrow>'a) \<Rightarrow> 'a pred 
   real \<Rightarrow> 'a rel" ("(1x\<acute>=_ & _ on _ _ @ _)") 
   where "(x\<acute>=f & G on T S @ t\<^sub>0) \<equiv> {(s,s') |s s'. s' \<in> g_orbital f G T S t\<^sub>0 s}"
 
-abbreviation g_evol ::"(('a::banach)\<Rightarrow>'a) \<Rightarrow> 'a pred \<Rightarrow> 'a rel" ("(1x\<acute>=_ & _)") 
-  where "(x\<acute>=f & G) \<equiv> (x\<acute>=f & G on UNIV UNIV @ 0)"
 
 subsection \<open>Verification by providing solutions\<close>
+
+text\<open>The wlp of evolution commands. \<close>
 
 lemma wp_g_evolution: "wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>Q\<rceil>= 
   \<lceil>\<lambda> s. \<forall>X\<in>ivp_sols (\<lambda>t. f) T S t\<^sub>0 s. \<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (X \<tau>)) \<longrightarrow> Q (X t)\<rceil>"
@@ -143,11 +149,11 @@ lemma wp_g_evolution_inv:
 lemma wp_diff_inv: "(\<lceil>I\<rceil> \<le> wp (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>I\<rceil>) = diff_invariant I f T S t\<^sub>0 G"
   unfolding diff_invariant_eq wp_g_evolution image_le_pred by(auto simp: p2r_def)
 
+
 subsection\<open> Derivation of the rules of dL \<close>
 
-text\<open> We derive domain specific rules of differential dynamic logic (dL). In each subsubsection, 
-we first derive the dL axioms (named below with two capital letters and ``D'' being the first one). 
-This is done mainly to prove that there are minimal requirements in Isabelle to get the dL calculus.\<close>
+text\<open> We derive domain specific rules of differential dynamic logic (dL). First we present a 
+generalised version, then we show the rules as instances of the general ones.\<close>
 
 lemma diff_solve_axiom: 
   fixes c::"'a::{heine_borel, banach}"
@@ -230,6 +236,11 @@ proof(subst wp_rel, simp add: g_orbital_eq p2r_def image_le_pred, clarsimp)
   thus "Q (X t)"
     using \<open>P s\<close> wp_Q by (subst (asm) wp_rel) auto
 qed
+
+text\<open>The rules of dL\<close>
+
+abbreviation g_evol ::"(('a::banach)\<Rightarrow>'a) \<Rightarrow> 'a pred \<Rightarrow> 'a rel" ("(1x\<acute>=_ & _)") 
+  where "(x\<acute>=f & G) \<equiv> (x\<acute>=f & G on UNIV UNIV @ 0)"
 
 lemma DS: 
   fixes c::"'a::{heine_borel, banach}"

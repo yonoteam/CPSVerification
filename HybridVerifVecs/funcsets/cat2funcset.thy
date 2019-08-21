@@ -4,52 +4,38 @@ theory cat2funcset
 begin
 
 
-chapter \<open>Hybrid System Verification\<close>
+chapter \<open>Hybrid System Verification with predicate transformers\<close>
 
-\<comment> \<open>We start by deleting some conflicting notation and introducing some new.\<close>
+\<comment> \<open>We start by deleting some notation and introducing some new.\<close>
+
+no_notation bres (infixr "\<rightarrow>" 60)
+        and dagger ("_\<^sup>\<dagger>" [101] 100)
+        and "Relation.relcomp" (infixl ";" 75) 
+        and eta ("\<eta>")
+        and kcomp (infixl "\<circ>\<^sub>K" 75)
 
 type_synonym 'a pred = "'a \<Rightarrow> bool"
 
-no_notation bres (infixr "\<rightarrow>" 60)
+notation eta ("skip")
+     and kcomp (infixl ";" 75)
+     and kstar ("loop")
+     and g_orbital ("(1x\<acute>=_ & _ on _ _ @ _)")
 
-no_notation dagger ("_\<^sup>\<dagger>" [101] 100)
-
-no_notation "Relation.relcomp" (infixl ";" 75) 
-
-no_notation kcomp (infixl "\<circ>\<^sub>K" 75)
-
-notation kcomp (infixl ";" 75)
-
-notation kstar ("loop")
 
 section \<open>Verification of regular programs\<close>
 
-text \<open>First we add lemmas for computation of weakest liberal preconditions (wlps).\<close>
+text \<open>Properties of the forward box operator. \<close>
 
 lemma "fb\<^sub>\<F> F S = {s. F s \<subseteq> S}"
   unfolding ffb_def map_dual_def klift_def kop_def dual_set_def
   by(auto simp: Compl_eq_Diff_UNIV fun_eq_iff f2r_def converse_def r2f_def)
 
-lemma ffb_eq: "fb\<^sub>\<F> F S = {s. \<forall>y. y \<in> F s \<longrightarrow> y \<in> S}"
+lemma ffb_eq: "fb\<^sub>\<F> F S = {s. \<forall>s'. s' \<in> F s \<longrightarrow> s' \<in> S}"
   unfolding ffb_def apply(simp add: kop_def klift_def map_dual_def)
   unfolding dual_set_def f2r_def r2f_def by auto
 
-lemma ffb_eta[simp]: "fb\<^sub>\<F> \<eta> S = S"
-  unfolding ffb_def by(simp add: kop_def klift_def map_dual_def)
-
 lemma ffb_iso: "P \<le> Q \<Longrightarrow> fb\<^sub>\<F> F P \<le> fb\<^sub>\<F> F Q"
   unfolding ffb_eq by auto
-
-lemma ffb_eq_univD: "fb\<^sub>\<F> F P = UNIV \<Longrightarrow> (\<forall>y. y \<in> (F s) \<longrightarrow> y \<in> P)"
-proof
-  fix y assume "fb\<^sub>\<F> F P = UNIV"
-  hence "UNIV = {s. \<forall>y. y \<in> (F s) \<longrightarrow> y \<in> P}" 
-    by(subst ffb_eq[symmetric], simp)
-  hence "\<And>x. {x} = {s. s = x \<and> (\<forall>y. y \<in> (F s) \<longrightarrow> y \<in> P)}" 
-    by auto
-  then show "s2p (F s) y \<longrightarrow> y \<in> P" 
-    by auto
-qed
 
 lemma ffb_invariants: 
   assumes "{s. I s} \<le> fb\<^sub>\<F> F {s. I s}" and "{s. J s} \<le> fb\<^sub>\<F> F {s. J s}"
@@ -57,18 +43,23 @@ lemma ffb_invariants:
     and "{s. I s \<or> J s} \<le> fb\<^sub>\<F> F {s. I s \<or> J s}"
   using assms unfolding ffb_eq by auto
 
+text \<open>The weakest liberal precondition (wlp) of the ``skip'' program is the identity. \<close>
+
+lemma ffb_skip[simp]: "fb\<^sub>\<F> skip S = S"
+  unfolding ffb_def by(simp add: kop_def klift_def map_dual_def)
+
 text \<open>Next, we introduce assignments and their wlps.\<close>
 
 definition vec_upd :: "('a^'n) \<Rightarrow> 'n \<Rightarrow> 'a \<Rightarrow> 'a^'n"
-  where "vec_upd s i a \<equiv> \<chi> j. ((($) s)(i := a)) j"
+  where "vec_upd s i a = (\<chi> j. ((($) s)(i := a)) j)"
 
 definition assign :: "'n \<Rightarrow> ('a^'n \<Rightarrow> 'a) \<Rightarrow> ('a^'n) \<Rightarrow> ('a^'n) set" ("(2_ ::= _)" [70, 65] 61) 
-  where "(x ::= e) \<equiv> (\<lambda>s. {vec_upd s x (e s)})" 
+  where "(x ::= e) = (\<lambda>s. {vec_upd s x (e s)})" 
 
 lemma ffb_assign[simp]: "fb\<^sub>\<F> (x ::= e) Q = {s. (\<chi> j. ((($) s)(x := (e s))) j) \<in> Q}"
   unfolding vec_upd_def assign_def by (subst ffb_eq) simp
 
-text \<open>The wlp of a (kleisli) composition is just the composition of the wlps.\<close>
+text \<open>The wlp of program composition is just the composition of the wlps.\<close>
 
 lemma ffb_kcomp: "fb\<^sub>\<F> (G ; F) P = fb\<^sub>\<F> G (fb\<^sub>\<F> F P)"
   unfolding ffb_def apply(simp add: kop_def klift_def map_dual_def)
@@ -84,13 +75,13 @@ text \<open>We also have an implementation of the conditional operator and its w
 
 definition ifthenelse :: "'a pred \<Rightarrow> ('a \<Rightarrow> 'b set) \<Rightarrow> ('a \<Rightarrow> 'b set) \<Rightarrow> ('a \<Rightarrow> 'b set)"
   ("IF _ THEN _ ELSE _" [64,64,64] 63) where 
-  "IF P THEN X ELSE Y \<equiv> (\<lambda> x. if P x then X x else Y x)"
+  "IF P THEN X ELSE Y = (\<lambda> x. if P x then X x else Y x)"
 
 lemma ffb_if_then_else:
   "fb\<^sub>\<F> (IF T THEN X ELSE Y) Q = {s. T s \<longrightarrow> s \<in> fb\<^sub>\<F> X Q} \<inter> {s. \<not> T s \<longrightarrow> s \<in> fb\<^sub>\<F> Y Q}"
   unfolding ffb_eq ifthenelse_def by auto
 
-lemma ffb_if_then_else_ge:
+lemma ffb_if_then_elseI:
   assumes "P \<inter> {s. T s} \<le> fb\<^sub>\<F> X Q"
     and "P \<inter> {s. \<not> T s} \<le> fb\<^sub>\<F> Y Q"
   shows "P \<le> fb\<^sub>\<F> (IF T THEN X ELSE Y) Q"
@@ -98,57 +89,47 @@ lemma ffb_if_then_else_ge:
   apply(subst (asm) ffb_eq)+
   unfolding ifthenelse_def by auto
 
-lemma ffb_if_then_elseI:
-  assumes "T s \<longrightarrow> s \<in> fb\<^sub>\<F> X Q"
-    and "\<not> T s \<longrightarrow> s \<in> fb\<^sub>\<F> Y Q"
-  shows "s \<in> fb\<^sub>\<F> (IF T THEN X ELSE Y) Q"
-  using assms apply(subst ffb_eq)
-  apply(subst (asm) ffb_eq)+
-  unfolding ifthenelse_def by auto
+text\<open> We also deal with finite iteration. \<close>
 
-text \<open>The final wlp we add is that of the finite iteration.\<close>
-
-lemma kstar_inv: "I \<le> {s. \<forall>y. y \<in> F s \<longrightarrow> y \<in> I} \<Longrightarrow> I \<le> {s. \<forall>y. y \<in> (kpower F n s) \<longrightarrow> y \<in> I}"
+lemma kpower_inv: "I \<le> {s. \<forall>y. y \<in> F s \<longrightarrow> y \<in> I} \<Longrightarrow> I \<le> {s. \<forall>y. y \<in> (kpower F n s) \<longrightarrow> y \<in> I}"
   apply(induct n, simp)
+  apply simp
   by(auto simp: kcomp_prop) 
 
-lemma ffb_star_induct_self: "I \<le> fb\<^sub>\<F> F I \<Longrightarrow> I \<subseteq> fb\<^sub>\<F> (loop F) I"
+lemma kstar_inv: "I \<le> fb\<^sub>\<F> F I \<Longrightarrow> I \<subseteq> fb\<^sub>\<F> (loop F) I"
   unfolding kstar_def ffb_eq apply clarsimp
-  using kstar_inv by blast
+  using kpower_inv by blast
 
-lemma ffb_kstarI:
-  assumes "P \<le> I" and "I \<le> fb\<^sub>\<F> F I" and "I \<le> Q"
+lemma ffb_kloopI:
+  assumes "P \<le> I" and "I \<le> Q" and "I \<le> fb\<^sub>\<F> F I"
   shows "P \<le> fb\<^sub>\<F> (loop F) Q"
 proof-
   have "I \<subseteq> fb\<^sub>\<F> (loop F) I"
-    using assms(2) ffb_star_induct_self by blast
+    using assms(3) kstar_inv by blast
   hence "P \<le> fb\<^sub>\<F> (loop F) I"
     using assms(1) by auto
   also have "fb\<^sub>\<F> (loop F) I \<le> fb\<^sub>\<F> (loop F) Q"
-    by (rule ffb_iso[OF assms(3)])
+    by (rule ffb_iso[OF assms(2)])
   finally show ?thesis .
 qed
 
 
 section \<open>Verification of hybrid programs\<close>
 
-notation g_orbital ("(1x\<acute>=_ & _ on _ _ @ _)")
-
-abbreviation g_evol ::"(('a::banach)\<Rightarrow>'a) \<Rightarrow> 'a pred \<Rightarrow> 'a \<Rightarrow> 'a set" 
-  ("(1x\<acute>=_ & _)") where "(x\<acute>=f & G) s \<equiv> (x\<acute>=f & G on UNIV UNIV @ 0) s"
-
 
 subsection \<open>Verification by providing solutions\<close>
 
-lemma ffb_g_orbital_eq: "fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) Q = 
-  {s. \<forall>X\<in>ivp_sols (\<lambda>t. f) T S t\<^sub>0 s. \<forall>t\<in>T. (\<P> X (down T t) \<subseteq> {s. G s}) \<longrightarrow> \<P> X (down T t) \<subseteq> Q}"
-  unfolding ffb_eq g_orbital_eq image_le_pred subset_eq apply(clarsimp, safe)
-   apply(erule_tac x="X xa" in allE, erule impE, force, simp)
-  by (erule_tac x=X in ballE, simp_all) (* for paper... *)
+text\<open>The wlp of evolution commands. \<close>
 
 lemma ffb_g_orbital: "fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) Q = 
   {s. \<forall>X\<in>ivp_sols (\<lambda>t. f) T S t\<^sub>0 s. \<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (X \<tau>)) \<longrightarrow> (X t) \<in> Q}"
-  unfolding ffb_eq g_orbital_eq by auto
+  unfolding ffb_eq g_orbital_eq subset_eq by (auto simp: fun_eq_iff image_le_pred)
+
+lemma ffb_g_orbital_eq: "fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) Q = 
+  {s. \<forall>X\<in>ivp_sols (\<lambda>t. f) T S t\<^sub>0 s. \<forall>t\<in>T. (\<P> X (down T t) \<subseteq> {s. G s}) \<longrightarrow> \<P> X (down T t) \<subseteq> Q}"
+  unfolding ffb_g_orbital image_le_pred 
+  apply(subgoal_tac "\<forall>X t. (\<P> X (down T t) \<subseteq> Q) = (\<forall>\<tau>\<in>down T t. (X \<tau>) \<in> Q)")
+  by (auto simp: image_def) (* for paper... *)
 
 context local_flow
 begin
@@ -182,16 +163,16 @@ lemma ffb_g_orbital_inv:
   using assms(2) apply(rule order.trans)
   by (rule ffb_iso[OF assms(3)])
 
+lemma ffb_diff_inv: 
+  "({s. I s} \<le> fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) {s. I s}) = diff_invariant I f T S t\<^sub>0 G"
+  by (auto simp: diff_invariant_def ivp_sols_def ffb_eq g_orbital_eq)
+
 lemma "diff_invariant I f T S t\<^sub>0 G = (((g_orbital f G T S t\<^sub>0)\<^sup>\<dagger>) {s. I s} \<subseteq> {s. I s})"
   unfolding klift_def diff_invariant_def by simp
 
 lemma bdf_diff_inv: (* for paper... *)
   "diff_invariant I f T S t\<^sub>0 G = (bd\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) {s. I s} \<le> {s. I s})"
   unfolding ffb_fbd_galois_var by (auto simp: diff_invariant_def ivp_sols_def ffb_eq g_orbital_eq)
-
-lemma ffb_diff_inv: 
-  "({s. I s} \<le> fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) {s. I s}) = diff_invariant I f T S t\<^sub>0 G"
-  by (auto simp: diff_invariant_def ivp_sols_def ffb_eq g_orbital_eq)
 
 lemma diff_inv_guard_ignore: (* for paper... *)
   assumes "{s. I s} \<le> fb\<^sub>\<F> (x\<acute>=f & (\<lambda>s. True) on T S @ t\<^sub>0) {s. I s}"
@@ -218,7 +199,8 @@ end
 
 subsection\<open> Derivation of the rules of dL \<close>
 
-text\<open> We derive domain specific rules of differential dynamic logic (dL).\<close>
+text\<open> We derive domain specific rules of differential dynamic logic (dL). First we present a 
+generalised version, then we show the rules as instances of the general ones.\<close>
 
 lemma diff_solve_axiom: 
   fixes c::"'a::{heine_borel, banach}"
@@ -239,6 +221,17 @@ lemma diff_weak_axiom: "fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) Q = f
   
 lemma diff_weak_rule: "{s. G s} \<le> Q \<Longrightarrow> P \<le> fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) Q"
   by(auto intro: g_orbitalD simp: le_fun_def g_orbital_eq ffb_eq)
+
+lemma ffb_eq_univD: "fb\<^sub>\<F> F P = UNIV \<Longrightarrow> (\<forall>y. y \<in> (F s) \<longrightarrow> y \<in> P)"
+proof
+  fix y assume "fb\<^sub>\<F> F P = UNIV"
+  hence "UNIV = {s. \<forall>y. y \<in> (F s) \<longrightarrow> y \<in> P}" 
+    by(subst ffb_eq[symmetric], simp)
+  hence "\<And>x. {x} = {s. s = x \<and> (\<forall>y. y \<in> (F s) \<longrightarrow> y \<in> P)}" 
+    by auto
+  then show "s2p (F s) y \<longrightarrow> y \<in> P" 
+    by auto
+qed
 
 lemma ffb_g_orbital_eq_univD:
   assumes "fb\<^sub>\<F> (x\<acute>=f & G on T S @ t\<^sub>0) {s. C s} = UNIV" 
@@ -298,6 +291,11 @@ proof(subst ffb_eq, subst g_orbital_eq, clarsimp)
   thus "(X t) \<in> Q"
     using \<open>s \<in> P\<close> ffb_Q by (subst (asm) ffb_eq) auto
 qed
+
+text\<open>The rules of dL\<close>
+
+abbreviation g_evol ::"(('a::banach)\<Rightarrow>'a) \<Rightarrow> 'a pred \<Rightarrow> 'a \<Rightarrow> 'a set" 
+  ("(1x\<acute>=_ & _)") where "(x\<acute>=f & G) s \<equiv> (x\<acute>=f & G on UNIV UNIV @ 0) s"
 
 lemma solve:
   assumes "local_flow f UNIV UNIV \<phi>"

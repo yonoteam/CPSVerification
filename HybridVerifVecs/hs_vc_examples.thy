@@ -108,8 +108,7 @@ lemma circular_motion:
   by (subst local_flow.fbox_g_orbit[OF local_flow_circ_motion]) (auto simp: to_var_inject)
 
 no_notation circular_motion_kinematics ("C")
-
-no_notation circular_motion_flow ("\<phi>\<^sub>C")
+        and circular_motion_flow ("\<phi>\<^sub>C")
 
 \<comment> \<open>Verified as a linear system (using uniqueness). \<close>
 
@@ -121,8 +120,7 @@ abbreviation circular_motion_mtx_flow :: "real \<Rightarrow> real^2 \<Rightarrow
   (\<chi> i. if i=(0::2) then s$0 * cos t - s$1 * sin t else s$0 * sin t + s$1 * cos t)"
 
 notation circular_motion_sq_mtx ("C")
-
-notation circular_motion_mtx_flow ("\<phi>\<^sub>C")
+     and circular_motion_mtx_flow ("\<phi>\<^sub>C")
 
 lemma circular_motion_mtx_exp_eq: "exp (t *\<^sub>R C) *\<^sub>V s = \<phi>\<^sub>C t s"
   apply(rule local_flow.eq_solution[OF local_flow_exp, symmetric])
@@ -136,8 +134,7 @@ lemma circular_motion_sq_mtx:
   unfolding local_flow.fbox_g_orbit[OF local_flow_exp] circular_motion_mtx_exp_eq by auto
 
 no_notation circular_motion_sq_mtx ("C")
-
-no_notation circular_motion_mtx_flow ("\<phi>\<^sub>C")
+        and circular_motion_mtx_flow ("\<phi>\<^sub>C")
 
 
 subsubsection\<open> Bouncing Ball \<close>
@@ -182,7 +179,7 @@ lemma bouncing_ball_invariants:
   defines diff_inv: "I \<equiv> (\<lambda>s. 2 * g * s\<downharpoonright>\<^sub>V''x'' - 2 * g * h - (s\<downharpoonright>\<^sub>V''y'' * s\<downharpoonright>\<^sub>V''y'') = 0)"
   shows "(\<lambda>s. s\<downharpoonright>\<^sub>V''x'' = h \<and> s\<downharpoonright>\<^sub>V''y'' = 0) \<le> fbox 
   ( ( (x\<acute>=K g & (\<lambda> s. s\<downharpoonright>\<^sub>V''x'' \<ge> 0)) ;
-  (IF (\<lambda>s. s\<downharpoonright>\<^sub>V''x'' = 0) THEN ((\<restriction>\<^sub>V''y'') ::= (\<lambda>s. - s\<downharpoonright>\<^sub>V''y'')) ELSE (\<lambda>s.{s}) FI) )\<^sup>*)
+  (IF (\<lambda>s. s\<downharpoonright>\<^sub>V''x'' = 0) THEN ((\<restriction>\<^sub>V''y'') ::= (\<lambda>s. - s\<downharpoonright>\<^sub>V''y'')) ELSE (\<lambda>s.{s})) )\<^sup>*)
   (\<lambda>s. 0 \<le> s\<downharpoonright>\<^sub>V''x'' \<and> s\<downharpoonright>\<^sub>V''x'' \<le> h)"
   apply(rule fbox_kstarI[of _ "(\<lambda>s. 0 \<le> s\<downharpoonright>\<^sub>V''x'' \<and> I s)"])
   using \<open>h \<ge> 0\<close> apply(subst diff_inv, clarsimp)
@@ -268,7 +265,7 @@ lemma bouncing_ball:
   defines loop_inv: "I \<equiv> (\<lambda>s. 0 \<le> s\<downharpoonright>\<^sub>V''x'' \<and>  2 * g * s\<downharpoonright>\<^sub>V''x'' = 2 * g * h + (s\<downharpoonright>\<^sub>V''y'' * s\<downharpoonright>\<^sub>V''y''))"
   shows "(\<lambda>s. s\<downharpoonright>\<^sub>V''x'' = h \<and> s\<downharpoonright>\<^sub>V''y'' = 0) \<le> fbox 
   (((x\<acute>=K g & (\<lambda> s. s\<downharpoonright>\<^sub>V''x'' \<ge> 0)) ;
-  (IF (\<lambda>s. s\<downharpoonright>\<^sub>V''x'' = 0) THEN ((\<restriction>\<^sub>V''y'')::=(\<lambda>s. - s\<downharpoonright>\<^sub>V''y'')) ELSE skip FI))\<^sup>*)
+  (IF (\<lambda>s. s\<downharpoonright>\<^sub>V''x'' = 0) THEN ((\<restriction>\<^sub>V''y'')::=(\<lambda>s. - s\<downharpoonright>\<^sub>V''y'')) ELSE skip))\<^sup>*)
   (\<lambda>s. 0 \<le> s\<downharpoonright>\<^sub>V''x'' \<and> s\<downharpoonright>\<^sub>V''x'' \<le> h)"
   apply(rule fbox_kstarI[of _ I])
   using \<open>h \<ge> 0\<close> apply(subst loop_inv, clarsimp)
@@ -280,12 +277,9 @@ lemma bouncing_ball:
   by (auto simp: bb_real_arith to_var_inject) (force simp: field_simps)
 
 no_notation constant_acceleration_kinematics ("K")
-
-no_notation constant_acceleration_kinematics_flow ("\<phi>\<^sub>K")
-
-no_notation to_var ("\<restriction>\<^sub>V")
-
-no_notation valP (infixl "\<downharpoonright>\<^sub>V" 90)
+        and constant_acceleration_kinematics_flow ("\<phi>\<^sub>K")
+        and to_var ("\<restriction>\<^sub>V")
+        and valP (infixl "\<downharpoonright>\<^sub>V" 90)
 
 
 \<comment> \<open>Verified as a linear system (computing exponential). \<close>
@@ -321,7 +315,7 @@ lemma exp_cnst_acc_sq_mtx_simps:
 lemma bouncing_ball_K: 
   "(\<lambda>s. 0 \<le> s$0 \<and> s$0 = h \<and> s$1 = 0 \<and> 0 > s$2) \<le> fbox 
   (((x\<acute>=(*\<^sub>V) K & (\<lambda> s. s$0 \<ge> 0)) ;
-  (IF (\<lambda> s. s$0 = 0) THEN (1 ::= (\<lambda>s. - s$1)) ELSE skip FI))\<^sup>*)
+  (IF (\<lambda> s. s$0 = 0) THEN (1 ::= (\<lambda>s. - s$1)) ELSE skip))\<^sup>*)
   (\<lambda>s. 0 \<le> s$0 \<and> s$0 \<le> h)"
   apply(rule fbox_kstarI[of _ "(\<lambda>s. 0\<le>s$0 \<and> 0>s$2 \<and> 2 * s$2 * s$0 = 2 * s$2 * h + (s$1 * s$1))"])
     apply(clarsimp, clarsimp, force simp: bb_real_arith)
@@ -475,9 +469,9 @@ lemma thermostat:
   shows "(\<lambda>s. Tmin \<le> s\<downharpoonright>\<^sub>V''T'' \<and> s\<downharpoonright>\<^sub>V''T'' \<le> Tmax \<and> s\<downharpoonright>\<^sub>V''on''=0) \<le> fbox 
   ((((\<restriction>\<^sub>V''t'')::=(\<lambda>s.0));((\<restriction>\<^sub>V''TT'')::=(\<lambda>s. s\<downharpoonright>\<^sub>V''T''));
   (IF (\<lambda>s. s\<downharpoonright>\<^sub>V''on''=0 \<and> s\<downharpoonright>\<^sub>V''TT''\<le>Tmin + 1) THEN (\<restriction>\<^sub>V''on'' ::= (\<lambda>s.1)) ELSE 
-  (IF (\<lambda>s. s\<downharpoonright>\<^sub>V''on''=1 \<and> s\<downharpoonright>\<^sub>V''TT''\<ge>Tmax - 1) THEN (\<restriction>\<^sub>V''on'' ::= (\<lambda>s.0)) ELSE skip FI) FI);
+  (IF (\<lambda>s. s\<downharpoonright>\<^sub>V''on''=1 \<and> s\<downharpoonright>\<^sub>V''TT''\<ge>Tmax - 1) THEN (\<restriction>\<^sub>V''on'' ::= (\<lambda>s.0)) ELSE skip));
   (IF (\<lambda>s. s\<downharpoonright>\<^sub>V''on''=0) THEN (x\<acute>=(f\<^sub>T a 0) & (\<lambda>s. s\<downharpoonright>\<^sub>V''t'' \<le> - (ln (Tmin/s\<downharpoonright>\<^sub>V''TT''))/a) on {0..t} UNIV @ 0) 
-  ELSE (x\<acute>=(f\<^sub>T a L) & (\<lambda>s. s\<downharpoonright>\<^sub>V''t'' \<le> - (ln ((L-Tmax)/(L-s\<downharpoonright>\<^sub>V''TT'')))/a) on {0..t} UNIV @ 0) FI) )\<^sup>*)
+  ELSE (x\<acute>=(f\<^sub>T a L) & (\<lambda>s. s\<downharpoonright>\<^sub>V''t'' \<le> - (ln ((L-Tmax)/(L-s\<downharpoonright>\<^sub>V''TT'')))/a) on {0..t} UNIV @ 0)) )\<^sup>*)
   (\<lambda>s. Tmin \<le> s$\<restriction>\<^sub>V''T'' \<and> s$\<restriction>\<^sub>V''T'' \<le> Tmax)"
   apply(rule_tac I="\<lambda>s. Tmin \<le>s\<downharpoonright>\<^sub>V''T'' \<and> s\<downharpoonright>\<^sub>V''T''\<le>Tmax \<and> (s\<downharpoonright>\<^sub>V''on''=0 \<or> s\<downharpoonright>\<^sub>V''on''=1)" in fbox_kstarI)
     apply(simp add: le_fun_def, simp add: le_fun_def)
@@ -486,12 +480,9 @@ lemma thermostat:
   using temp_dyn_up_real_arith[OF assms(1) _ _ assms(4), of Tmin]
     and temp_dyn_down_real_arith[OF assms(1,3), of _ Tmax] by auto
 
-no_notation to_var ("\<restriction>\<^sub>V")
-
-no_notation valT (infixl "\<downharpoonright>\<^sub>V" 90)
-
-no_notation temp_dynamics ("f\<^sub>T")
-
-no_notation temp_flow ("\<phi>\<^sub>T")
+no_notation thermostat_vars.to_var ("\<restriction>\<^sub>V")
+        and valT (infixl "\<downharpoonright>\<^sub>V" 90)
+        and temp_dynamics ("f\<^sub>T")
+        and temp_flow ("\<phi>\<^sub>T")
 
 end

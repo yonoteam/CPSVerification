@@ -4,6 +4,9 @@ theory hs_prelims_dyn_sys
 begin
 
 
+section\<open> Dynamical Systems \<close>
+
+
 subsection\<open> Initial value problems and orbits \<close>
 
 notation image ("\<P>")
@@ -26,28 +29,28 @@ lemma ivp_solsD:
 
 abbreviation "down T t \<equiv> {\<tau>\<in>T. \<tau>\<le> t}"
 
-definition g_orbit :: "(real \<Rightarrow> 'a) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> real set \<Rightarrow> 'a set" ("\<gamma>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d")
-  where "\<gamma>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d X G T = \<Union> {\<P> X (down T t) |t. \<P> X (down T t) \<subseteq> {s. G s}}"
+definition g_orbit :: "(real \<Rightarrow> 'a) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> real set \<Rightarrow> 'a set" ("\<gamma>")
+  where "\<gamma> X G T = \<Union>{\<P> X (down T t) |t. \<P> X (down T t) \<subseteq> {s. G s}}"
 
-lemma g_orbit_eq: "\<gamma>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d X G T = {X t |t. t \<in> T \<and> (\<forall>\<tau>\<in>down T t. G (X \<tau>))}"
+lemma g_orbit_eq: "\<gamma> X G T = {X t |t. t \<in> T \<and> (\<forall>\<tau>\<in>down T t. G (X \<tau>))}"
   unfolding g_orbit_def by safe (auto simp: subset_eq)
 
-lemma "\<gamma>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d X (\<lambda>s. True) T = {X t |t. t \<in> T}"
+lemma "\<gamma> X (\<lambda>s. True) T = {X t |t. t \<in> T}"
   unfolding g_orbit_eq by simp
 
 definition g_orbital :: "('a \<Rightarrow> 'a) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> real set \<Rightarrow> 'a set \<Rightarrow> real \<Rightarrow> 
   ('a::real_normed_vector) \<Rightarrow> 'a set" 
-  where "g_orbital f G T S t\<^sub>0 s = \<Union>{\<gamma>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d X G T |X. X \<in> ivp_sols (\<lambda>t. f) T S t\<^sub>0 s}"
+  where "g_orbital f G T S t\<^sub>0 s = \<Union>{\<gamma> X G T |X. X \<in> ivp_sols (\<lambda>t. f) T S t\<^sub>0 s}"
 
 lemma g_orbital_eq: "g_orbital f G T S t\<^sub>0 s = 
-  {X t|t X. t \<in> T \<and> (\<P> X (down T t) \<subseteq> {s. G s}) \<and> X \<in> ivp_sols (\<lambda>t. f) T S t\<^sub>0 s }" 
+  {X t |t X. t \<in> T \<and> \<P> X (down T t) \<subseteq> {s. G s} \<and> X \<in> ivp_sols (\<lambda>t. f) T S t\<^sub>0 s }" 
   unfolding g_orbital_def ivp_sols_def g_orbit_eq image_le_pred by auto
 
 lemma "g_orbital f G T S t\<^sub>0 s = 
-  {X t|t X. t \<in> T \<and> (D X = (f \<circ> X) on T) \<and> X t\<^sub>0 = s \<and> X \<in> T \<rightarrow> S \<and> (\<P> X (down T t) \<subseteq> {s. G s})}"
+  {X t |t X. t \<in> T \<and> (D X = (f \<circ> X) on T) \<and> X t\<^sub>0 = s \<and> X \<in> T \<rightarrow> S \<and> (\<P> X (down T t) \<subseteq> {s. G s})}"
   unfolding g_orbital_eq ivp_sols_def by auto
 
-lemma "g_orbital f G T S t\<^sub>0 s = (\<Union> X\<in>ivp_sols (\<lambda>t. f) T S t\<^sub>0 s. \<gamma>\<^sub>G\<^sub>u\<^sub>a\<^sub>r\<^sub>d X G T)"
+lemma "g_orbital f G T S t\<^sub>0 s = (\<Union> X\<in>ivp_sols (\<lambda>t. f) T S t\<^sub>0 s. \<gamma> X G T)"
   unfolding g_orbital_def ivp_sols_def g_orbit_eq by auto
 
 lemma g_orbitalI:
@@ -62,6 +65,7 @@ lemma g_orbitalD:
   and "X t = s'" and "t \<in> T" and "(\<P> X (down T t) \<subseteq> {s. G s})"
   using assms unfolding g_orbital_def g_orbit_eq by auto
 
+no_notation g_orbit ("\<gamma>")
 
 subsection\<open> Differential Invariants \<close>
 
@@ -257,6 +261,36 @@ qed
 
 end
 
+lemma local_lipschitz_add: 
+  fixes f1 f2 :: "real \<Rightarrow> 'a::banach \<Rightarrow> 'a"
+  assumes "local_lipschitz T S f1"
+      and "local_lipschitz T S f2" 
+    shows "local_lipschitz T S (\<lambda>t s. f1 t s + f2 t s)"
+proof(unfold local_lipschitz_def, clarsimp)
+  fix s and t assume "s \<in> S" and "t \<in> T"
+  obtain \<epsilon>\<^sub>1 L1 where "\<epsilon>\<^sub>1 > 0" and L1: "\<And>\<tau>. \<tau>\<in>cball t \<epsilon>\<^sub>1 \<inter> T \<Longrightarrow> L1-lipschitz_on (cball s \<epsilon>\<^sub>1 \<inter> S) (f1 \<tau>)"
+    using local_lipschitzE[OF assms(1) \<open>t \<in> T\<close> \<open>s \<in> S\<close>] by blast
+  obtain \<epsilon>\<^sub>2 L2 where "\<epsilon>\<^sub>2 > 0" and L2: "\<And>\<tau>. \<tau>\<in>cball t \<epsilon>\<^sub>2 \<inter> T \<Longrightarrow> L2-lipschitz_on (cball s \<epsilon>\<^sub>2 \<inter> S) (f2 \<tau>)"
+    using local_lipschitzE[OF assms(2) \<open>t \<in> T\<close> \<open>s \<in> S\<close>] by blast
+  have ballH: "cball s (min \<epsilon>\<^sub>1 \<epsilon>\<^sub>2) \<inter> S \<subseteq> cball s \<epsilon>\<^sub>1 \<inter> S" "cball s (min \<epsilon>\<^sub>1 \<epsilon>\<^sub>2) \<inter> S \<subseteq> cball s \<epsilon>\<^sub>2 \<inter> S"
+    by auto
+  have obs1: "\<forall>\<tau>\<in>cball t \<epsilon>\<^sub>1 \<inter> T. L1-lipschitz_on (cball s (min \<epsilon>\<^sub>1 \<epsilon>\<^sub>2) \<inter> S) (f1 \<tau>)"
+    using lipschitz_on_subset[OF L1 ballH(1)] by blast
+  also have obs2: "\<forall>\<tau>\<in>cball t \<epsilon>\<^sub>2 \<inter> T. L2-lipschitz_on (cball s (min \<epsilon>\<^sub>1 \<epsilon>\<^sub>2) \<inter> S) (f2 \<tau>)"
+    using lipschitz_on_subset[OF L2 ballH(2)] by blast
+  ultimately have "\<forall>\<tau>\<in>cball t (min \<epsilon>\<^sub>1 \<epsilon>\<^sub>2) \<inter> T. 
+    (L1 + L2)-lipschitz_on (cball s (min \<epsilon>\<^sub>1 \<epsilon>\<^sub>2) \<inter> S) (\<lambda>s. f1 \<tau> s + f2 \<tau> s)"
+    using lipschitz_on_add by fastforce
+  thus "\<exists>u>0. \<exists>L. \<forall>t\<in>cball t u \<inter> T. L-lipschitz_on (cball s u \<inter> S) (\<lambda>s. f1 t s + f2 t s)"
+    apply(rule_tac x="min \<epsilon>\<^sub>1 \<epsilon>\<^sub>2" in exI)
+    using \<open>\<epsilon>\<^sub>1 > 0\<close> \<open>\<epsilon>\<^sub>2 > 0\<close> by force
+qed
+
+lemma picard_lindeloef_add: "picard_lindeloef f1 T S t\<^sub>0 \<Longrightarrow> picard_lindeloef f2 T S t\<^sub>0 \<Longrightarrow> 
+  picard_lindeloef (\<lambda>t s. f1 t s + f2 t s) T S t\<^sub>0"
+  unfolding picard_lindeloef_def apply(clarsimp, rule conjI)
+  using continuous_on_add apply fastforce
+  using local_lipschitz_add by blast
 
 subsection\<open> Flows for ODEs \<close>
 
@@ -265,9 +299,9 @@ of existence of her choice, and the computation rule of the flow via the variabl
 @{term "\<phi>"}.\<close>
 
 locale local_flow = picard_lindeloef "(\<lambda> t. f)" T S 0 
-  for f::"('a::{heine_borel,banach}) \<Rightarrow> 'a" and T S L +
+  for f::"'a::{heine_borel,banach} \<Rightarrow> 'a" and T S L +
   fixes \<phi> :: "real \<Rightarrow> 'a \<Rightarrow> 'a"
-  assumes ivp:"\<And> t s. t \<in> T \<Longrightarrow> s \<in> S \<Longrightarrow> (D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on {0--t})"
+  assumes ivp:"\<And> t s. t \<in> T \<Longrightarrow> s \<in> S \<Longrightarrow> D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on {0--t}"
               "\<And> s. s \<in> S \<Longrightarrow> \<phi> 0 s = s"
               "\<And> t s. t \<in> T \<Longrightarrow> s \<in> S \<Longrightarrow> (\<lambda>t. \<phi> t s) \<in> {0--t} \<rightarrow> S"
 begin
@@ -432,7 +466,7 @@ lemma in_ivp_sols:
   using assms by auto
 
 lemma eq_solution:
-  assumes "X \<in> (ivp_sols (\<lambda>t. f) T S 0 s)" and "t \<in> T" and "s \<in> S"
+  assumes "X \<in> ivp_sols (\<lambda>t. f) T S 0 s" and "t \<in> T" and "s \<in> S"
   shows "X t = \<phi> t s"
 proof-
   have "D X = (\<lambda>t. f (X t)) on (ex_ivl s)" and "X 0 = s" and "X \<in> (ex_ivl s) \<rightarrow> S"
@@ -474,9 +508,8 @@ proof-
     using eq_solution[OF additive_in_ivp_sols] assms by auto
 qed
 
-definition "orbit s = g_orbital f (\<lambda>s. True) T S 0 s"
-
-notation orbit ("\<gamma>\<^sup>\<phi>")
+definition orbit :: "'a \<Rightarrow> 'a set" ("\<gamma>\<^sup>\<phi>")
+  where "\<gamma>\<^sup>\<phi> s = g_orbital f (\<lambda>s. True) T S 0 s"
 
 lemma orbit_eq[simp]: 
   assumes "s \<in> S"
@@ -515,6 +548,10 @@ next
 qed
 
 end
+
+lemma picard_lindeloef_constant: "picard_lindeloef (\<lambda>t s. c) UNIV UNIV t\<^sub>0"
+  apply(unfold_locales, simp_all add: local_lipschitz_def lipschitz_on_def, clarsimp)
+  by (rule_tac x=1 in exI, clarsimp, rule_tac x="1/2" in exI, simp)
 
 lemma line_is_local_flow: 
   "0 \<in> T \<Longrightarrow> is_interval T \<Longrightarrow> open T \<Longrightarrow> local_flow (\<lambda> s. c) T UNIV (\<lambda> t s. s + t *\<^sub>R c)"

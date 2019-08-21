@@ -37,10 +37,10 @@ lemma fbox_invariants:
 text \<open>Next, we introduce assignments and their wlps.\<close>
 
 definition vec_upd :: "('a^'n) \<Rightarrow> 'n \<Rightarrow> 'a \<Rightarrow> 'a^'n"
-  where "vec_upd s i a \<equiv> \<chi> j. ((($) s)(i := a)) j"
+  where "vec_upd s i a = (\<chi> j. ((($) s)(i := a)) j)"
 
 definition assign :: "'n \<Rightarrow> ('a^'n \<Rightarrow> 'a) \<Rightarrow> ('a^'n) \<Rightarrow> ('a^'n) set" ("(2_ ::= _)" [70, 65] 61) 
-  where "(x ::= e) \<equiv> (\<lambda>s. {vec_upd s x (e s)})" 
+  where "(x ::= e) = (\<lambda>s. {vec_upd s x (e s)})" 
 
 lemma fbox_assign[simp]: "fbox (x ::= e) Q = (\<lambda>s. Q (\<chi> j. ((($) s)(x := (e s))) j))"
   unfolding vec_upd_def assign_def by (subst fbox_def) simp
@@ -65,23 +65,23 @@ lemma fbox_kcomp_ge:
 text \<open>We also have an implementation of the conditional operator and its wlp.\<close>
 
 definition ifthenelse :: "'a pred \<Rightarrow> ('a \<Rightarrow> 'b set) \<Rightarrow> ('a \<Rightarrow> 'b set) \<Rightarrow> ('a \<Rightarrow> 'b set)"
-  ("IF _ THEN _ ELSE _ FI" [64,64,64] 63) where 
-  "IF P THEN X ELSE Y FI \<equiv> (\<lambda>s. if P s then X s else Y s)"
+  ("IF _ THEN _ ELSE _" [64,64,64] 63) where 
+  "IF P THEN X ELSE Y \<equiv> (\<lambda>s. if P s then X s else Y s)"
 
 lemma fbox_if_then_else:
-  "fbox (IF T THEN X ELSE Y FI) Q = (\<lambda>s. (T s \<longrightarrow> fbox X Q s) \<and> (\<not> T s \<longrightarrow> fbox Y Q s))"
+  "fbox (IF T THEN X ELSE Y) Q = (\<lambda>s. (T s \<longrightarrow> fbox X Q s) \<and> (\<not> T s \<longrightarrow> fbox Y Q s))"
   unfolding fbox_def ifthenelse_def by auto
 
 lemma fbox_if_then_else_ge:
   assumes "(\<lambda>s. P s \<and> T s) \<le> fbox X Q"
     and "(\<lambda>s. P s \<and> \<not> T s) \<le> fbox Y Q"
-  shows "P \<le> fbox (IF T THEN X ELSE Y FI) Q"
+  shows "P \<le> fbox (IF T THEN X ELSE Y) Q"
   using assms unfolding fbox_def ifthenelse_def by auto
 
 lemma fbox_if_then_elseI:
   assumes "T s \<longrightarrow> fbox X Q s"
     and "\<not> T s \<longrightarrow> fbox Y Q s"
-  shows "fbox (IF T THEN X ELSE Y FI) Q s"
+  shows "fbox (IF T THEN X ELSE Y) Q s"
   using assms unfolding fbox_def ifthenelse_def by auto
 
 text \<open>The final wlp we add is that of the finite iteration.\<close>
@@ -196,5 +196,6 @@ lemma fbox_g_orbital_inv:
 lemma fbox_diff_inv: 
   "(I \<le> fbox (x\<acute>=f & G on T S @ t\<^sub>0) I) = diff_invariant I f T S t\<^sub>0 G"
   by (auto simp: diff_invariant_def ivp_sols_def fbox_def g_orbital_eq)
+
 
 end
