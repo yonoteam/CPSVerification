@@ -16,13 +16,15 @@ lemma image_le_pred: "(\<P> f A \<subseteq> {s. G s}) = (\<forall>x\<in>A. G (f 
 
 definition "ivp_sols f T S t\<^sub>0 s = {X |X. (D X = (\<lambda>t. f t (X t)) on T) \<and> X t\<^sub>0 = s \<and> X \<in> T \<rightarrow> S}"
 
+notation ivp_sols ("Sols")
+
 lemma ivp_solsI: 
   assumes "D X = (\<lambda>t. f t (X t)) on T" "X t\<^sub>0 = s" "X \<in> T \<rightarrow> S"
-  shows "X \<in> ivp_sols f T S t\<^sub>0 s"
+  shows "X \<in> Sols f T S t\<^sub>0 s"
   using assms unfolding ivp_sols_def by blast
 
 lemma ivp_solsD:
-  assumes "X \<in> ivp_sols f T S t\<^sub>0 s"
+  assumes "X \<in> Sols f T S t\<^sub>0 s"
   shows "D X = (\<lambda>t. f t (X t)) on T"
     and "X t\<^sub>0 = s" and "X \<in> T \<rightarrow> S"
   using assms unfolding ivp_sols_def by auto
@@ -43,25 +45,25 @@ definition g_orbital :: "('a \<Rightarrow> 'a) \<Rightarrow> ('a \<Rightarrow> b
   where "g_orbital f G T S t\<^sub>0 s = \<Union>{\<gamma> X G T |X. X \<in> ivp_sols (\<lambda>t. f) T S t\<^sub>0 s}"
 
 lemma g_orbital_eq: "g_orbital f G T S t\<^sub>0 s = 
-  {X t |t X. t \<in> T \<and> \<P> X (down T t) \<subseteq> {s. G s} \<and> X \<in> ivp_sols (\<lambda>t. f) T S t\<^sub>0 s }" 
+  {X t |t X. t \<in> T \<and> \<P> X (down T t) \<subseteq> {s. G s} \<and> X \<in> Sols (\<lambda>t. f) T S t\<^sub>0 s }" 
   unfolding g_orbital_def ivp_sols_def g_orbit_eq image_le_pred by auto
 
 lemma "g_orbital f G T S t\<^sub>0 s = 
   {X t |t X. t \<in> T \<and> (D X = (f \<circ> X) on T) \<and> X t\<^sub>0 = s \<and> X \<in> T \<rightarrow> S \<and> (\<P> X (down T t) \<subseteq> {s. G s})}"
   unfolding g_orbital_eq ivp_sols_def by auto
 
-lemma "g_orbital f G T S t\<^sub>0 s = (\<Union> X\<in>ivp_sols (\<lambda>t. f) T S t\<^sub>0 s. \<gamma> X G T)"
+lemma "g_orbital f G T S t\<^sub>0 s = (\<Union> X\<in>Sols (\<lambda>t. f) T S t\<^sub>0 s. \<gamma> X G T)"
   unfolding g_orbital_def ivp_sols_def g_orbit_eq by auto
 
 lemma g_orbitalI:
-  assumes "X \<in> ivp_sols (\<lambda>t. f) T S t\<^sub>0 s"
+  assumes "X \<in> Sols (\<lambda>t. f) T S t\<^sub>0 s"
     and "t \<in> T" and "(\<P> X (down T t) \<subseteq> {s. G s})"
   shows "X t \<in> g_orbital f G T S t\<^sub>0 s"
   using assms unfolding g_orbital_eq(1) by auto
 
 lemma g_orbitalD:
   assumes "s' \<in> g_orbital f G T S t\<^sub>0 s"
-  obtains X and t where "X \<in> ivp_sols (\<lambda>t. f) T S t\<^sub>0 s"
+  obtains X and t where "X \<in> Sols (\<lambda>t. f) T S t\<^sub>0 s"
   and "X t = s'" and "t \<in> T" and "(\<P> X (down T t) \<subseteq> {s. G s})"
   using assms unfolding g_orbital_def g_orbit_eq by auto
 
@@ -74,7 +76,7 @@ definition diff_invariant :: "('a \<Rightarrow> bool) \<Rightarrow> (('a::real_n
   where "diff_invariant I f T S t\<^sub>0 G \<equiv> (\<Union> \<circ> (\<P> (g_orbital f G T S t\<^sub>0))) {s. I s} \<subseteq> {s. I s}"
 
 lemma diff_invariant_eq: "diff_invariant I f T S t\<^sub>0 G = 
-  (\<forall>s. I s \<longrightarrow> (\<forall>X\<in>ivp_sols (\<lambda>t. f) T S t\<^sub>0 s. (\<forall>t\<in>T.(\<forall>\<tau>\<in>(down T t). G (X \<tau>)) \<longrightarrow> I (X t))))"
+  (\<forall>s. I s \<longrightarrow> (\<forall>X\<in>Sols (\<lambda>t. f) T S t\<^sub>0 s. (\<forall>t\<in>T.(\<forall>\<tau>\<in>(down T t). G (X \<tau>)) \<longrightarrow> I (X t))))"
   unfolding diff_invariant_def g_orbital_eq image_le_pred by auto
 
 lemma diff_inv_eq_inv_set: (* for paper... *)
@@ -212,12 +214,7 @@ sublocale ll_on_open_it T f S t\<^sub>0
 
 lemmas subintervalI = closed_segment_subset_domain
 
-lemma subintervalD:
-  assumes "{t\<^sub>1--t\<^sub>2} \<subseteq> T"
-  shows "t\<^sub>1 \<in> T" and "t\<^sub>2 \<in> T"
-  using assms by auto
-
-lemma csols_eq: "csols t\<^sub>0 s = {(X, t). t \<in> T \<and>  X \<in> ivp_sols f {t\<^sub>0--t} S t\<^sub>0 s}"
+lemma csols_eq: "csols t\<^sub>0 s = {(X, t). t \<in> T \<and>  X \<in> Sols f {t\<^sub>0--t} S t\<^sub>0 s}"
   unfolding ivp_sols_def csols_def solves_ode_def using subintervalI[OF init_time] by auto
 
 abbreviation "ex_ivl s \<equiv> existence_ivl t\<^sub>0 s"
@@ -308,7 +305,7 @@ begin
 
 lemma in_ivp_sols_ivl: 
   assumes "t \<in> T" "s \<in> S"
-  shows "(\<lambda>t. \<phi> t s) \<in> ivp_sols (\<lambda>t. f) {0--t} S 0 s"
+  shows "(\<lambda>t. \<phi> t s) \<in> Sols (\<lambda>t. f) {0--t} S 0 s"
   apply(rule ivp_solsI)
   using ivp assms by auto
 
@@ -461,12 +458,12 @@ qed
 
 lemma in_ivp_sols: 
   assumes "s \<in> S"
-  shows "(\<lambda>t. \<phi> t s) \<in> ivp_sols (\<lambda>t. f) T S 0 s"
+  shows "(\<lambda>t. \<phi> t s) \<in> Sols (\<lambda>t. f) T S 0 s"
   using has_vderiv_on_domain ivp(2) in_domain apply(rule ivp_solsI)
   using assms by auto
 
 lemma eq_solution:
-  assumes "X \<in> ivp_sols (\<lambda>t. f) T S 0 s" and "t \<in> T" and "s \<in> S"
+  assumes "X \<in> Sols (\<lambda>t. f) T S 0 s" and "t \<in> T" and "s \<in> S"
   shows "X t = \<phi> t s"
 proof-
   have "D X = (\<lambda>t. f (X t)) on (ex_ivl s)" and "X 0 = s" and "X \<in> (ex_ivl s) \<rightarrow> S"
@@ -484,12 +481,12 @@ qed
 
 lemma ivp_sols_collapse: 
   assumes "T = UNIV" and "s \<in> S"
-  shows "ivp_sols (\<lambda>t. f) T S 0 s = {(\<lambda>t. \<phi> t s)}"
+  shows "Sols (\<lambda>t. f) T S 0 s = {(\<lambda>t. \<phi> t s)}"
   using in_ivp_sols eq_solution assms by auto
 
 lemma additive_in_ivp_sols:
   assumes "s \<in> S" and "\<P> (\<lambda>\<tau>. \<tau> + t) T \<subseteq> T"
-  shows "(\<lambda>\<tau>. \<phi> (\<tau> + t) s) \<in> ivp_sols (\<lambda>t. f) T S 0 (\<phi> (0 + t) s)"
+  shows "(\<lambda>\<tau>. \<phi> (\<tau> + t) s) \<in> Sols (\<lambda>t. f) T S 0 (\<phi> (0 + t) s)"
   apply(rule ivp_solsI, rule vderiv_on_compose_add)
   using has_vderiv_on_domain has_vderiv_on_subset assms apply blast
   using in_domain assms by auto
@@ -523,7 +520,7 @@ lemma g_orbital_collapses:
 proof(rule subset_antisym, simp_all only: subset_eq)
   let ?gorbit = "{\<phi> t s |t. t \<in> T \<and> (\<forall>\<tau>\<in>down T t. G (\<phi> \<tau> s))}"
   {fix s' assume "s' \<in> g_orbital f G T S 0 s"
-    then obtain X and t where x_ivp:"X \<in> ivp_sols (\<lambda>t. f) T S 0 s" 
+    then obtain X and t where x_ivp:"X \<in> Sols (\<lambda>t. f) T S 0 s" 
       and "X t = s'" and "t \<in> T" and guard:"(\<P> X (down T t) \<subseteq> {s. G s})"
       unfolding g_orbital_def g_orbit_eq by auto
     have obs:"\<forall>\<tau>\<in>(down T t). X \<tau> = \<phi> \<tau> s"

@@ -30,41 +30,30 @@ subsubsection\<open>Pendulum\<close>
 \<comment> \<open>Verified with differential invariants. \<close>
 
 abbreviation fpend :: "real^2 \<Rightarrow> real^2" ("f")
-  where "f s \<equiv> (\<chi> i. if i=0 then s$1 else -s $ 0)"
+  where "f s \<equiv> (\<chi> i. if i=0 then s$1 else -s$0)"
 
-lemma pendulum_invariant: 
-  "diff_invariant (\<lambda>s. (r::real)\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2) fpend UNIV UNIV 0 G"
-  apply(rule_tac diff_invariant_rules, clarsimp, simp, clarsimp)
-  apply(frule_tac i="0" in has_vderiv_on_vec_nth, drule_tac i="1" in has_vderiv_on_vec_nth)
-  by (auto intro!: poly_derivatives)
-
-lemma pendulum_invariants:
-  "{s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2} \<le> fb\<^sub>\<F> (x\<acute>=f & G) {s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2}"
-  unfolding ffb_diff_inv using pendulum_invariant by simp
+lemma pendulum_invariants: "{s. r\<^sup>2 = (s$0)\<^sup>2 + (s$1)\<^sup>2} \<le> fb\<^sub>\<F> (x\<acute>= f & G) {s. r\<^sup>2 = (s$0)\<^sup>2 + (s$1)\<^sup>2}"
+  by (auto intro!: diff_invariant_rules poly_derivatives)
 
 \<comment> \<open>Verified with the flow. \<close>
 
 abbreviation pend_flow :: "real \<Rightarrow> real^2 \<Rightarrow> real^2" ("\<phi>")
-  where "\<phi> t s \<equiv> (\<chi> i. if i = 0 then s $ 0 \<cdot> cos t + s $ 1 \<cdot> sin t 
-  else - s $ 0 \<cdot> sin t + s $ 1 \<cdot> cos t)"
-
-lemma picard_lindeloef_pend: "picard_lindeloef (\<lambda>t. f) UNIV UNIV 0"
-  apply(unfold_locales, simp_all add: local_lipschitz_def lipschitz_on_def, clarsimp)
-  apply(rule_tac x="1" in exI, clarsimp, rule_tac x=1 in exI)
-  by (simp add: dist_norm norm_vec_def L2_set_def power2_commute UNIV_2)
+  where "\<phi> t s \<equiv> (\<chi> i. if i = 0 then s$0 \<cdot> cos t + s$1 \<cdot> sin t else - s$0 \<cdot> sin t + s$1 \<cdot> cos t)"
 
 lemma local_flow_pend: "local_flow f UNIV UNIV \<phi>"
-  unfolding local_flow_def local_flow_axioms_def apply safe
-  apply(rule picard_lindeloef_pend, simp_all add: vec_eq_iff)
-   apply(rule has_vderiv_on_vec_lambda, clarify)
-   apply(case_tac "i = 0", simp)
-    apply(force intro!: poly_derivatives derivative_intros)
-   apply(force intro!: poly_derivatives derivative_intros)
-  using exhaust_2 two_eq_zero by force
+  apply(unfold_locales, simp_all add: local_lipschitz_def lipschitz_on_def vec_eq_iff, clarsimp)
+    apply(rule_tac x="1" in exI, clarsimp, rule_tac x=1 in exI)
+  apply(simp add: dist_norm norm_vec_def L2_set_def power2_commute UNIV_2)
+   apply(clarsimp, case_tac "i = 0", simp)
+   using exhaust_2 two_eq_zero by (force intro!: poly_derivatives derivative_intros)+
 
-lemma pendulum:
-  "{s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2} \<le> fb\<^sub>\<F> (x\<acute>=f & G) {s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2}"
-  by (subst local_flow.ffb_g_orbit[OF local_flow_pend]) auto
+lemma pendulum: "{s. r\<^sup>2 = (s$0)\<^sup>2 + (s$1)\<^sup>2} \<le> fb\<^sub>\<F> (x\<acute>= f & G) {s. r\<^sup>2 = (s$0)\<^sup>2 + (s$1)\<^sup>2}"
+  by (force simp: local_flow.ffb_g_ode[OF local_flow_pend])
+
+\<comment> \<open>Verified by providing the dynamics\<close>
+
+lemma pendulum_dyn: "{s. r\<^sup>2 = (s$0)\<^sup>2 + (s$1)\<^sup>2} \<le> fb\<^sub>\<F> (EVOL \<phi> G T) {s. r\<^sup>2 = (s$0)\<^sup>2 + (s$1)\<^sup>2}"
+  by force
 
 \<comment> \<open>Verified as a linear system (using uniqueness). \<close>
 
@@ -73,14 +62,13 @@ abbreviation pend_sq_mtx :: "2 sq_mtx" ("A")
 
 lemma pend_sq_mtx_exp_eq_flow: "exp (t *\<^sub>R A) *\<^sub>V s = \<phi> t s"
   apply(rule local_flow.eq_solution[OF local_flow_exp, symmetric])
-    apply(rule ivp_solsI, rule has_vderiv_on_vec_lambda, clarsimp)
+    apply(rule ivp_solsI, clarsimp)
   unfolding sq_mtx_vec_prod_def matrix_vector_mult_def apply simp
       apply(force intro!: poly_derivatives simp: matrix_vector_mult_def)
   using exhaust_2 two_eq_zero by (force simp: vec_eq_iff, auto)
 
-lemma pendulum_sq_mtx:
-  "{s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2} \<le> fb\<^sub>\<F> (x\<acute>=(*\<^sub>V) A & G) {s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2}"
-  unfolding local_flow.ffb_g_orbit[OF local_flow_exp] pend_sq_mtx_exp_eq_flow by auto
+lemma pendulum_sq_mtx: "{s. r\<^sup>2 = (s$0)\<^sup>2 + (s$1)\<^sup>2} \<le> fb\<^sub>\<F> (x\<acute>= (*\<^sub>V) A & G) {s. r\<^sup>2 = (s$0)\<^sup>2 + (s$1)\<^sup>2}"
+  unfolding local_flow.ffb_g_ode[OF local_flow_exp] pend_sq_mtx_exp_eq_flow by auto
 
 no_notation fpend ("f")
         and pend_sq_mtx ("A")
@@ -111,55 +99,30 @@ proof-
 qed
 
 abbreviation fball :: "real \<Rightarrow> real^2 \<Rightarrow> real^2" ("f") 
-  where "f g s \<equiv> (\<chi> i. if i=(0) then s $ 1 else g)"
+  where "f g s \<equiv> (\<chi> i. if i=0 then s$1 else g)"
 
-lemma fball_invariant: 
-  fixes g h :: real
-  defines dinv: "I \<equiv> (\<lambda>s. 2 \<cdot> g \<cdot> s $ 0 - 2 \<cdot> g \<cdot> h - (s $ 1 \<cdot> s $ 1) = 0)"
-  shows "diff_invariant I (f g) UNIV UNIV 0 G"
-  unfolding dinv apply(rule diff_invariant_rules, simp, simp, clarify)
-  apply(frule_tac i="1" in has_vderiv_on_vec_nth)
-  apply(drule_tac i="0" in has_vderiv_on_vec_nth)
-  by(auto intro!: poly_derivatives)
-
-lemma bouncing_ball_invariants:
-  fixes h::real 
-  assumes "g < 0" and "h \<ge> 0"
-  defines diff_inv: "I \<equiv> (\<lambda>s::real^2. 2 \<cdot> g \<cdot> s $ 0 - 2 \<cdot> g \<cdot> h - s $ 1 \<cdot> s $ 1 = 0)"
-  shows "{s. s $ 0 = h \<and> s $ 1 = 0} \<le> fb\<^sub>\<F> 
-  (loop ((x\<acute>=(f g) & (\<lambda> s. s $ 0 \<ge> 0)) ; 
-  (IF (\<lambda> s. s $ 0 = 0) THEN (1 ::= (\<lambda>s. - s $ 1)) ELSE skip)))
-  {s. 0 \<le> s $ 0 \<and> s $ 0 \<le> h}"
-  apply(rule ffb_kloopI[of _ "{s. 0 \<le> s $ 0 \<and> I s}"])
-  using \<open>h \<ge> 0\<close> apply(subst diff_inv, clarsimp)
-  using \<open>g < 0\<close> apply(subst diff_inv, force simp: bb_real_arith)
-  apply(simp only: ffb_kcomp)
-   apply(rule_tac b="fb\<^sub>\<F> (x\<acute>=(f g) & (\<lambda> s. s $ 0 \<ge> 0)) {s. 0 \<le> s $ 0 \<and> I s}" in order.trans)
-  apply(simp add: ffb_g_orbital_guard)
-    apply(rule_tac b="{s. I s}" in order.trans, force)
-  unfolding ffb_diff_inv apply(simp_all add: diff_inv)
-  using fball_invariant apply force
-   apply(rule ffb_iso, subst ffb_if_then_else)
-  using assms by (force simp: bb_real_arith)
+lemma bouncing_ball_invariants: "g < 0 \<Longrightarrow> h \<ge> 0 \<Longrightarrow> 
+  {s. s$0 = h \<and> s$1 = 0} \<le> fb\<^sub>\<F> 
+  (LOOP (
+    (x\<acute>=(f g) & (\<lambda> s. s$0 \<ge> 0) DINV (\<lambda>s. 2 \<cdot> g \<cdot> s$0 - 2 \<cdot> g \<cdot> h - s$1 \<cdot> s$1 = 0)) ; 
+    (IF (\<lambda> s. s$0 = 0) THEN (1 ::= (\<lambda>s. - s$1)) ELSE skip))
+  INV (\<lambda>s. 0 \<le> s$0 \<and>2 \<cdot> g \<cdot> s$0 - 2 \<cdot> g \<cdot> h - s$1 \<cdot> s$1 = 0))
+  {s. 0 \<le> s$0 \<and> s$0 \<le> h}"
+  apply(rule ffb_loopI, simp_all)
+    apply(force, force simp: bb_real_arith)
+  apply(rule ffb_g_odei)
+  by (auto intro!: diff_invariant_rules poly_derivatives simp: bb_real_arith)
 
 \<comment> \<open>Verified with the flow. \<close>
 
-lemma picard_lindeloef_fball:
-  fixes g::real
-  shows "picard_lindeloef (\<lambda>t. f g) UNIV UNIV 0"
-  apply(unfold_locales)
-  apply(unfold_locales, simp_all add: local_lipschitz_def lipschitz_on_def, clarsimp)
-  apply(rule_tac x="1/2" in exI, clarsimp, rule_tac x=1 in exI)
-  by(simp add: dist_norm norm_vec_def L2_set_def UNIV_2)
-
 abbreviation ball_flow :: "real \<Rightarrow> real \<Rightarrow> real^2 \<Rightarrow> real^2" ("\<phi>") 
-  where "\<phi> g t s \<equiv> (\<chi> i. if i=0 then g \<cdot> t ^ 2/2 + s $ 1 \<cdot> t + s $ 0 else g \<cdot> t + s $ 1)"
+  where "\<phi> g t s \<equiv> (\<chi> i. if i=0 then g \<cdot> t ^ 2/2 + s$1 \<cdot> t + s$0 else g \<cdot> t + s$1)"
 
 lemma local_flow_ball: "local_flow (f g) UNIV UNIV (\<phi> g)"
-  unfolding local_flow_def local_flow_axioms_def apply safe
-  using picard_lindeloef_fball apply blast
-   apply(rule has_vderiv_on_vec_lambda, clarify)
-   apply(case_tac "i = 0")
+  apply(unfold_locales, simp_all add: local_lipschitz_def lipschitz_on_def, clarsimp)
+    apply(rule_tac x="1/2" in exI, clarsimp, rule_tac x=1 in exI)
+    apply(simp add: dist_norm norm_vec_def L2_set_def UNIV_2)
+  apply(clarsimp, case_tac "i = 0")
   using exhaust_2 two_eq_zero by (auto intro!: poly_derivatives simp: vec_eq_iff) force
 
 lemma [bb_real_arith]:
@@ -202,18 +165,32 @@ proof-
   ultimately show ?thesis by auto
 qed
 
-lemma bouncing_ball:
-  fixes h::real 
-  assumes "g < 0" and "h \<ge> 0"
-  defines loop_inv: "I \<equiv> (\<lambda>s::real^2. 0 \<le> s $ 0 \<and> 2 \<cdot> g \<cdot> s $ 0 = 2 \<cdot> g \<cdot> h + (s $ 1 \<cdot> s $ 1))"
-  shows "{s. s $ 0 = h \<and> s $ 1 = 0} \<le> fb\<^sub>\<F> 
-  (loop ((x\<acute>=(f g) & (\<lambda> s. s $ 0 \<ge> 0)) ; 
-  (IF (\<lambda> s. s $ 0 = 0) THEN (1 ::= (\<lambda>s. - s $ 1)) ELSE skip)))
-  {s. 0 \<le> s $ 0 \<and> s $ 0 \<le> h}"
-  apply(rule ffb_kloopI[of _ "{s. I s}"])
-  unfolding loop_inv using \<open>h \<ge> 0\<close> \<open>g < 0\<close> apply(clarsimp, force simp: bb_real_arith)
-  apply(simp only: ffb_kcomp local_flow.ffb_g_orbit[OF local_flow_ball])
-  unfolding ffb_if_then_else using assms by (auto simp: bb_real_arith)
+lemma bouncing_ball: "g < 0 \<Longrightarrow> h \<ge> 0 \<Longrightarrow> 
+  {s. s$0 = h \<and> s$1 = 0} \<le> fb\<^sub>\<F> 
+  (LOOP (
+    (x\<acute>=(f g) & (\<lambda> s. s$0 \<ge> 0)) ; 
+    (IF (\<lambda> s. s$0 = 0) THEN (1 ::= (\<lambda>s. - s$1)) ELSE skip))
+  INV (\<lambda>s. 0 \<le> s$0 \<and>2 \<cdot> g \<cdot> s$0 - 2 \<cdot> g \<cdot> h - s$1 \<cdot> s$1 = 0))
+  {s. 0 \<le> s$0 \<and> s$0 \<le> h}"
+  apply(rule ffb_loopI, simp_all add: local_flow.ffb_g_ode[OF local_flow_ball])
+    apply(force, force simp: bb_real_arith, clarsimp, safe)
+  subgoal for s t using bb_real_arith(2)[of g "s$0" h "s$1" t] by (force simp: field_simps)
+  subgoal for s t using bb_real_arith(3)[of g "s$0" h "s$1" t] by (force simp: field_simps)
+  done
+
+\<comment> \<open>Verified by providing the dynamics\<close>
+
+lemma bouncing_ball_dyn: "g < 0 \<Longrightarrow> h \<ge> 0 \<Longrightarrow> 
+  {s. s$0 = h \<and> s$1 = 0} \<le> fb\<^sub>\<F> 
+  (LOOP (
+    (EVOL (\<phi> g) (\<lambda> s. s$0 \<ge> 0) T) ; 
+    (IF (\<lambda> s. s$0 = 0) THEN (1 ::= (\<lambda>s. - s$1)) ELSE skip))
+  INV (\<lambda>s. 0 \<le> s$0 \<and>2 \<cdot> g \<cdot> s$0 - 2 \<cdot> g \<cdot> h - s$1 \<cdot> s$1 = 0))
+  {s. 0 \<le> s$0 \<and> s$0 \<le> h}"
+  apply(rule ffb_loopI, simp_all, force, force simp: bb_real_arith, clarsimp, safe)
+  subgoal for s t using bb_real_arith(2)[of g "s$0" h "s$1" t] by (force simp: field_simps)
+  subgoal for s t using bb_real_arith(3)[of g "s$0" h "s$1" t] by (force simp: field_simps)
+  done
 
 \<comment> \<open>Verified as a linear system (computing exponential). \<close>
 
@@ -243,14 +220,13 @@ lemma exp_ball_sq_mtx_simps:
       mat_def scaleR_vec_def axis_def plus_vec_def)
 
 lemma bouncing_ball_sq_mtx: 
-  "{s. 0 \<le> s $ 0 \<and> s $ 0 = h \<and> s $ 1 = 0 \<and> 0 > s $ 2} \<le> fb\<^sub>\<F> 
-  (kstar ((x\<acute>=(*\<^sub>V) A & (\<lambda> s. s $ 0 \<ge> 0)) ;
-  (IF (\<lambda> s. s $ 0 = 0) THEN (1 ::= (\<lambda>s. - s $ 1)) ELSE skip)))
-  {s. 0 \<le> s $ 0 \<and> s $ 0 \<le> h}"
-  apply(rule ffb_kloopI[of _ "{s. 0\<le>s$0 \<and> 0>s$2 \<and> 2 \<cdot> s$2 \<cdot> s$0 = 2 \<cdot> s$2 \<cdot> h + (s$1 \<cdot> s$1)}"])
+  "{s. 0 \<le> s$0 \<and> s$0 = h \<and> s$1 = 0 \<and> 0 > s $ 2} \<le> fb\<^sub>\<F> 
+  (LOOP ((x\<acute>= (*\<^sub>V) A & (\<lambda> s. s$0 \<ge> 0)) ;
+  (IF (\<lambda> s. s$0 = 0) THEN (1 ::= (\<lambda>s. - s$1)) ELSE skip))
+  INV (\<lambda>s. 0\<le>s$0 \<and> 0>s$2 \<and> 2 \<cdot> s$2 \<cdot> s$0 = 2 \<cdot> s$2 \<cdot> h + (s$1 \<cdot> s$1)))
+  {s. 0 \<le> s$0 \<and> s$0 \<le> h}"
+  apply(rule ffb_loopI, simp_all add: local_flow.ffb_g_ode[OF local_flow_exp] sq_mtx_vec_prod_eq)
     apply(clarsimp, force simp: bb_real_arith)
-  apply(simp only: ffb_kcomp local_flow.ffb_g_orbit[OF local_flow_exp])
-  apply(subst ffb_if_then_else, simp add: sq_mtx_vec_prod_eq)
   unfolding UNIV_3 apply(simp add: exp_ball_sq_mtx_simps, safe)
   using bb_real_arith(2) apply(force simp: add.commute mult.commute)
   using bb_real_arith(3) by (force simp: add.commute mult.commute)

@@ -24,6 +24,8 @@ session "CPSVerification" = "Ordinary_Differential_Equations" +
     "HybridVerifVecs/hs_prelims"
     "HybridVerifVecs/hs_prelims_dyn_sys"
     "HybridVerifVecs/hs_prelims_matrices"
+    "HybridVerifVecs/hs_vc_spartan"
+    "HybridVerifVecs/hs_vc_examples"
     "HybridVerifVecs/funcsets/cat2funcset"
     "HybridVerifVecs/funcsets/cat2funcset_examples"
     "HybridVerifVecs/rels/cat2rel"

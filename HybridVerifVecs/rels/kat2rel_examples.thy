@@ -38,7 +38,6 @@ abbreviation fpend :: "real^2 \<Rightarrow> real^2" ("f")
 lemma pendulum_invariant: 
   "diff_invariant (\<lambda>s. (r::real)\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2) fpend UNIV UNIV 0 G"
   apply(rule_tac diff_invariant_rules, clarsimp, simp, clarsimp)
-  apply(frule_tac i="0" in has_vderiv_on_vec_nth, drule_tac i="1" in has_vderiv_on_vec_nth)
   by (auto intro!: poly_derivatives)
 
 lemma pendulum_invariants: "rel_kat.H 
@@ -58,12 +57,9 @@ lemma picard_lindeloef_pend: "picard_lindeloef (\<lambda>t. f) UNIV UNIV 0"
 
 lemma local_flow_pend: "local_flow f UNIV UNIV \<phi>"
   unfolding local_flow_def local_flow_axioms_def apply safe
-  apply(rule picard_lindeloef_pend, simp_all add: vec_eq_iff)
-   apply(rule has_vderiv_on_vec_lambda, clarify)
+  apply(rule picard_lindeloef_pend, simp_all add: vec_eq_iff, clarify)
    apply(case_tac "i = 0", simp)
-    apply(force intro!: poly_derivatives derivative_intros)
-   apply(force intro!: poly_derivatives derivative_intros)
-  using exhaust_2 two_eq_zero by force
+   using exhaust_2 two_eq_zero by (force intro!: poly_derivatives)+
 
 lemma pendulum: "rel_kat.H 
   \<lceil>\<lambda>s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2\<rceil> (x\<acute>=f & G) \<lceil>\<lambda>s. r\<^sup>2 = (s $ 0)\<^sup>2 + (s $ 1)\<^sup>2\<rceil>"
@@ -76,7 +72,7 @@ abbreviation pend_sq_mtx :: "2 sq_mtx" ("A")
 
 lemma pend_sq_mtx_exp_eq_flow: "exp (\<tau> *\<^sub>R A) *\<^sub>V s = \<phi> \<tau> s"
   apply(rule local_flow.eq_solution[OF local_flow_exp, symmetric])
-    apply(rule ivp_solsI, rule has_vderiv_on_vec_lambda, clarsimp)
+    apply(rule ivp_solsI, clarsimp)
   unfolding sq_mtx_vec_prod_def matrix_vector_mult_def apply simp
       apply(force intro!: poly_derivatives simp: matrix_vector_mult_def)
   using exhaust_2 two_eq_zero by (force simp: vec_eq_iff, auto)
@@ -122,8 +118,6 @@ lemma fball_invariant:
   defines dinv: "I \<equiv> (\<lambda>s. 2 \<cdot> g \<cdot> s $ 0 - 2 \<cdot> g \<cdot> h - (s $ 1 \<cdot> s $ 1) = 0)"
   shows "diff_invariant I (f g) UNIV UNIV 0 G"
   unfolding dinv apply(rule diff_invariant_rules, simp, simp, clarify)
-  apply(frule_tac i="1" in has_vderiv_on_vec_nth)
-  apply(drule_tac i="0" in has_vderiv_on_vec_nth)
   by(auto intro!: poly_derivatives)
 
 lemma bouncing_ball_invariants: 
@@ -161,8 +155,7 @@ abbreviation ball_flow :: "real \<Rightarrow> real \<Rightarrow> real^2 \<Righta
 
 lemma local_flow_ball: "local_flow (f g) UNIV UNIV (\<phi> g)"
   unfolding local_flow_def local_flow_axioms_def apply safe
-  using picard_lindeloef_fball apply blast
-   apply(rule has_vderiv_on_vec_lambda, clarify)
+  using picard_lindeloef_fball apply(blast, clarsimp)
    apply(case_tac "i = 0")
   using exhaust_2 two_eq_zero by (auto intro!: poly_derivatives simp: vec_eq_iff) force
 

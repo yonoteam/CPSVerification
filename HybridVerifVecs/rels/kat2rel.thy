@@ -47,12 +47,6 @@ text\<open> Next, the Hoare rule of the composition:\<close>
 lemma sH_relcomp: "rel_kat.H \<lceil>P\<rceil> X \<lceil>R\<rceil> \<Longrightarrow> rel_kat.H \<lceil>R\<rceil> Y \<lceil>Q\<rceil> \<Longrightarrow> rel_kat.H \<lceil>P\<rceil> (X ; Y) \<lceil>Q\<rceil>"
   using rel_kat.H_seq_swap by force
 
-(* "|x \<cdot> y] q = |x] |y] q" *)
-
-lemma "rel_kat.H \<lceil>P\<rceil> (X ; Y) \<lceil>Q\<rceil> = rel_kat.H \<lceil>P\<rceil> (X) {(s,s') |s s'. (s,s') \<in> Y \<longrightarrow> Q s' }"
-  unfolding rel_kat.H_def apply(auto simp: subset_eq p2r_def Int_def)
-  oops
-
 text\<open> There is also already an implementation of the conditional operator 
 @{thm ifthenelse_def[no_vars]} and its Hoare triple rule: @{thm sH_cond[no_vars]}. \<close>
 

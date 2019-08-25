@@ -192,9 +192,14 @@ lemma has_derivative_mult_const [derivative_intros]: "D (*) a \<mapsto> (\<lambd
 lemma has_vderiv_on_mult_const [derivative_intros]: "D (*) a = (\<lambda>x. a) on T"
   using has_vector_derivative_mult_const unfolding has_vderiv_on_def by auto
 
-lemma has_vderiv_on_power2 [derivative_intros]: "D power2 = (*) 2 on T"
+lemma has_vderiv_on_power2 [derivative_intros]: "D power2 = (*) 2 on T" 
   unfolding has_vderiv_on_def has_vector_derivative_def apply clarify
   by(rule_tac f'1="\<lambda> t. t" in derivative_eq_intros(15)) auto
+
+lemma has_vderiv_on_power [derivative_intros]: "n \<ge> 1 \<Longrightarrow> D (\<lambda>x. c * x^n) = (\<lambda>x. c * n * x^(n-1)) on T"
+  unfolding has_vderiv_on_def has_vector_derivative_def apply (clarify,induct n, simp)
+  apply(rule_tac f'1="\<lambda>t. 0" in derivative_eq_intros(12), simp)
+  by (rule_tac f'1="\<lambda> t. t" in derivative_eq_intros(15)) auto
 
 lemma has_vderiv_on_divide_cnst [derivative_intros]: "a \<noteq> 0 \<Longrightarrow> D (\<lambda>t. t/a) = (\<lambda>t. 1/a) on T"
   unfolding has_vderiv_on_def has_vector_derivative_def apply clarify
@@ -203,6 +208,9 @@ lemma has_vderiv_on_divide_cnst [derivative_intros]: "a \<noteq> 0 \<Longrightar
 
 lemma [poly_derivatives]: "g = (*) 2 \<Longrightarrow> D power2 = g on T"
   using has_vderiv_on_power2 by auto
+
+lemma [poly_derivatives]: "n \<ge> 1 \<Longrightarrow> g = (\<lambda>x. c * n * x^(n-1)) \<Longrightarrow> D (\<lambda>x. c * x^n) = g on T"
+  using has_vderiv_on_power by auto
 
 lemma [poly_derivatives]: "D f = f' on T \<Longrightarrow> g = (\<lambda>t. - f' t) \<Longrightarrow> D (\<lambda>t. - f t) = g on T"
   using has_vderiv_on_uminus by auto
@@ -284,11 +292,13 @@ lemma "D (\<lambda>t. v * t - a * t\<^sup>2 / 2 + x) = (\<lambda>x. v - a * x) o
 lemma "D (\<lambda>t. v - a * t) = (\<lambda>x. - a) on T"
   by(auto intro!: poly_derivatives)
 
-thm poly_derivatives
+lemma "c \<noteq> 0 \<Longrightarrow> D (\<lambda>t. a5 * t^5 + a3 * (t^3 / c) - a2 * exp (t^2) + a1 * cos t + a0) = x on T"
+  apply (intro poly_derivatives)
+  oops
+term "(\<lambda>t. 5 * a5 * t^4 + 3 * a3 * (t^2 / c) - a2 * (2 * t) * exp (t^2) - a1 * sin t)"
 
 
 subsection\<open> Filters \<close>
-
 
 lemma eventually_at_within_mono:
   assumes "t \<in> interior T" and "T \<subseteq> S" 
@@ -385,21 +395,6 @@ proof(simp add: tendsto_iff, clarify)
   qed
 qed
 
-lemma has_derivative_vec_lambda:
-  fixes f::"real \<Rightarrow> ('a::banach)^('m::finite)"
-  assumes "\<forall>i. D (\<lambda>t. f t $ i) \<mapsto> (\<lambda> h. h *\<^sub>R f' x $ i) (at x within T)"
-  shows "D f \<mapsto> (\<lambda>h. h *\<^sub>R f' x) at x within T"
-  apply(unfold has_derivative_def, safe)
-   apply(force simp: bounded_linear_def bounded_linear_axioms_def)
-  using assms frechet_vec_lambda[of x T ] unfolding has_derivative_def by auto
-
-lemma has_vderiv_on_vec_lambda:
-  fixes f::"(('a::banach)^('n::finite)) \<Rightarrow> ('a^'n)"
-  assumes "\<forall>i. D (\<lambda>t. x t $ i) = (\<lambda>t. f (x t) $ i) on T"
-  shows "D x = (\<lambda>t. f (x t)) on T"
-  using assms unfolding has_vderiv_on_def has_vector_derivative_def apply clarsimp
-  by(rule has_derivative_vec_lambda, simp)
-
 lemma frechet_vec_nth:
   fixes f::"real \<Rightarrow> ('a::real_normed_vector)^'m" and x::real and T::"real set" 
   defines "x\<^sub>0 \<equiv> netlimit (at x within T)"
@@ -429,6 +424,14 @@ proof(unfold tendsto_iff dist_norm, clarify)
   qed
 qed
 
+lemma has_derivative_vec_lambda:
+  fixes f::"real \<Rightarrow> ('a::banach)^('n::finite)"
+  assumes "\<forall>i. D (\<lambda>t. f t $ i) \<mapsto> (\<lambda> h. h *\<^sub>R f' x $ i) (at x within T)"
+  shows "D f \<mapsto> (\<lambda>h. h *\<^sub>R f' x) at x within T"
+  apply(unfold has_derivative_def, safe)
+   apply(force simp: bounded_linear_def bounded_linear_axioms_def)
+  using assms frechet_vec_lambda[of x T ] unfolding has_derivative_def by auto
+
 lemma has_derivative_vec_nth:
   assumes "D f \<mapsto> (\<lambda>h. h *\<^sub>R f' x) at x within T"
   shows "D (\<lambda>t. f t $ i) \<mapsto> (\<lambda>h. h *\<^sub>R f' x $ i) at x within T"
@@ -436,11 +439,10 @@ lemma has_derivative_vec_nth:
    apply(force simp: bounded_linear_def bounded_linear_axioms_def)
   using frechet_vec_nth[of x T f] assms unfolding has_derivative_def by auto
 
-lemma has_vderiv_on_vec_nth:
-  fixes f::"(('a::banach)^('n::finite)) \<Rightarrow> ('a^'n)"
-  assumes "D x = (\<lambda>t. f (x t)) on T"
-  shows "D (\<lambda>t. x t $ i) = (\<lambda>t. f (x t) $ i) on T"
-  using assms unfolding has_vderiv_on_def has_vector_derivative_def apply clarsimp
-  by(rule has_derivative_vec_nth, simp)
+lemma has_vderiv_on_vec_eq[simp]:
+  fixes x::"real \<Rightarrow> ('a::banach)^('n::finite)"
+  shows "(D x = x' on T) = (\<forall>i. D (\<lambda>t. x t $ i) = (\<lambda>t. x' t $ i) on T)"
+  unfolding has_vderiv_on_def has_vector_derivative_def apply safe
+  using has_derivative_vec_nth has_derivative_vec_lambda by blast+
 
 end

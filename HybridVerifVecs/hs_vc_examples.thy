@@ -8,8 +8,6 @@ subsection\<open> Examples \<close>
 
 text\<open> Preliminary preparation for the examples.\<close>
 
-no_notation Transitive_Closure.rtrancl ("(_\<^sup>*)" [1000] 999)
-
 \<comment> \<open>Finite set of program variables.\<close>
 
 typedef program_vars = "{''x'',''y''}"
@@ -35,6 +33,9 @@ lemma program_vars_univ_eq: "(UNIV::program_vars set) = {\<restriction>\<^sub>V'
 
 lemma program_vars_exhaust: "x = \<restriction>\<^sub>V''x'' \<or> x = \<restriction>\<^sub>V''y''"
   using program_vars_univ_eq by auto
+
+abbreviation val_p :: "real^program_vars \<Rightarrow> string \<Rightarrow> real" (infixl "\<downharpoonright>\<^sub>V" 90) 
+  where "store\<downharpoonright>\<^sub>Vvar \<equiv> store$\<restriction>\<^sub>Vvar"
 
 \<comment> \<open>Alternative to the finite set of program variables.\<close>
 
@@ -62,76 +63,56 @@ subsubsection\<open>Circular Motion\<close>
 
 \<comment> \<open>Verified with differential invariants. \<close>
 
-abbreviation "valP store var \<equiv> store$\<restriction>\<^sub>Vvar"
-
-notation valP (infixl "\<downharpoonright>\<^sub>V" 90)
-
-abbreviation circular_motion_kinematics :: "real^program_vars \<Rightarrow> real^program_vars" 
-  where "circular_motion_kinematics s \<equiv> (\<chi> i. if i=\<restriction>\<^sub>V''x'' then s\<downharpoonright>\<^sub>V''y'' else -s\<downharpoonright>\<^sub>V''x'')"
-
-notation circular_motion_kinematics ("C")
-
-lemma circular_motion_invariant: 
-  "diff_invariant (\<lambda>s. (r::real)\<^sup>2 = (s\<downharpoonright>\<^sub>V''x'')\<^sup>2 + (s\<downharpoonright>\<^sub>V''y'')\<^sup>2) C UNIV UNIV 0 G"
-  apply(rule_tac diff_invariant_rules, clarsimp, simp, clarsimp)
-  apply(frule_tac i="\<restriction>\<^sub>V''x''" in has_vderiv_on_vec_nth, drule_tac i="\<restriction>\<^sub>V''y''" in has_vderiv_on_vec_nth)
-  by(auto intro!: poly_derivatives simp: to_var_inject)
+abbreviation circular_motion_vec_field :: "real^program_vars \<Rightarrow> real^program_vars" ("C")
+  where "circular_motion_vec_field s \<equiv> (\<chi> i. if i=\<restriction>\<^sub>V''x'' then s\<downharpoonright>\<^sub>V''y'' else -s\<downharpoonright>\<^sub>V''x'')"
 
 lemma circular_motion_invariants:
-  "(\<lambda>s. r\<^sup>2 = (s\<downharpoonright>\<^sub>V''x'')\<^sup>2 + (s\<downharpoonright>\<^sub>V''y'')\<^sup>2) \<le> fbox (x\<acute>=C & G) (\<lambda>s. r\<^sup>2 = (s\<downharpoonright>\<^sub>V''x'')\<^sup>2 + (s\<downharpoonright>\<^sub>V''y'')\<^sup>2)"
-  unfolding fbox_diff_inv using circular_motion_invariant by simp
+  "(\<lambda>s. r\<^sup>2 = (s\<downharpoonright>\<^sub>V''x'')\<^sup>2 + (s\<downharpoonright>\<^sub>V''y'')\<^sup>2) \<le> |x\<acute>=C & G] (\<lambda>s. r\<^sup>2 = (s\<downharpoonright>\<^sub>V''x'')\<^sup>2 + (s\<downharpoonright>\<^sub>V''y'')\<^sup>2)"
+  by (auto intro!: diff_invariant_rules poly_derivatives simp: to_var_inject)
 
 \<comment> \<open>Verified with the flow. \<close>
 
-abbreviation "circular_motion_flow t s \<equiv> 
-  (\<chi> i. if i=\<restriction>\<^sub>V''x'' then s\<downharpoonright>\<^sub>V''x'' * cos t + s\<downharpoonright>\<^sub>V''y'' * sin t
+abbreviation circular_motion_flow :: "real \<Rightarrow> real^program_vars \<Rightarrow> real^program_vars" ("\<phi>\<^sub>C")
+  where "\<phi>\<^sub>C t s \<equiv> (\<chi> i. if i=\<restriction>\<^sub>V''x'' then s\<downharpoonright>\<^sub>V''x'' * cos t + s\<downharpoonright>\<^sub>V''y'' * sin t
   else - s\<downharpoonright>\<^sub>V''x'' * sin t + s\<downharpoonright>\<^sub>V''y'' * cos t)"
 
-notation circular_motion_flow ("\<phi>\<^sub>C")
-
-lemma picard_lindeloef_circ_motion: "picard_lindeloef (\<lambda>t. C) UNIV UNIV 0"
-  apply(unfold_locales, simp_all add: local_lipschitz_def lipschitz_on_def, clarsimp)
-  apply(rule_tac x="1" in exI, clarsimp, rule_tac x=1 in exI)
-  by(simp add: dist_norm norm_vec_def L2_set_def program_vars_univ_eq to_var_inject power2_commute)
-
 lemma local_flow_circ_motion: "local_flow C UNIV UNIV \<phi>\<^sub>C"
-  unfolding local_flow_def local_flow_axioms_def apply safe
-  apply(rule picard_lindeloef_circ_motion, simp_all add: vec_eq_iff)
-   apply(rule has_vderiv_on_vec_lambda, clarify)
-   apply(case_tac "i = \<restriction>\<^sub>V''x''", simp)
-    apply(force intro!: poly_derivatives derivative_intros simp: to_var_inject)
-  apply(force intro!: poly_derivatives derivative_intros simp: to_var_inject)
-  using program_vars_exhaust by force
+  apply(unfold_locales, simp_all add: local_lipschitz_def lipschitz_on_def vec_eq_iff, clarsimp)
+    apply(rule_tac x="1" in exI, clarsimp, rule_tac x=1 in exI)
+    apply(simp add: dist_norm norm_vec_def L2_set_def program_vars_univ_eq to_var_inject power2_commute)
+   apply(clarsimp, case_tac "i = \<restriction>\<^sub>V''x''")
+    using program_vars_exhaust by (force intro!: poly_derivatives simp: to_var_inject)+
 
 lemma circular_motion:
-  "(\<lambda>s. r\<^sup>2 = (s\<downharpoonright>\<^sub>V''x'')\<^sup>2 + (s\<downharpoonright>\<^sub>V''y'')\<^sup>2) \<le> fbox (x\<acute>=C & G) (\<lambda>s. r\<^sup>2 = (s\<downharpoonright>\<^sub>V''x'')\<^sup>2 + (s\<downharpoonright>\<^sub>V''y'')\<^sup>2)"
-  by (subst local_flow.fbox_g_orbit[OF local_flow_circ_motion]) (auto simp: to_var_inject)
+  "(\<lambda>s. r\<^sup>2 = (s\<downharpoonright>\<^sub>V''x'')\<^sup>2 + (s\<downharpoonright>\<^sub>V''y'')\<^sup>2) \<le> |x\<acute>=C & G] (\<lambda>s. r\<^sup>2 = (s\<downharpoonright>\<^sub>V''x'')\<^sup>2 + (s\<downharpoonright>\<^sub>V''y'')\<^sup>2)"
+  by (force simp: local_flow.fbox_g_ode[OF local_flow_circ_motion] to_var_inject)
 
-no_notation circular_motion_kinematics ("C")
+\<comment> \<open>Verified by providing dynamics. \<close>
+
+lemma circular_motion_dyn:
+  "(\<lambda>s. r\<^sup>2 = (s\<downharpoonright>\<^sub>V''x'')\<^sup>2 + (s\<downharpoonright>\<^sub>V''y'')\<^sup>2) \<le> |EVOL \<phi>\<^sub>C G T] (\<lambda>s. r\<^sup>2 = (s\<downharpoonright>\<^sub>V''x'')\<^sup>2 + (s\<downharpoonright>\<^sub>V''y'')\<^sup>2)"
+  by (force simp: to_var_inject)
+
+no_notation circular_motion_vec_field ("C")
         and circular_motion_flow ("\<phi>\<^sub>C")
 
 \<comment> \<open>Verified as a linear system (using uniqueness). \<close>
 
-abbreviation circular_motion_sq_mtx :: "2 sq_mtx" 
-  where "circular_motion_sq_mtx \<equiv> sq_mtx_chi (\<chi> i. if i=0 then - \<e> 1 else \<e> 0)"
+abbreviation circular_motion_sq_mtx :: "2 sq_mtx" ("C")
+  where "C \<equiv> sq_mtx_chi (\<chi> i. if i=0 then - \<e> 1 else \<e> 0)"
 
-abbreviation circular_motion_mtx_flow :: "real \<Rightarrow> real^2 \<Rightarrow> real^2" 
-  where "circular_motion_mtx_flow t s \<equiv> 
-  (\<chi> i. if i=(0::2) then s$0 * cos t - s$1 * sin t else s$0 * sin t + s$1 * cos t)"
-
-notation circular_motion_sq_mtx ("C")
-     and circular_motion_mtx_flow ("\<phi>\<^sub>C")
+abbreviation circular_motion_mtx_flow :: "real \<Rightarrow> real^2 \<Rightarrow> real^2" ("\<phi>\<^sub>C")
+  where "\<phi>\<^sub>C t s \<equiv> (\<chi> i. if i = 0 then s$0 * cos t - s$1 * sin t else s$0 * sin t + s$1 * cos t)"
 
 lemma circular_motion_mtx_exp_eq: "exp (t *\<^sub>R C) *\<^sub>V s = \<phi>\<^sub>C t s"
   apply(rule local_flow.eq_solution[OF local_flow_exp, symmetric])
-    apply(rule ivp_solsI, rule has_vderiv_on_vec_lambda, clarsimp)
-  unfolding sq_mtx_vec_prod_def matrix_vector_mult_def apply simp
+    apply(rule ivp_solsI, simp add: sq_mtx_vec_prod_def matrix_vector_mult_def)
       apply(force intro!: poly_derivatives simp: matrix_vector_mult_def)
   using exhaust_2 two_eq_zero by (force simp: vec_eq_iff, auto)
 
 lemma circular_motion_sq_mtx:
   "(\<lambda>s. r\<^sup>2 = (s$0)\<^sup>2 + (s$1)\<^sup>2) \<le> fbox (x\<acute>=(*\<^sub>V) C & G) (\<lambda>s. r\<^sup>2 = (s$0)\<^sup>2 + (s$1)\<^sup>2)"
-  unfolding local_flow.fbox_g_orbit[OF local_flow_exp] circular_motion_mtx_exp_eq by auto
+  unfolding local_flow.fbox_g_ode[OF local_flow_exp] circular_motion_mtx_exp_eq by auto
 
 no_notation circular_motion_sq_mtx ("C")
         and circular_motion_mtx_flow ("\<phi>\<^sub>C")
@@ -160,60 +141,40 @@ proof-
   thus ?thesis by auto
 qed
 
-abbreviation "constant_acceleration_kinematics g s \<equiv> (\<chi> i. if i=(\<restriction>\<^sub>V''x'') then s\<downharpoonright>\<^sub>V''y'' else g)"
-
-notation constant_acceleration_kinematics ("K")
-
-lemma energy_conservation_invariant: 
-  fixes g h :: real
-  defines dinv: "I \<equiv> (\<lambda>s. 2 * g * s\<downharpoonright>\<^sub>V''x'' - 2 * g * h - (s\<downharpoonright>\<^sub>V''y'' * s\<downharpoonright>\<^sub>V''y'') = 0)"
-  shows "diff_invariant I (K g) UNIV UNIV 0 G"
-  unfolding dinv apply(rule diff_invariant_rules, simp, simp, clarify)
-  apply(frule_tac i="\<restriction>\<^sub>V''y''" in has_vderiv_on_vec_nth)
-  apply(drule_tac i="\<restriction>\<^sub>V''x''" in has_vderiv_on_vec_nth)
-  by(auto intro!: poly_derivatives simp: to_var_inject)
+abbreviation cnst_acc_vec_field :: "real \<Rightarrow> real^program_vars \<Rightarrow> real^program_vars" ("K")
+  where "K a s \<equiv> (\<chi> i. if i=(\<restriction>\<^sub>V''x'') then s\<downharpoonright>\<^sub>V''y'' else a)"
 
 lemma bouncing_ball_invariants:
-  fixes h::real 
-  assumes "g < 0" and "h \<ge> 0"
-  defines diff_inv: "I \<equiv> (\<lambda>s. 2 * g * s\<downharpoonright>\<^sub>V''x'' - 2 * g * h - (s\<downharpoonright>\<^sub>V''y'' * s\<downharpoonright>\<^sub>V''y'') = 0)"
-  shows "(\<lambda>s. s\<downharpoonright>\<^sub>V''x'' = h \<and> s\<downharpoonright>\<^sub>V''y'' = 0) \<le> fbox 
-  ( ( (x\<acute>=K g & (\<lambda> s. s\<downharpoonright>\<^sub>V''x'' \<ge> 0)) ;
-  (IF (\<lambda>s. s\<downharpoonright>\<^sub>V''x'' = 0) THEN ((\<restriction>\<^sub>V''y'') ::= (\<lambda>s. - s\<downharpoonright>\<^sub>V''y'')) ELSE (\<lambda>s.{s})) )\<^sup>*)
+  shows "g < 0 \<Longrightarrow> h \<ge> 0 \<Longrightarrow> 
+  (\<lambda>s. s\<downharpoonright>\<^sub>V''x'' = h \<and> s\<downharpoonright>\<^sub>V''y'' = 0) \<le> fbox 
+  (LOOP 
+    ((x\<acute>=K g & (\<lambda> s. s\<downharpoonright>\<^sub>V''x'' \<ge> 0) DINV (\<lambda>s. 2 * g * s\<downharpoonright>\<^sub>V''x'' - 2 * g * h - (s\<downharpoonright>\<^sub>V''y'' * s\<downharpoonright>\<^sub>V''y'') = 0)) ;
+    (IF (\<lambda>s. s\<downharpoonright>\<^sub>V''x'' = 0) THEN (\<restriction>\<^sub>V''y'' ::= (\<lambda>s. - s\<downharpoonright>\<^sub>V''y'')) ELSE skip))
+  INV (\<lambda>s.  s\<downharpoonright>\<^sub>V''x'' \<ge> 0 \<and> 2 * g * s\<downharpoonright>\<^sub>V''x'' - 2 * g * h - (s\<downharpoonright>\<^sub>V''y'' * s\<downharpoonright>\<^sub>V''y'') = 0))
   (\<lambda>s. 0 \<le> s\<downharpoonright>\<^sub>V''x'' \<and> s\<downharpoonright>\<^sub>V''x'' \<le> h)"
-  apply(rule fbox_kstarI[of _ "(\<lambda>s. 0 \<le> s\<downharpoonright>\<^sub>V''x'' \<and> I s)"])
-  using \<open>h \<ge> 0\<close> apply(subst diff_inv, clarsimp)
-  using \<open>g < 0\<close> apply(subst diff_inv, clarsimp, force simp: bb_real_arith)
-  apply(simp only: fbox_kcomp)
-  apply(rule_tac b="fbox (x\<acute>=(K g) & (\<lambda> s. s\<downharpoonright>\<^sub>V''x''\<ge>0)) (\<lambda>s. 0\<le>s\<downharpoonright>\<^sub>V''x'' \<and> I s)" in order.trans)
-   apply(simp add: fbox_g_orbital_guard)
-   apply(rule_tac b="I" in order.trans, force)
-  unfolding fbox_diff_inv apply(simp_all add: diff_inv)
-  using energy_conservation_invariant apply force
-  apply(rule fbox_iso) using assms unfolding diff_inv fbox_if_then_else
-  by (force simp: bb_real_arith)
+  apply(rule fbox_loopI, simp_all)
+   apply(force, force simp: bb_real_arith)
+  apply(rule fbox_g_odei, simp_all)
+  by (auto intro!: poly_derivatives diff_invariant_rules simp: to_var_inject)
 
 \<comment> \<open>Verified with the flow. \<close>
 
 lemma picard_lindeloef_cnst_acc:
   fixes g::real
   shows "picard_lindeloef (\<lambda>t. K g) UNIV UNIV 0"
-  apply(unfold_locales)
   apply(unfold_locales, simp_all add: local_lipschitz_def lipschitz_on_def, clarsimp)
   apply(rule_tac x="1/2" in exI, clarsimp, rule_tac x=1 in exI)
   by(simp add: dist_norm norm_vec_def L2_set_def program_vars_univ_eq to_var_inject)
 
-abbreviation "constant_acceleration_kinematics_flow g t s \<equiv> 
-  (\<chi> i. if i=(\<restriction>\<^sub>V ''x'') then g * t ^ 2/2 + s $ (\<restriction>\<^sub>V ''y'') * t + s $ (\<restriction>\<^sub>V ''x'') 
-        else g * t + s $ (\<restriction>\<^sub>V ''y''))"
-
-notation constant_acceleration_kinematics_flow ("\<phi>\<^sub>K")
+abbreviation cnst_acc_flow :: "real \<Rightarrow> real \<Rightarrow> real^program_vars \<Rightarrow> real^program_vars" ("\<phi>\<^sub>K")
+  where "\<phi>\<^sub>K a t s \<equiv> (\<chi> i. if i=(\<restriction>\<^sub>V ''x'') then a * t ^ 2/2 + s $ (\<restriction>\<^sub>V ''y'') * t + s $ (\<restriction>\<^sub>V ''x'') 
+        else a * t + s $ (\<restriction>\<^sub>V ''y''))"
 
 lemma local_flow_cnst_acc: "local_flow (K g) UNIV UNIV (\<phi>\<^sub>K g)"
-  unfolding local_flow_def local_flow_axioms_def apply safe
-  using picard_lindeloef_cnst_acc apply blast
-   apply(rule has_vderiv_on_vec_lambda, clarify)
-   apply(case_tac "i = \<restriction>\<^sub>V ''x''")
+  apply(unfold_locales, simp_all add: local_lipschitz_def lipschitz_on_def, clarsimp)
+  apply(rule_tac x="1/2" in exI, clarsimp, rule_tac x=1 in exI)
+  apply(simp add: dist_norm norm_vec_def L2_set_def program_vars_univ_eq to_var_inject)
+   apply(clarsimp, case_tac "i = \<restriction>\<^sub>V ''x''")
   using program_vars_exhaust by(auto intro!: poly_derivatives simp: to_var_inject vec_eq_iff)
 
 lemma [bb_real_arith]:
@@ -259,36 +220,29 @@ proof-
   ultimately show ?thesis by auto
 qed
 
-lemma bouncing_ball:
-  fixes h::real 
-  assumes "g < 0" and "h \<ge> 0"
-  defines loop_inv: "I \<equiv> (\<lambda>s. 0 \<le> s\<downharpoonright>\<^sub>V''x'' \<and>  2 * g * s\<downharpoonright>\<^sub>V''x'' = 2 * g * h + (s\<downharpoonright>\<^sub>V''y'' * s\<downharpoonright>\<^sub>V''y''))"
-  shows "(\<lambda>s. s\<downharpoonright>\<^sub>V''x'' = h \<and> s\<downharpoonright>\<^sub>V''y'' = 0) \<le> fbox 
-  (((x\<acute>=K g & (\<lambda> s. s\<downharpoonright>\<^sub>V''x'' \<ge> 0)) ;
-  (IF (\<lambda>s. s\<downharpoonright>\<^sub>V''x'' = 0) THEN ((\<restriction>\<^sub>V''y'')::=(\<lambda>s. - s\<downharpoonright>\<^sub>V''y'')) ELSE skip))\<^sup>*)
+lemma bouncing_ball: "g < 0 \<Longrightarrow> h \<ge> 0 \<Longrightarrow> 
+  (\<lambda>s. s\<downharpoonright>\<^sub>V''x'' = h \<and> s\<downharpoonright>\<^sub>V''y'' = 0) \<le> fbox 
+  (LOOP 
+    ((x\<acute>=K g & (\<lambda> s. s\<downharpoonright>\<^sub>V''x'' \<ge> 0)) ;
+    (IF (\<lambda>s. s\<downharpoonright>\<^sub>V''x'' = 0) THEN (\<restriction>\<^sub>V''y'' ::= (\<lambda>s. - s\<downharpoonright>\<^sub>V''y'')) ELSE skip))
+  INV (\<lambda>s.  s\<downharpoonright>\<^sub>V''x'' \<ge> 0 \<and> 2 * g * s\<downharpoonright>\<^sub>V''x'' = 2 * g * h + (s\<downharpoonright>\<^sub>V''y'' * s\<downharpoonright>\<^sub>V''y'')))
   (\<lambda>s. 0 \<le> s\<downharpoonright>\<^sub>V''x'' \<and> s\<downharpoonright>\<^sub>V''x'' \<le> h)"
-  apply(rule fbox_kstarI[of _ I])
-  using \<open>h \<ge> 0\<close> apply(subst loop_inv, clarsimp)
-  using \<open>g < 0\<close> apply(subst loop_inv, clarsimp, force simp: bb_real_arith)
-  apply(simp only: fbox_kcomp)
-  unfolding loop_inv using \<open>h \<ge> 0\<close> apply(clarsimp, simp only: fbox_kcomp)
-   apply(subst local_flow.fbox_g_orbit[OF local_flow_cnst_acc], simp)
-  unfolding fbox_if_then_else fbox_assign using \<open>g < 0\<close>
-  by (auto simp: bb_real_arith to_var_inject) (force simp: field_simps)
+  apply(rule fbox_loopI, simp_all add: local_flow.fbox_g_ode[OF local_flow_cnst_acc])
+    apply(force, force simp: bb_real_arith, clarsimp simp: to_var_inject, safe)
+  subgoal for s t using bb_real_arith(2)[of g "s\<downharpoonright>\<^sub>V''x''" h "s\<downharpoonright>\<^sub>V''y''" t] by (force simp: field_simps)
+  subgoal for s t using bb_real_arith(4)[of g "s\<downharpoonright>\<^sub>V''x''" h "s\<downharpoonright>\<^sub>V''y''" t] by (force simp: field_simps)
+  done
 
-no_notation constant_acceleration_kinematics ("K")
-        and constant_acceleration_kinematics_flow ("\<phi>\<^sub>K")
+no_notation cnst_acc_vec_field ("K")
+        and cnst_acc_flow ("\<phi>\<^sub>K")
         and to_var ("\<restriction>\<^sub>V")
-        and valP (infixl "\<downharpoonright>\<^sub>V" 90)
+        and val_p (infixl "\<downharpoonright>\<^sub>V" 90)
 
 
 \<comment> \<open>Verified as a linear system (computing exponential). \<close>
 
-abbreviation constant_acceleration_kinematics_sq_mtx :: "3 sq_mtx" 
-  where "constant_acceleration_kinematics_sq_mtx \<equiv> 
-    sq_mtx_chi (\<chi> i::3. if i=0 then \<e> 1 else if i=1 then \<e> 2 else 0)"
-
-notation constant_acceleration_kinematics_sq_mtx ("K")
+abbreviation cnst_acc_sq_mtx :: "3 sq_mtx" ("K")
+  where "K \<equiv> sq_mtx_chi (\<chi> i::3. if i=0 then \<e> 1 else if i=1 then \<e> 2 else 0)"
 
 lemma const_acc_mtx_pow2: "K\<^sup>2 = sq_mtx_chi (\<chi> i. if i=0 then \<e> 2 else 0)"
   unfolding power2_eq_square times_sq_mtx_def 
@@ -312,24 +266,21 @@ lemma exp_cnst_acc_sq_mtx_simps:
   by (auto simp: plus_sq_mtx_def scaleR_sq_mtx_def one_sq_mtx_def 
       mat_def scaleR_vec_def axis_def plus_vec_def)
 
-lemma bouncing_ball_K: 
+lemma bouncing_ball_sq_mtx: 
   "(\<lambda>s. 0 \<le> s$0 \<and> s$0 = h \<and> s$1 = 0 \<and> 0 > s$2) \<le> fbox 
-  (((x\<acute>=(*\<^sub>V) K & (\<lambda> s. s$0 \<ge> 0)) ;
-  (IF (\<lambda> s. s$0 = 0) THEN (1 ::= (\<lambda>s. - s$1)) ELSE skip))\<^sup>*)
+  (LOOP ((x\<acute>=(*\<^sub>V) K & (\<lambda> s. s$0 \<ge> 0)) ;
+  (IF (\<lambda> s. s$0 = 0) THEN (1 ::= (\<lambda>s. - s$1)) ELSE skip))
+  INV (\<lambda>s. 0\<le>s$0 \<and> 0>s$2 \<and> 2 * s$2 * s$0 = 2 * s$2 * h + (s$1 * s$1)))
   (\<lambda>s. 0 \<le> s$0 \<and> s$0 \<le> h)"
-  apply(rule fbox_kstarI[of _ "(\<lambda>s. 0\<le>s$0 \<and> 0>s$2 \<and> 2 * s$2 * s$0 = 2 * s$2 * h + (s$1 * s$1))"])
-    apply(clarsimp, clarsimp, force simp: bb_real_arith)
-  apply(simp only: fbox_kcomp)
-   apply(subst local_flow.fbox_g_orbit[OF local_flow_exp])
-  apply(subst fbox_if_then_else, simp add: sq_mtx_vec_prod_eq)
+  apply(rule fbox_loopI[of _ "(\<lambda>s. 0\<le>s$0 \<and> 0>s$2 \<and> 2 * s$2 * s$0 = 2 * s$2 * h + (s$1 * s$1))"])
+    apply(simp_all add: local_flow.fbox_g_ode[OF local_flow_exp] sq_mtx_vec_prod_eq)
+    apply(force, force simp: bb_real_arith)
   unfolding UNIV_3 apply(simp add: exp_cnst_acc_sq_mtx_simps, safe)
-  subgoal for s \<tau> using bb_real_arith(2)[of "s$2" "s$0" h "s$1" \<tau>]
-    by (simp add: field_simps)
-  subgoal for s \<tau> using bb_real_arith(4)[where g="s$2" and v="s$1"]
-    by(simp add: field_simps)
+  subgoal for s \<tau> using bb_real_arith(2)[of "s$2" "s$0" h "s$1" \<tau>] by (simp add: field_simps)
+  subgoal for s \<tau> using bb_real_arith(4)[of "s$2"] by(simp add: field_simps)
   done
 
-no_notation constant_acceleration_kinematics_sq_mtx ("K")
+no_notation cnst_acc_sq_mtx ("K")
 
 
 subsubsection\<open> Thermostat \<close>
@@ -366,25 +317,20 @@ lemma thermostat_vars_sum:
   f (\<restriction>\<^sub>V''t'') + f (\<restriction>\<^sub>V''T'') + f (\<restriction>\<^sub>V''on'')+ f (\<restriction>\<^sub>V''TT'')"
   unfolding thermostat_vars_univ_eq by (simp add: to_var_inject)
 
-abbreviation "valT store var \<equiv> store$\<restriction>\<^sub>Vvar"
-
-notation valT (infixl "\<downharpoonright>\<^sub>V" 90)
+abbreviation val_T :: "real^thermostat_vars \<Rightarrow> string \<Rightarrow> real" (infixl "\<downharpoonright>\<^sub>V" 90) 
+  where "store\<downharpoonright>\<^sub>Vvar \<equiv> store$\<restriction>\<^sub>Vvar"
 
 lemma thermostat_vars_allI: 
   "P (\<restriction>\<^sub>V''t'') \<Longrightarrow> P (\<restriction>\<^sub>V''T'') \<Longrightarrow> P (\<restriction>\<^sub>V''on'') \<Longrightarrow> P (\<restriction>\<^sub>V''TT'') \<Longrightarrow> \<forall>i. P i"
   using thermostat_vars_exhaust by metis
 
-abbreviation "temp_dynamics (a::real) L s \<equiv> (\<chi> i. if i=\<restriction>\<^sub>V''t'' then 1 else 
-  (if i=\<restriction>\<^sub>V''T'' then - a * (s\<downharpoonright>\<^sub>V''T'' - L) else 0))"
+abbreviation temp_vec_field :: "real \<Rightarrow> real \<Rightarrow> real^thermostat_vars \<Rightarrow> real^thermostat_vars" ("f\<^sub>T")
+  where "f\<^sub>T a L s \<equiv> (\<chi> i. if i=\<restriction>\<^sub>V''t'' then 1 else (if i=\<restriction>\<^sub>V''T'' then - a * (s\<downharpoonright>\<^sub>V''T'' - L) else 0))"
 
-notation temp_dynamics ("f\<^sub>T")
-
-abbreviation "temp_flow a L t s \<equiv> 
-  (\<chi> i. if i=\<restriction>\<^sub>V''T'' then - exp(-a * t) * (L - s\<downharpoonright>\<^sub>V''T'') + L else 
+abbreviation temp_flow :: "real \<Rightarrow> real \<Rightarrow> real \<Rightarrow> real^thermostat_vars \<Rightarrow> real^thermostat_vars" ("\<phi>\<^sub>T")
+  where "\<phi>\<^sub>T a L t s \<equiv> (\<chi> i. if i=\<restriction>\<^sub>V''T'' then - exp(-a * t) * (L - s\<downharpoonright>\<^sub>V''T'') + L else 
   (if i=\<restriction>\<^sub>V''t'' then t + s\<downharpoonright>\<^sub>V''t'' else 
   (if i=\<restriction>\<^sub>V''on'' then s\<downharpoonright>\<^sub>V''on'' else s\<downharpoonright>\<^sub>V''TT'')))"
-
-notation temp_flow ("\<phi>\<^sub>T")
 
 lemma norm_diff_temp_dyn: "0 < a \<Longrightarrow> \<parallel>f\<^sub>T a L s\<^sub>1 - f\<^sub>T a L s\<^sub>2\<parallel> = \<bar>a\<bar> * \<bar>s\<^sub>1\<downharpoonright>\<^sub>V''T'' - s\<^sub>2\<downharpoonright>\<^sub>V''T''\<bar>"
 proof(simp add: norm_vec_def L2_set_def thermostat_vars_sum to_var_inject)
@@ -412,10 +358,8 @@ lemma local_lipschitz_temp_dyn:
 lemma local_flow_temp_up: "a > 0 \<Longrightarrow> local_flow (f\<^sub>T a L) UNIV UNIV (\<phi>\<^sub>T a L)"
   apply(unfold_locales, simp_all)
   using local_lipschitz_temp_dyn apply blast
-   apply(rule has_vderiv_on_vec_lambda, rule thermostat_vars_allI, simp_all add: to_var_inject)
+   apply(rule thermostat_vars_allI, simp_all add: to_var_inject)
   using thermostat_vars_exhaust by (auto intro!: poly_derivatives simp: vec_eq_iff to_var_inject)
-
-lemmas wlp_temp_dyn = local_flow.fbox_g_orbit_ivl[OF local_flow_temp_up _ UNIV_I]
 
 lemma temp_dyn_down_real_arith:
   assumes "a > 0" and Thyps: "0 < Tmin" "Tmin \<le> T" "T \<le> Tmax"
@@ -464,25 +408,25 @@ proof-
     using Thyps and obs by auto
 qed
 
+lemmas wlp_temp_dyn = local_flow.fbox_g_ode_ivl[OF local_flow_temp_up _ UNIV_I]
+
 lemma thermostat: 
   assumes "a > 0" and "0 \<le> t" and "0 < Tmin" and "Tmax < L"
   shows "(\<lambda>s. Tmin \<le> s\<downharpoonright>\<^sub>V''T'' \<and> s\<downharpoonright>\<^sub>V''T'' \<le> Tmax \<and> s\<downharpoonright>\<^sub>V''on''=0) \<le> fbox 
-  ((((\<restriction>\<^sub>V''t'')::=(\<lambda>s.0));((\<restriction>\<^sub>V''TT'')::=(\<lambda>s. s\<downharpoonright>\<^sub>V''T''));
+  (LOOP (((\<restriction>\<^sub>V''t'')::=(\<lambda>s.0));((\<restriction>\<^sub>V''TT'')::=(\<lambda>s. s\<downharpoonright>\<^sub>V''T''));
   (IF (\<lambda>s. s\<downharpoonright>\<^sub>V''on''=0 \<and> s\<downharpoonright>\<^sub>V''TT''\<le>Tmin + 1) THEN (\<restriction>\<^sub>V''on'' ::= (\<lambda>s.1)) ELSE 
   (IF (\<lambda>s. s\<downharpoonright>\<^sub>V''on''=1 \<and> s\<downharpoonright>\<^sub>V''TT''\<ge>Tmax - 1) THEN (\<restriction>\<^sub>V''on'' ::= (\<lambda>s.0)) ELSE skip));
   (IF (\<lambda>s. s\<downharpoonright>\<^sub>V''on''=0) THEN (x\<acute>=(f\<^sub>T a 0) & (\<lambda>s. s\<downharpoonright>\<^sub>V''t'' \<le> - (ln (Tmin/s\<downharpoonright>\<^sub>V''TT''))/a) on {0..t} UNIV @ 0) 
-  ELSE (x\<acute>=(f\<^sub>T a L) & (\<lambda>s. s\<downharpoonright>\<^sub>V''t'' \<le> - (ln ((L-Tmax)/(L-s\<downharpoonright>\<^sub>V''TT'')))/a) on {0..t} UNIV @ 0)) )\<^sup>*)
+  ELSE (x\<acute>=(f\<^sub>T a L) & (\<lambda>s. s\<downharpoonright>\<^sub>V''t'' \<le> - (ln ((L-Tmax)/(L-s\<downharpoonright>\<^sub>V''TT'')))/a) on {0..t} UNIV @ 0)) )
+  INV (\<lambda>s. Tmin \<le>s\<downharpoonright>\<^sub>V''T'' \<and> s\<downharpoonright>\<^sub>V''T''\<le>Tmax \<and> (s\<downharpoonright>\<^sub>V''on''=0 \<or> s\<downharpoonright>\<^sub>V''on''=1)))
   (\<lambda>s. Tmin \<le> s$\<restriction>\<^sub>V''T'' \<and> s$\<restriction>\<^sub>V''T'' \<le> Tmax)"
-  apply(rule_tac I="\<lambda>s. Tmin \<le>s\<downharpoonright>\<^sub>V''T'' \<and> s\<downharpoonright>\<^sub>V''T''\<le>Tmax \<and> (s\<downharpoonright>\<^sub>V''on''=0 \<or> s\<downharpoonright>\<^sub>V''on''=1)" in fbox_kstarI)
-    apply(simp add: le_fun_def, simp add: le_fun_def)
-  apply(simp only: fbox_kcomp fbox_if_then_else fbox_assign)
-  apply(simp only: wlp_temp_dyn[OF assms(1,2)], simp add: to_var_inject, clarsimp, safe)
+  apply(rule fbox_loopI, simp_all add: wlp_temp_dyn[OF assms(1,2)] le_fun_def to_var_inject, safe)
   using temp_dyn_up_real_arith[OF assms(1) _ _ assms(4), of Tmin]
     and temp_dyn_down_real_arith[OF assms(1,3), of _ Tmax] by auto
 
 no_notation thermostat_vars.to_var ("\<restriction>\<^sub>V")
-        and valT (infixl "\<downharpoonright>\<^sub>V" 90)
-        and temp_dynamics ("f\<^sub>T")
+        and val_T (infixl "\<downharpoonright>\<^sub>V" 90)
+        and temp_vec_field ("f\<^sub>T")
         and temp_flow ("\<phi>\<^sub>T")
 
 end
