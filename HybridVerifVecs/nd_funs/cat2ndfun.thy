@@ -302,10 +302,12 @@ section\<open> Verification of hybrid programs \<close>
 
 subsection \<open>Verification by providing evolution\<close>
 
-definition g_evol :: "(real \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> 'a pred \<Rightarrow> real set \<Rightarrow> 'a nd_fun" ("EVOL")
+definition g_evol :: "(('a::ord) \<Rightarrow> 'b \<Rightarrow> 'b) \<Rightarrow> 'b pred \<Rightarrow> 'a set \<Rightarrow> 'b nd_fun" ("EVOL")
   where "EVOL \<phi> G T = (\<lambda>s. g_orbit (\<lambda>t. \<phi> t s) G T)\<^sup>\<bullet>"
 
-lemma wp_g_dyn[simp]: "wp (EVOL \<phi> G T) \<lceil>Q\<rceil> = \<lceil>\<lambda>s. \<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (\<phi> \<tau> s)) \<longrightarrow> Q (\<phi> t s)\<rceil>"
+lemma wp_g_dyn[simp]: 
+  fixes \<phi> :: "('a::preorder) \<Rightarrow> 'b \<Rightarrow> 'b"
+  shows "wp (EVOL \<phi> G T) \<lceil>Q\<rceil> = \<lceil>\<lambda>s. \<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (\<phi> \<tau> s)) \<longrightarrow> Q (\<phi> t s)\<rceil>"
   unfolding wp_nd_fun g_evol_def g_orbit_eq by (auto simp: fun_eq_iff)
 
 

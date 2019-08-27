@@ -18,7 +18,6 @@ no_notation Archimedean_Field.ceiling ("\<lceil>_\<rceil>")
 
 notation Id ("skip")
      and if_then_else_sugar ("IF _ THEN _ ELSE _" [64,64,64] 63)
-     and rtrancl ("loop")
 
 section\<open> Verification of regular programs \<close>
 
@@ -52,15 +51,18 @@ text\<open> There is also already an implementation of the conditional operator
 
 text\<open> Finally, we add a Hoare triple rule for a simple finite iteration. \<close>
 
-lemma (in kat) H_star_self: "H (t i) x i \<Longrightarrow> H (t i) (x\<^sup>\<star>) i"
+context kat
+begin
+
+lemma H_star_induct: "H (t i) x i \<Longrightarrow> H (t i) (x\<^sup>\<star>) i"
   unfolding H_def by (simp add: local.star_sim2)
 
-lemma (in kat) H_star: 
+lemma H_stari: 
   assumes "t p \<le> t i" and "H (t i) x i" and "t i \<le> t q"
   shows "H (t p) (x\<^sup>\<star>) q"
 proof-
   have "H (t i) (x\<^sup>\<star>) i"
-    using assms(2) H_star_self by blast
+    using assms(2) H_star_induct by blast
   hence "H (t p) (x\<^sup>\<star>) i"
     apply(simp add: H_def) 
     using assms(1) local.phl_cons1 by blast 
@@ -68,64 +70,91 @@ proof-
     unfolding H_def using assms(3) local.phl_cons2 by blast 
 qed
 
-lemma sH_loop:
-  assumes "\<lceil>P\<rceil> \<subseteq> \<lceil>I\<rceil>" and "\<lceil>I\<rceil> \<subseteq> \<lceil>Q\<rceil>" and "rel_kat.H \<lceil>I\<rceil> R \<lceil>I\<rceil>"
-  shows "rel_kat.H \<lceil>P\<rceil> (loop R) \<lceil>Q\<rceil>"
-  using rel_kat.H_star[of "\<lceil>P\<rceil>" "\<lceil>I\<rceil>" R "\<lceil>Q\<rceil>"] assms by auto
+definition loopi :: "'a \<Rightarrow> 'a \<Rightarrow> 'a" ("loop _ inv _ " [64,64] 63)
+  where "loop x inv i = x\<^sup>\<star>"
+
+lemma sH_loopi: "t p \<le> t i \<Longrightarrow> H (t i) x i \<Longrightarrow> t i \<le> t q \<Longrightarrow> H (t p) (loop x inv i) q"
+  unfolding loopi_def using H_stari by blast
+
+end
+
+abbreviation loopi_sugar :: "'a rel \<Rightarrow> 'a pred \<Rightarrow> 'a rel" ("LOOP _ INV _ " [64,64] 63)
+  where "LOOP R INV I \<equiv> rel_kat.loopi R \<lceil>I\<rceil>"
+
+lemma sH_loopI: "\<lceil>P\<rceil> \<subseteq> \<lceil>I\<rceil> \<Longrightarrow> \<lceil>I\<rceil> \<subseteq> \<lceil>Q\<rceil> \<Longrightarrow> rel_kat.H \<lceil>I\<rceil> R \<lceil>I\<rceil> \<Longrightarrow> rel_kat.H \<lceil>P\<rceil> (LOOP R INV I) \<lceil>Q\<rceil>"
+  using rel_kat.sH_loopi[of "\<lceil>P\<rceil>" "\<lceil>I\<rceil>" R "\<lceil>Q\<rceil>"] by auto
+
 
 section\<open> Verification of hybrid programs \<close>
 
-abbreviation g_evolution ::"(('a::banach)\<Rightarrow>'a) \<Rightarrow> 'a pred \<Rightarrow> real set \<Rightarrow> 'a set \<Rightarrow> 
-  real \<Rightarrow> 'a rel" ("(1x\<acute>=_ & _ on _ _ @ _)") 
-  where "(x\<acute>=f & G on T S @ t\<^sub>0) \<equiv> {(s,s') |s s'. s' \<in> g_orbital f G T S t\<^sub>0 s}"
+subsection \<open>Verification by providing evolution\<close>
+
+definition g_evol :: "(('a::ord) \<Rightarrow> 'b \<Rightarrow> 'b) \<Rightarrow> 'b pred \<Rightarrow> 'a set \<Rightarrow> 'b rel" ("EVOL")
+  where "EVOL \<phi> G T = {(s,s') |s s'. s' \<in> g_orbit (\<lambda>t. \<phi> t s) G T}"
+
+lemma sH_g_dyn[simp]:  
+  fixes \<phi> :: "('a::preorder) \<Rightarrow> 'b \<Rightarrow> 'b"
+  shows "rel_kat.H \<lceil>P\<rceil> (EVOL \<phi> G T) \<lceil>Q\<rceil> = (\<forall>s. P s \<longrightarrow> (\<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (\<phi> \<tau> s)) \<longrightarrow> Q (\<phi> t s)))"
+  unfolding sH_H g_evol_def g_orbit_eq by auto
 
 subsection \<open>Verification by providing solutions\<close>
 
-lemma sH_g_evolution: 
-  assumes "\<forall>s. P s \<longrightarrow> (\<forall>X\<in>ivp_sols (\<lambda>t. f) T S t\<^sub>0 s. \<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (X \<tau>)) \<longrightarrow> Q (X t))"
-  shows "rel_kat.H \<lceil>P\<rceil> (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>Q\<rceil>"
-  using assms unfolding g_orbital_eq(1) sH_H image_le_pred by auto
+definition g_ode :: "(('a::banach)\<Rightarrow>'a) \<Rightarrow> 'a pred \<Rightarrow> real set \<Rightarrow> 'a set \<Rightarrow> real \<Rightarrow> 
+  'a rel" ("(1x\<acute>=_ & _ on _ _ @ _)") 
+  where "(x\<acute>= f & G on T S @ t\<^sub>0) = {(s,s') |s s'. s' \<in> g_orbital f G T S t\<^sub>0 s}"
+
+lemma sH_g_orbital: 
+  "rel_kat.H \<lceil>P\<rceil> (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>Q\<rceil> = 
+  (\<forall>s. P s \<longrightarrow> (\<forall>X\<in>ivp_sols (\<lambda>t. f) T S t\<^sub>0 s. \<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (X \<tau>)) \<longrightarrow> Q (X t)))"
+  unfolding g_orbital_eq g_ode_def image_le_pred sH_H by auto
 
 context local_flow
 begin
 
-lemma sH_g_orbit: 
-  assumes "\<forall>s. s \<in> S \<longrightarrow> P s \<longrightarrow> (\<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (\<phi> \<tau> s)) \<longrightarrow> Q (\<phi> t s))"
-  shows "rel_kat.H \<lceil>P\<rceil> (x\<acute>=f & G on T S @ 0) \<lceil>Q\<rceil>"
-  apply(rule sH_g_evolution) 
-  using assms apply(safe, simp add: ivp_sols_def, clarsimp) 
-  apply(erule_tac x="X 0" in allE, erule impE)
-  using init_time apply force
-  apply(subgoal_tac "\<forall>\<tau>\<in>down T t. X \<tau> = \<phi> \<tau> (X 0)", simp_all, clarsimp)
+lemma sH_g_orbit: "rel_kat.H \<lceil>P\<rceil> (x\<acute>=f & G on T S @ 0) \<lceil>Q\<rceil> = 
+  (\<forall>s \<in> S. P s \<longrightarrow> (\<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (\<phi> \<tau> s)) \<longrightarrow> Q (\<phi> t s)))"
+  unfolding sH_g_orbital apply(clarsimp, safe)
+   apply(erule_tac x=s in allE, simp, erule_tac x="\<lambda>t. \<phi> t s" in ballE)
+  using in_ivp_sols apply(force, force)
+  apply(erule_tac x=s in ballE, simp)
+  apply(subgoal_tac "\<forall>\<tau>\<in>down T t. X \<tau> = \<phi> \<tau> s")
+   apply(simp_all, clarsimp)
   apply(subst eq_solution, simp_all add: ivp_sols_def)
   using init_time by auto
 
 lemma sH_orbit: 
-  assumes "\<forall>s. s \<in> S \<longrightarrow> P s \<longrightarrow> (\<forall> t \<in> T. Q (\<phi> t s))"
-  shows "rel_kat.H \<lceil>P\<rceil> ({(s,s') | s s'. s' \<in> \<gamma>\<^sup>\<phi> s}) \<lceil>Q\<rceil>"
-  unfolding orbit_def apply(rule sH_g_orbit)
-  using assms by auto
+  "rel_kat.H \<lceil>P\<rceil> ({(s,s') | s s'. s' \<in> \<gamma>\<^sup>\<phi> s}) \<lceil>Q\<rceil> = (\<forall>s \<in> S. P s \<longrightarrow> (\<forall> t \<in> T. Q (\<phi> t s)))"
+  using sH_g_orbit unfolding orbit_def g_ode_def by auto
 
 end
 
 
 subsection\<open> Verification with differential invariants \<close>
 
-lemma sH_g_evolution_guard: 
-  assumes "R = (\<lambda>s. G s \<and> Q s)" and "rel_kat.H \<lceil>P\<rceil> (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>Q\<rceil>" 
-  shows "rel_kat.H \<lceil>P\<rceil> (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>R\<rceil>"
-  using assms unfolding g_orbital_eq sH_H ivp_sols_def by auto
+definition g_ode_inv :: "(('a::banach)\<Rightarrow>'a) \<Rightarrow> 'a pred \<Rightarrow> real set \<Rightarrow> 'a set \<Rightarrow> 
+  real \<Rightarrow> 'a pred \<Rightarrow> 'a rel" ("(1x\<acute>=_ & _ on _ _ @ _ DINV _ )") 
+  where "(x\<acute>= f & G on T S @ t\<^sub>0 DINV I) = (x\<acute>= f & G on T S @ t\<^sub>0)"
 
-lemma sH_g_evolution_inv:
+lemma sH_g_orbital_guard: 
+  assumes "R = (\<lambda>s. G s \<and> Q s)"
+  shows "rel_kat.H \<lceil>P\<rceil> (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>Q\<rceil> = rel_kat.H \<lceil>P\<rceil> (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>R\<rceil>" 
+  using assms unfolding g_orbital_eq sH_H ivp_sols_def g_ode_def by auto
+
+lemma sH_g_orbital_inv:
   assumes "\<lceil>P\<rceil> \<le> \<lceil>I\<rceil>" and "rel_kat.H \<lceil>I\<rceil> (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>I\<rceil>" and "\<lceil>I\<rceil> \<le> \<lceil>Q\<rceil>"
   shows "rel_kat.H \<lceil>P\<rceil> (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>Q\<rceil>"
   using assms(1) apply(rule_tac p'="\<lceil>I\<rceil>" in rel_kat.H_cons_1, simp)
   using assms(3) apply(rule_tac q'="\<lceil>I\<rceil>" in rel_kat.H_cons_2, simp)
   using assms(2) by simp
 
-lemma sH_diff_inv: "rel_kat.H \<lceil>I\<rceil> (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>I\<rceil> = diff_invariant I f T S t\<^sub>0 G"
-  unfolding diff_invariant_eq sH_H g_orbital_eq image_le_pred by auto
+lemma sH_diff_inv[simp]: "rel_kat.H \<lceil>I\<rceil> (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>I\<rceil> = diff_invariant I f T S t\<^sub>0 G"
+  unfolding diff_invariant_eq sH_H g_orbital_eq image_le_pred g_ode_def by auto
 
+lemma sH_g_odei: "\<lceil>P\<rceil> \<le> \<lceil>I\<rceil> \<Longrightarrow> rel_kat.H \<lceil>I\<rceil> (x\<acute>= f & G on T S @ t\<^sub>0) \<lceil>I\<rceil> \<Longrightarrow> \<lceil>\<lambda>s. I s \<and> G s\<rceil> \<le> \<lceil>Q\<rceil> \<Longrightarrow> 
+  rel_kat.H \<lceil>P\<rceil> (x\<acute>= f & G on T S @ t\<^sub>0 DINV I) \<lceil>Q\<rceil>"
+  unfolding g_ode_inv_def apply(rule_tac q'="\<lceil>\<lambda>s. I s \<and> G s\<rceil>" in rel_kat.H_cons_2, simp)
+  apply(subst sH_g_orbital_guard[symmetric], force)
+  by (rule_tac I="I" in sH_g_orbital_inv, simp_all)
 
 subsection\<open> Derivation of the rules of dL \<close>
 
@@ -150,28 +179,31 @@ lemma diff_solve_rule:
 lemma diff_weak_rule: 
   assumes "\<lceil>G\<rceil> \<le> \<lceil>Q\<rceil>"
   shows "rel_kat.H \<lceil>P\<rceil> (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>Q\<rceil>"
-  using assms unfolding g_orbital_eq sH_H ivp_sols_def by auto
+  using assms unfolding g_orbital_eq sH_H ivp_sols_def g_ode_def by auto
 
 lemma diff_cut_rule:
   assumes Thyp: "is_interval T" "t\<^sub>0 \<in> T"
     and wp_C:"rel_kat.H \<lceil>P\<rceil> (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>C\<rceil>"
     and wp_Q:"rel_kat.H \<lceil>P\<rceil> (x\<acute>=f & (\<lambda> s. G s \<and> C s) on T S @ t\<^sub>0) \<lceil>Q\<rceil>"
   shows "rel_kat.H \<lceil>P\<rceil> (x\<acute>=f & G on T S @ t\<^sub>0) \<lceil>Q\<rceil>"
-proof(subst sH_H, simp add: g_orbital_eq p2r_def image_le_pred, clarsimp)
+proof(subst sH_H, simp add: g_orbital_eq p2r_def image_le_pred g_ode_def, clarsimp)
   fix t::real and X::"real \<Rightarrow> 'a" and s assume "P s" and "t \<in> T"
     and x_ivp:"X \<in> ivp_sols (\<lambda>t. f) T S t\<^sub>0 s" 
     and guard_x:"\<forall>x. x \<in> T \<and> x \<le> t \<longrightarrow> G (X x)"
   have "\<forall>t\<in>(down T t). X t \<in> g_orbital f G T S t\<^sub>0 s"
     using g_orbitalI[OF x_ivp] guard_x unfolding image_le_pred by auto
   hence "\<forall>t\<in>(down T t). C (X t)" 
-    using wp_C \<open>P s\<close> by (subst (asm) sH_H, auto)
+    using wp_C \<open>P s\<close> by (subst (asm) sH_H, auto simp: g_ode_def)
   hence "X t \<in> g_orbital f (\<lambda>s. G s \<and> C s) T S t\<^sub>0 s"
     using guard_x \<open>t \<in> T\<close> by (auto intro!: g_orbitalI x_ivp)
   thus "Q (X t)"
-    using \<open>P s\<close> wp_Q by (subst (asm) sH_H) auto
+    using \<open>P s\<close> wp_Q by (subst (asm) sH_H) (auto simp: g_ode_def)
 qed
 
-abbreviation g_evol ::"(('a::banach)\<Rightarrow>'a) \<Rightarrow> 'a pred \<Rightarrow> 'a rel" ("(1x\<acute>=_ & _)") 
-  where "(x\<acute>=f & G) \<equiv> (x\<acute>=f & G on UNIV UNIV @ 0)"
+abbreviation g_global_ode ::"(('a::banach)\<Rightarrow>'a) \<Rightarrow> 'a pred \<Rightarrow> 'a rel" ("(1x\<acute>=_ & _)") 
+  where "(x\<acute>= f & G) \<equiv> (x\<acute>= f & G on UNIV UNIV @ 0)"
+
+abbreviation g_global_ode_inv :: "(('a::banach)\<Rightarrow>'a) \<Rightarrow> 'a pred \<Rightarrow> 'a pred \<Rightarrow> 'a rel" 
+  ("(1x\<acute>=_ & _ DINV _)") where "(x\<acute>= f & G DINV I) \<equiv> (x\<acute>= f & G on UNIV UNIV @ 0 DINV I)"
 
 end

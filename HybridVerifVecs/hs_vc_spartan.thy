@@ -38,10 +38,10 @@ lemma fbox_eta[simp]: "fbox skip P = P"
 
 text \<open>Next, we introduce assignments and their wlps.\<close>
 
-definition vec_upd :: "('a^'n) \<Rightarrow> 'n \<Rightarrow> 'a \<Rightarrow> 'a^'n"
+definition vec_upd :: "'a^'n \<Rightarrow> 'n \<Rightarrow> 'a \<Rightarrow> 'a^'n"
   where "vec_upd s i a = (\<chi> j. ((($) s)(i := a)) j)"
 
-definition assign :: "'n \<Rightarrow> ('a^'n \<Rightarrow> 'a) \<Rightarrow> ('a^'n) \<Rightarrow> ('a^'n) set" ("(2_ ::= _)" [70, 65] 61) 
+definition assign :: "'n \<Rightarrow> ('a^'n \<Rightarrow> 'a) \<Rightarrow> 'a^'n \<Rightarrow> ('a^'n) set" ("(2_ ::= _)" [70, 65] 61) 
   where "(x ::= e) = (\<lambda>s. {vec_upd s x (e s)})" 
 
 lemma fbox_assign[simp]: "|x ::= e] Q = (\<lambda>s. Q (\<chi> j. ((($) s)(x := (e s))) j))"
@@ -144,10 +144,12 @@ section \<open>Verification of hybrid programs\<close>
 
 subsection \<open>Verification by providing evolution\<close>
 
-definition g_evol :: "(real \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> 'a pred \<Rightarrow> real set \<Rightarrow> ('a \<Rightarrow> 'a set)" ("EVOL")
+definition g_evol :: "(('a::ord) \<Rightarrow> 'b \<Rightarrow> 'b) \<Rightarrow> 'b pred \<Rightarrow> 'a set \<Rightarrow> ('b \<Rightarrow> 'b set)" ("EVOL")
   where "EVOL \<phi> G T = (\<lambda>s. g_orbit (\<lambda>t. \<phi> t s) G T)"
 
-lemma fbox_g_evol[simp]: "|EVOL \<phi> G T] Q = (\<lambda>s. (\<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (\<phi> \<tau> s)) \<longrightarrow> Q (\<phi> t s)))"
+lemma fbox_g_evol[simp]: 
+  fixes \<phi> :: "('a::preorder) \<Rightarrow> 'b \<Rightarrow> 'b"
+  shows "|EVOL \<phi> G T] Q = (\<lambda>s. (\<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (\<phi> \<tau> s)) \<longrightarrow> Q (\<phi> t s)))"
   unfolding g_evol_def g_orbit_eq fbox_def by auto
 
 

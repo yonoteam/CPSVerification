@@ -174,49 +174,13 @@ proof -
       assms f' by (auto simp: has_vector_derivative_def o_def)
 qed
 
-named_theorems poly_derivatives "compilation of derivatives for kinematics and polynomials."
+named_theorems poly_derivatives "compilation of optimised miscellaneous derivative rules."
 
 declare has_vderiv_on_const [poly_derivatives]
     and has_vderiv_on_id [poly_derivatives]
     and derivative_intros(191) [poly_derivatives]
     and derivative_intros(192) [poly_derivatives]
     and derivative_intros(194) [poly_derivatives]
-
-lemma has_vector_derivative_mult_const [derivative_intros]: 
-  "((*) a has_vector_derivative a) F"
-  by (auto intro: derivative_eq_intros)
-
-lemma has_derivative_mult_const [derivative_intros]: "D (*) a \<mapsto> (\<lambda>x. x *\<^sub>R a) F"
-  using has_vector_derivative_mult_const unfolding has_vector_derivative_def by simp
-
-lemma has_vderiv_on_mult_const [derivative_intros]: "D (*) a = (\<lambda>x. a) on T"
-  using has_vector_derivative_mult_const unfolding has_vderiv_on_def by auto
-
-lemma has_vderiv_on_power2 [derivative_intros]: "D power2 = (*) 2 on T" 
-  unfolding has_vderiv_on_def has_vector_derivative_def apply clarify
-  by(rule_tac f'1="\<lambda> t. t" in derivative_eq_intros(15)) auto
-
-lemma has_vderiv_on_power [derivative_intros]: "n \<ge> 1 \<Longrightarrow> D (\<lambda>x. c * x^n) = (\<lambda>x. c * n * x^(n-1)) on T"
-  unfolding has_vderiv_on_def has_vector_derivative_def apply (clarify,induct n, simp)
-  apply(rule_tac f'1="\<lambda>t. 0" in derivative_eq_intros(12), simp)
-  by (rule_tac f'1="\<lambda> t. t" in derivative_eq_intros(15)) auto
-
-lemma has_vderiv_on_divide_cnst [derivative_intros]: "a \<noteq> 0 \<Longrightarrow> D (\<lambda>t. t/a) = (\<lambda>t. 1/a) on T"
-  unfolding has_vderiv_on_def has_vector_derivative_def apply clarify
-  apply(rule_tac f'1="\<lambda>t. t" and g'1="\<lambda> x. 0" in derivative_eq_intros(18))
-  by(auto intro: derivative_eq_intros)
-
-lemma [poly_derivatives]: "g = (*) 2 \<Longrightarrow> D power2 = g on T"
-  using has_vderiv_on_power2 by auto
-
-lemma [poly_derivatives]: "n \<ge> 1 \<Longrightarrow> g = (\<lambda>x. c * n * x^(n-1)) \<Longrightarrow> D (\<lambda>x. c * x^n) = g on T"
-  using has_vderiv_on_power by auto
-
-lemma [poly_derivatives]: "D f = f' on T \<Longrightarrow> g = (\<lambda>t. - f' t) \<Longrightarrow> D (\<lambda>t. - f t) = g on T"
-  using has_vderiv_on_uminus by auto
-
-lemma [poly_derivatives]: "a \<noteq> 0 \<Longrightarrow> g = (\<lambda>t. 1/a) \<Longrightarrow> D (\<lambda>t. t/a) = g on T"
-  using has_vderiv_on_divide_cnst by auto
 
 lemma has_vderiv_on_compose_eq: 
   assumes "D f = f' on g ` T" 
@@ -232,71 +196,96 @@ lemma vderiv_on_compose_add [derivative_intros]:
   apply(rule has_vderiv_on_compose_eq[OF assms])
   by(auto intro: derivative_intros)
 
-lemma [poly_derivatives]:
-  assumes "(a::real) \<noteq> 0" and "D f = f' on T" and "g = (\<lambda>t. (f' t)/a)"
-  shows "D (\<lambda>t. (f t)/a) = g on T"
-  apply(rule has_vderiv_on_compose_eq[of "\<lambda>t. t/a" "\<lambda>t. 1/a"])
-  using assms by(auto intro: poly_derivatives)
+lemma has_vector_derivative_mult_const [derivative_intros]: 
+  "((*) a has_vector_derivative a) F"
+  by (auto intro: derivative_eq_intros)
 
-lemma [poly_derivatives]:
-  fixes f::"real \<Rightarrow> real"
-  assumes "D f = f' on T" and "g = (\<lambda>t. 2 *\<^sub>R (f t) * (f' t))"
-  shows "D (\<lambda>t. (f t)^2) = g on T"
-  apply(rule has_vderiv_on_compose_eq[of "\<lambda>t. t^2"])
-  using assms by(auto intro!: poly_derivatives)
+lemma has_derivative_mult_const [derivative_intros]: "D (*) a \<mapsto> (\<lambda>x. x *\<^sub>R a) F"
+  using has_vector_derivative_mult_const unfolding has_vector_derivative_def by simp
 
-lemma has_vderiv_on_cos: "D f = f' on T \<Longrightarrow> D (\<lambda>t. cos (f t)) = (\<lambda>t. - sin (f t) *\<^sub>R (f' t)) on T"
+lemma has_vderiv_on_mult_const: "D (*) a = (\<lambda>x. a) on T"
+  using has_vector_derivative_mult_const unfolding has_vderiv_on_def by auto
+
+lemma has_vderiv_on_divide_cnst: "a \<noteq> 0 \<Longrightarrow> D (\<lambda>t. t/a) = (\<lambda>t. 1/a) on T"
+  unfolding has_vderiv_on_def has_vector_derivative_def apply clarify
+  apply(rule_tac f'1="\<lambda>t. t" and g'1="\<lambda> x. 0" in derivative_eq_intros(18))
+  by(auto intro: derivative_eq_intros)
+
+lemma has_vderiv_on_power: "n \<ge> 1 \<Longrightarrow> D (\<lambda>t. t ^ n) = (\<lambda>t. n * (t ^ (n - 1))) on T" 
+  unfolding has_vderiv_on_def has_vector_derivative_def apply clarify
+  by(rule_tac f'1="\<lambda> t. t" in derivative_eq_intros(15)) auto
+
+lemma has_vderiv_on_exp: "D (\<lambda>t. exp t) = (\<lambda>t. exp t) on T"
+  unfolding has_vderiv_on_def has_vector_derivative_def by (auto intro: derivative_intros)
+
+lemma has_vderiv_on_cos_comp: 
+  "D (f::real \<Rightarrow> real) = f' on T \<Longrightarrow> D (\<lambda>t. cos (f t)) = (\<lambda>t. - (f' t) * sin (f t)) on T"
   apply(rule has_vderiv_on_compose_eq[of "\<lambda>t. cos t"])
   unfolding has_vderiv_on_def has_vector_derivative_def apply clarify
   by(auto intro!: derivative_eq_intros simp: fun_eq_iff)
 
-lemma has_vderiv_on_sin: "D f = f' on T \<Longrightarrow> D (\<lambda>t. sin (f t)) = (\<lambda>t. cos (f t) *\<^sub>R (f' t)) on T"
+lemma has_vderiv_on_sin_comp: 
+  "D (f::real \<Rightarrow> real) = f' on T \<Longrightarrow> D (\<lambda>t. sin (f t)) = (\<lambda>t. (f' t) * cos (f t)) on T"
   apply(rule has_vderiv_on_compose_eq[of "\<lambda>t. sin t"])
   unfolding has_vderiv_on_def has_vector_derivative_def apply clarify
   by(auto intro!: derivative_eq_intros simp: fun_eq_iff)
 
-lemma exp_vderiv: "D (\<lambda>t. exp t) = (\<lambda>t. exp t) on T"
-  unfolding has_vderiv_on_def has_vector_derivative_def by (auto intro: derivative_intros)
-
-lemma has_vderiv_on_exp: "D f = f' on T \<Longrightarrow> D (\<lambda>t. exp (f t)) = (\<lambda>t. exp (f t) *\<^sub>R (f' t)) on T"
+lemma has_vderiv_on_exp_comp: 
+  "D (f::real \<Rightarrow> real) = f' on T \<Longrightarrow> D (\<lambda>t. exp (f t)) = (\<lambda>t. (f' t) * exp (f t)) on T"
   apply(rule has_vderiv_on_compose_eq[of "\<lambda>t. exp t"])
-  by (rule exp_vderiv, simp_all add: mult.commute)
+  by (rule has_vderiv_on_exp, simp_all add: mult.commute)
+
+lemma [poly_derivatives]: "D f = f' on T \<Longrightarrow> g = (\<lambda>t. - f' t) \<Longrightarrow> D (\<lambda>t. - f t) = g on T"
+  using has_vderiv_on_uminus by auto
 
 lemma [poly_derivatives]:
-  assumes "D f = f' on T" and "g = (\<lambda>t. - sin (f t) *\<^sub>R (f' t))"
+  assumes "(a::real) \<noteq> 0" and "D f = f' on T" and "g = (\<lambda>t. (f' t)/a)"
+  shows "D (\<lambda>t. (f t)/a) = g on T"
+  apply(rule has_vderiv_on_compose_eq[of "\<lambda>t. t/a" "\<lambda>t. 1/a"])
+  using assms by(auto intro: has_vderiv_on_divide_cnst)
+
+lemma [poly_derivatives]:
+  fixes f::"real \<Rightarrow> real"
+  assumes "n \<ge> 1" and "D f = f' on T" and "g = (\<lambda>t. n * (f' t) * (f t)^(n-1))"
+  shows "D (\<lambda>t. (f t)^n) = g on T"
+  apply(rule has_vderiv_on_compose_eq[of "\<lambda>t. t^n"])
+  using assms(1) apply(rule has_vderiv_on_power)
+  using assms by auto
+
+lemma [poly_derivatives]:
+  assumes "D (f::real \<Rightarrow> real) = f' on T" and "g = (\<lambda>t. - (f' t) * sin (f t))"
   shows "D (\<lambda>t. cos (f t)) = g on T"
-  using assms and has_vderiv_on_cos by auto
+  using assms and has_vderiv_on_cos_comp by auto
 
 lemma [poly_derivatives]:
-  assumes "D f = f' on T" and "g = (\<lambda>t. cos (f t) *\<^sub>R (f' t))"
+  assumes "D (f::real \<Rightarrow> real) = f' on T" and "g = (\<lambda>t. (f' t) * cos (f t))"
   shows "D (\<lambda>t. sin (f t)) = g on T"
-  using assms and has_vderiv_on_sin by auto
+  using assms and has_vderiv_on_sin_comp by auto
 
 lemma [poly_derivatives]:
-  assumes "D f = f' on T" and "g = (\<lambda>t. exp (f t) *\<^sub>R (f' t))"
+  assumes "D (f::real \<Rightarrow> real) = f' on T" and "g = (\<lambda>t. (f' t) * exp (f t))"
   shows "D (\<lambda>t. exp (f t)) = g on T"
-  using assms and has_vderiv_on_exp by auto
-
-lemma "D (\<lambda>t. a * t\<^sup>2 / 2) = (*) a on T"
-  by(auto intro!: poly_derivatives)
+  using assms and has_vderiv_on_exp_comp by auto
 
 lemma "D (\<lambda>t. a * t\<^sup>2 / 2 + v * t + x) = (\<lambda>t. a * t + v) on T"
-  by(auto intro!: poly_derivatives)
-
-lemma "D (\<lambda>r. a * r + v) = (\<lambda>t. a) on T"
   by(auto intro!: poly_derivatives)
 
 lemma "D (\<lambda>t. v * t - a * t\<^sup>2 / 2 + x) = (\<lambda>x. v - a * x) on T"
   by(auto intro!: poly_derivatives)
 
-lemma "D (\<lambda>t. v - a * t) = (\<lambda>x. - a) on T"
+lemma "c \<noteq> 0 \<Longrightarrow> D (\<lambda>t. a5 * t^5 + a3 * (t^3 / c) - a2 * exp (t^2) + a1 * cos t + a0) = 
+  (\<lambda>t. 5 * a5 * t^4 + 3 * a3 * (t^2 / c) - 2 * a2 * t * exp (t^2) - a1 * sin t) on T"
   by(auto intro!: poly_derivatives)
 
-lemma "c \<noteq> 0 \<Longrightarrow> D (\<lambda>t. a5 * t^5 + a3 * (t^3 / c) - a2 * exp (t^2) + a1 * cos t + a0) = x on T"
-  apply (intro poly_derivatives)
-  oops
-term "(\<lambda>t. 5 * a5 * t^4 + 3 * a3 * (t^2 / c) - a2 * (2 * t) * exp (t^2) - a1 * sin t)"
+lemma "c \<noteq> 0 \<Longrightarrow> D (\<lambda>t. - a3 * exp (t^3 / c) + a1 * sin t + a2 * t^2) = 
+  (\<lambda>t. a1 * cos t + 2 * a2 * t - 3 * a3 * t^2 / c * exp (t^3 / c)) on T"
+  apply(intro poly_derivatives)
+  using poly_derivatives(1,2) by force+
 
+lemma "c \<noteq> 0 \<Longrightarrow> D (\<lambda>t. exp (a * sin (cos (t^4) / c))) = 
+(\<lambda>t. - 4 * a * t^3 * sin (t^4) / c * cos (cos (t^4) / c) * exp (a * sin (cos (t^4) / c))) on T"
+  apply(intro poly_derivatives)
+  using poly_derivatives(1,2) by force+
 
 subsection\<open> Filters \<close>
 

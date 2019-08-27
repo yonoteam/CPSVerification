@@ -123,10 +123,12 @@ section \<open>Verification of hybrid programs\<close>
 
 subsection \<open>Verification by providing evolution\<close>
 
-definition g_evol :: "(real \<Rightarrow> 'a \<Rightarrow> 'a) \<Rightarrow> 'a pred \<Rightarrow> real set \<Rightarrow> ('a \<Rightarrow> 'a set)" ("EVOL")
+definition g_evol :: "(('a::ord) \<Rightarrow> 'b \<Rightarrow> 'b) \<Rightarrow> 'b pred \<Rightarrow> 'a set \<Rightarrow> ('b \<Rightarrow> 'b set)" ("EVOL")
   where "EVOL \<phi> G T = (\<lambda>s. g_orbit (\<lambda>t. \<phi> t s) G T)"
 
-lemma fbox_g_evol[simp]: "fb\<^sub>\<F> (EVOL \<phi> G T) Q = {s. (\<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (\<phi> \<tau> s)) \<longrightarrow> (\<phi> t s) \<in> Q)}"
+lemma fbox_g_evol[simp]: 
+  fixes \<phi> :: "('a::preorder) \<Rightarrow> 'b \<Rightarrow> 'b"
+  shows "fb\<^sub>\<F> (EVOL \<phi> G T) Q = {s. (\<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (\<phi> \<tau> s)) \<longrightarrow> (\<phi> t s) \<in> Q)}"
   unfolding g_evol_def g_orbit_eq ffb_eq by auto
 
 

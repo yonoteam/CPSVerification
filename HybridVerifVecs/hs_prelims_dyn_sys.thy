@@ -14,9 +14,9 @@ notation image ("\<P>")
 lemma image_le_pred: "(\<P> f A \<subseteq> {s. G s}) = (\<forall>x\<in>A. G (f x))"
   unfolding image_def by force
 
-definition "ivp_sols f T S t\<^sub>0 s = {X |X. (D X = (\<lambda>t. f t (X t)) on T) \<and> X t\<^sub>0 = s \<and> X \<in> T \<rightarrow> S}"
-
-notation ivp_sols ("Sols")
+definition ivp_sols :: "(real \<Rightarrow> 'a \<Rightarrow> ('a::real_normed_vector)) \<Rightarrow> real set \<Rightarrow> 'a set \<Rightarrow> 
+  real \<Rightarrow> 'a \<Rightarrow> (real \<Rightarrow> 'a) set" ("Sols")
+  where "Sols f T S t\<^sub>0 s = {X |X. (D X = (\<lambda>t. f t (X t)) on T) \<and> X t\<^sub>0 = s \<and> X \<in> T \<rightarrow> S}"
 
 lemma ivp_solsI: 
   assumes "D X = (\<lambda>t. f t (X t)) on T" "X t\<^sub>0 = s" "X \<in> T \<rightarrow> S"
@@ -31,13 +31,16 @@ lemma ivp_solsD:
 
 abbreviation "down T t \<equiv> {\<tau>\<in>T. \<tau>\<le> t}"
 
-definition g_orbit :: "(real \<Rightarrow> 'a) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> real set \<Rightarrow> 'a set" ("\<gamma>")
+definition g_orbit :: "(('a::ord) \<Rightarrow> 'b) \<Rightarrow> ('b \<Rightarrow> bool) \<Rightarrow> 'a set \<Rightarrow> 'b set" ("\<gamma>")
   where "\<gamma> X G T = \<Union>{\<P> X (down T t) |t. \<P> X (down T t) \<subseteq> {s. G s}}"
 
-lemma g_orbit_eq: "\<gamma> X G T = {X t |t. t \<in> T \<and> (\<forall>\<tau>\<in>down T t. G (X \<tau>))}"
-  unfolding g_orbit_def by safe (auto simp: subset_eq)
+lemma g_orbit_eq: 
+  fixes X::"('a::preorder) \<Rightarrow> 'b"
+  shows "\<gamma> X G T = {X t |t. t \<in> T \<and> (\<forall>\<tau>\<in>down T t. G (X \<tau>))}"
+  unfolding g_orbit_def apply safe
+  using le_left_mono by blast auto
 
-lemma "\<gamma> X (\<lambda>s. True) T = {X t |t. t \<in> T}"
+lemma "\<gamma> X (\<lambda>s. True) T = {X t |t. t \<in> T}" for X::"('a::preorder) \<Rightarrow> 'b"
   unfolding g_orbit_eq by simp
 
 definition g_orbital :: "('a \<Rightarrow> 'a) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> real set \<Rightarrow> 'a set \<Rightarrow> real \<Rightarrow> 
@@ -289,6 +292,11 @@ lemma picard_lindeloef_add: "picard_lindeloef f1 T S t\<^sub>0 \<Longrightarrow>
   using continuous_on_add apply fastforce
   using local_lipschitz_add by blast
 
+lemma picard_lindeloef_constant: "picard_lindeloef (\<lambda>t s. c) UNIV UNIV t\<^sub>0"
+  apply(unfold_locales, simp_all add: local_lipschitz_def lipschitz_on_def, clarsimp)
+  by (rule_tac x=1 in exI, clarsimp, rule_tac x="1/2" in exI, simp)
+
+
 subsection\<open> Flows for ODEs \<close>
 
 text\<open> A locale designed for verification of hybrid systems. The user can select both, the interval
@@ -298,9 +306,10 @@ of existence of her choice, and the computation rule of the flow via the variabl
 locale local_flow = picard_lindeloef "(\<lambda> t. f)" T S 0 
   for f::"'a::{heine_borel,banach} \<Rightarrow> 'a" and T S L +
   fixes \<phi> :: "real \<Rightarrow> 'a \<Rightarrow> 'a"
-  assumes ivp:"\<And> t s. t \<in> T \<Longrightarrow> s \<in> S \<Longrightarrow> D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on {0--t}"
-              "\<And> s. s \<in> S \<Longrightarrow> \<phi> 0 s = s"
-              "\<And> t s. t \<in> T \<Longrightarrow> s \<in> S \<Longrightarrow> (\<lambda>t. \<phi> t s) \<in> {0--t} \<rightarrow> S"
+  assumes ivp:
+    "\<And> t s. t \<in> T \<Longrightarrow> s \<in> S \<Longrightarrow> D (\<lambda>t. \<phi> t s) = (\<lambda>t. f (\<phi> t s)) on {0--t}"
+    "\<And> s. s \<in> S \<Longrightarrow> \<phi> 0 s = s"
+    "\<And> t s. t \<in> T \<Longrightarrow> s \<in> S \<Longrightarrow> (\<lambda>t. \<phi> t s) \<in> {0--t} \<rightarrow> S"
 begin
 
 lemma in_ivp_sols_ivl: 
@@ -545,10 +554,6 @@ next
 qed
 
 end
-
-lemma picard_lindeloef_constant: "picard_lindeloef (\<lambda>t s. c) UNIV UNIV t\<^sub>0"
-  apply(unfold_locales, simp_all add: local_lipschitz_def lipschitz_on_def, clarsimp)
-  by (rule_tac x=1 in exI, clarsimp, rule_tac x="1/2" in exI, simp)
 
 lemma line_is_local_flow: 
   "0 \<in> T \<Longrightarrow> is_interval T \<Longrightarrow> open T \<Longrightarrow> local_flow (\<lambda> s. c) T UNIV (\<lambda> t s. s + t *\<^sub>R c)"

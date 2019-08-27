@@ -153,9 +153,8 @@ lemma bouncing_ball_invariants:
   INV (\<lambda>s.  s\<downharpoonright>\<^sub>V''x'' \<ge> 0 \<and> 2 * g * s\<downharpoonright>\<^sub>V''x'' - 2 * g * h - (s\<downharpoonright>\<^sub>V''y'' * s\<downharpoonright>\<^sub>V''y'') = 0))
   (\<lambda>s. 0 \<le> s\<downharpoonright>\<^sub>V''x'' \<and> s\<downharpoonright>\<^sub>V''x'' \<le> h)"
   apply(rule fbox_loopI, simp_all)
-   apply(force, force simp: bb_real_arith)
-  apply(rule fbox_g_odei, simp_all)
-  by (auto intro!: poly_derivatives diff_invariant_rules simp: to_var_inject)
+    apply(force, force simp: bb_real_arith)
+  by (rule fbox_g_odei) (auto intro!: poly_derivatives diff_invariant_rules simp: to_var_inject)
 
 \<comment> \<open>Verified with the flow. \<close>
 
@@ -180,11 +179,10 @@ lemma local_flow_cnst_acc: "local_flow (K g) UNIV UNIV (\<phi>\<^sub>K g)"
 lemma [bb_real_arith]:
   assumes invar: "2 * g * x = 2 * g * h + v * v"
     and pos: "g * \<tau>\<^sup>2 / 2 + v * \<tau> + (x::real) = 0"
-  shows "2 * g * h + (g * \<tau> * (g * \<tau> + v) + v * (g * \<tau> + v)) = 0"
-    and "2 * g * h + (- (g * \<tau>) - v) * (- (g * \<tau>) - v) = 0"
+  shows "2 * g * h + (g * \<tau> + v) * (g * \<tau> + v) = 0"
 proof-
   from pos have "g * \<tau>\<^sup>2  + 2 * v * \<tau> + 2 * x = 0" by auto
-  then have "g\<^sup>2  * \<tau>\<^sup>2  + 2 * g * v * \<tau> + 2 * g * x = 0"
+  then have "g\<^sup>2 * \<tau>\<^sup>2  + 2 * g * v * \<tau> + 2 * g * x = 0"
     by (metis (mono_tags, hide_lams) Groups.mult_ac(1,3) mult_zero_right
         monoid_mult_class.power2_eq_square semiring_class.distrib_left)
   hence "g\<^sup>2 * \<tau>\<^sup>2 + 2 * g * v * \<tau> + v\<^sup>2 + 2 * g * h = 0"
@@ -192,18 +190,14 @@ proof-
   hence obs: "(g * \<tau> + v)\<^sup>2 + 2 * g * h = 0"
     apply(subst power2_sum) by (metis (no_types, hide_lams) Groups.add_ac(2, 3) 
         Groups.mult_ac(2, 3) monoid_mult_class.power2_eq_square nat_distrib(2))
-  thus "2 * g * h + (g * \<tau> * (g * \<tau> + v) + v * (g * \<tau> + v)) = 0"
+  thus "2 * g * h + (g * \<tau> + v) * (g * \<tau> + v) = 0"
     by (simp add: add.commute distrib_right power2_eq_square)
-  have  "2 * g * h + (- ((g * \<tau>) + v))\<^sup>2 = 0"
-    using obs by (metis Groups.add_ac(2) power2_minus)
-  thus "2 * g * h + (- (g * \<tau>) - v) * (- (g * \<tau>) - v) = 0"
-    by (simp add: distrib_right power2_eq_square)
 qed
 
 lemma [bb_real_arith]:
   assumes invar: "2 * g * x = 2 * g * h + v * v"
   shows "2 * g * (g * \<tau>\<^sup>2 / 2 + v * \<tau> + (x::real)) = 
-  2 * g * h + (g * \<tau> * (g * \<tau> + v) + v * (g * \<tau> + v))" (is "?lhs = ?rhs")
+  2 * g * h + (g * \<tau> + v) * (g * \<tau> + v)" (is "?lhs = ?rhs")
 proof-
   have "?lhs = g\<^sup>2 * \<tau>\<^sup>2 + 2 * g * v * \<tau> + 2 * g * x" 
       apply(subst Rat.sign_simps(18))+ 
@@ -228,10 +222,7 @@ lemma bouncing_ball: "g < 0 \<Longrightarrow> h \<ge> 0 \<Longrightarrow>
   INV (\<lambda>s.  s\<downharpoonright>\<^sub>V''x'' \<ge> 0 \<and> 2 * g * s\<downharpoonright>\<^sub>V''x'' = 2 * g * h + (s\<downharpoonright>\<^sub>V''y'' * s\<downharpoonright>\<^sub>V''y'')))
   (\<lambda>s. 0 \<le> s\<downharpoonright>\<^sub>V''x'' \<and> s\<downharpoonright>\<^sub>V''x'' \<le> h)"
   apply(rule fbox_loopI, simp_all add: local_flow.fbox_g_ode[OF local_flow_cnst_acc])
-    apply(force, force simp: bb_real_arith, clarsimp simp: to_var_inject, safe)
-  subgoal for s t using bb_real_arith(2)[of g "s\<downharpoonright>\<^sub>V''x''" h "s\<downharpoonright>\<^sub>V''y''" t] by (force simp: field_simps)
-  subgoal for s t using bb_real_arith(4)[of g "s\<downharpoonright>\<^sub>V''x''" h "s\<downharpoonright>\<^sub>V''y''" t] by (force simp: field_simps)
-  done
+  by (auto simp: bb_real_arith to_var_inject)
 
 no_notation cnst_acc_vec_field ("K")
         and cnst_acc_flow ("\<phi>\<^sub>K")
@@ -276,8 +267,8 @@ lemma bouncing_ball_sq_mtx:
     apply(simp_all add: local_flow.fbox_g_ode[OF local_flow_exp] sq_mtx_vec_prod_eq)
     apply(force, force simp: bb_real_arith)
   unfolding UNIV_3 apply(simp add: exp_cnst_acc_sq_mtx_simps, safe)
-  subgoal for s \<tau> using bb_real_arith(2)[of "s$2" "s$0" h "s$1" \<tau>] by (simp add: field_simps)
-  subgoal for s \<tau> using bb_real_arith(4)[of "s$2"] by(simp add: field_simps)
+  using bb_real_arith(2)[of _ _ h] apply (force simp: field_simps)
+  subgoal for s \<tau> using bb_real_arith(3)[of "s$2"] by(simp add: field_simps)
   done
 
 no_notation cnst_acc_sq_mtx ("K")

@@ -126,23 +126,21 @@ lemma local_flow_ball: "local_flow (f g) UNIV UNIV (\<phi> g)"
   using exhaust_2 two_eq_zero by (auto intro!: poly_derivatives simp: vec_eq_iff) force
 
 lemma [bb_real_arith]:
-  assumes invar: "2 \<cdot> g \<cdot> x = 2 \<cdot> g \<cdot> h + v \<cdot> v"
-    and pos: "g \<cdot> \<tau>\<^sup>2 / 2 + v \<cdot> \<tau> + (x::real) = 0"
-  shows "2 \<cdot> g \<cdot> h + (g \<cdot> \<tau> \<cdot> (g \<cdot> \<tau> + v) + v \<cdot> (g \<cdot> \<tau> + v)) = 0"
+  assumes invar: "2 * g * x = 2 * g * h + v * v"
+    and pos: "g * \<tau>\<^sup>2 / 2 + v * \<tau> + (x::real) = 0"
+  shows "2 * g * h + (g * \<tau> * (g * \<tau> + v) + v * (g * \<tau> + v)) = 0"
 proof-
-  from pos have "g \<cdot> \<tau>\<^sup>2  + 2 \<cdot> v \<cdot> \<tau> + 2 \<cdot> x = 0" by auto
-  then have "g\<^sup>2  \<cdot> \<tau>\<^sup>2  + 2 \<cdot> g \<cdot> v \<cdot> \<tau> + 2 \<cdot> g \<cdot> x = 0"
+  from pos have "g * \<tau>\<^sup>2  + 2 * v * \<tau> + 2 * x = 0" by auto
+  then have "g\<^sup>2 * \<tau>\<^sup>2  + 2 * g * v * \<tau> + 2 * g * x = 0"
     by (metis (mono_tags, hide_lams) Groups.mult_ac(1,3) mult_zero_right
         monoid_mult_class.power2_eq_square semiring_class.distrib_left)
-  hence "g\<^sup>2 \<cdot> \<tau>\<^sup>2 + 2 \<cdot> g \<cdot> v \<cdot> \<tau> + v\<^sup>2 + 2 \<cdot> g \<cdot> h = 0"
+  hence "g\<^sup>2 * \<tau>\<^sup>2 + 2 * g * v * \<tau> + v\<^sup>2 + 2 * g * h = 0"
     using invar by (simp add: monoid_mult_class.power2_eq_square) 
-  hence obs: "(g \<cdot> \<tau> + v)\<^sup>2 + 2 \<cdot> g \<cdot> h = 0"
+  hence obs: "(g * \<tau> + v)\<^sup>2 + 2 * g * h = 0"
     apply(subst power2_sum) by (metis (no_types, hide_lams) Groups.add_ac(2, 3) 
         Groups.mult_ac(2, 3) monoid_mult_class.power2_eq_square nat_distrib(2))
-  thus "2 \<cdot> g \<cdot> h + (g \<cdot> \<tau> \<cdot> (g \<cdot> \<tau> + v) + v \<cdot> (g \<cdot> \<tau> + v)) = 0"
-    by (simp add: monoid_mult_class.power2_eq_square)
-  have  "2 \<cdot> g \<cdot> h + (- ((g \<cdot> \<tau>) + v))\<^sup>2 = 0"
-    using obs by (metis Groups.add_ac(2) power2_minus)
+  thus "2 * g * h + (g * \<tau> * (g * \<tau> + v) + v * (g * \<tau> + v)) = 0"
+    by (simp add: add.commute distrib_right power2_eq_square)
 qed
 
 lemma [bb_real_arith]:
@@ -170,13 +168,9 @@ lemma bouncing_ball: "g < 0 \<Longrightarrow> h \<ge> 0 \<Longrightarrow>
   (LOOP (
     (x\<acute>=(f g) & (\<lambda> s. s$0 \<ge> 0)) ; 
     (IF (\<lambda> s. s$0 = 0) THEN (1 ::= (\<lambda>s. - s$1)) ELSE skip))
-  INV (\<lambda>s. 0 \<le> s$0 \<and>2 \<cdot> g \<cdot> s$0 - 2 \<cdot> g \<cdot> h - s$1 \<cdot> s$1 = 0))
+  INV (\<lambda>s. 0 \<le> s$0 \<and> 2 \<cdot> g \<cdot> s$0 = 2 \<cdot> g \<cdot> h + s$1 \<cdot> s$1))
   {s. 0 \<le> s$0 \<and> s$0 \<le> h}"
-  apply(rule ffb_loopI, simp_all add: local_flow.ffb_g_ode[OF local_flow_ball])
-    apply(force, force simp: bb_real_arith, clarsimp, safe)
-  subgoal for s t using bb_real_arith(2)[of g "s$0" h "s$1" t] by (force simp: field_simps)
-  subgoal for s t using bb_real_arith(3)[of g "s$0" h "s$1" t] by (force simp: field_simps)
-  done
+  by (rule ffb_loopI) (auto simp: bb_real_arith local_flow.ffb_g_ode[OF local_flow_ball])
 
 \<comment> \<open>Verified by providing the dynamics\<close>
 
@@ -185,12 +179,9 @@ lemma bouncing_ball_dyn: "g < 0 \<Longrightarrow> h \<ge> 0 \<Longrightarrow>
   (LOOP (
     (EVOL (\<phi> g) (\<lambda> s. s$0 \<ge> 0) T) ; 
     (IF (\<lambda> s. s$0 = 0) THEN (1 ::= (\<lambda>s. - s$1)) ELSE skip))
-  INV (\<lambda>s. 0 \<le> s$0 \<and>2 \<cdot> g \<cdot> s$0 - 2 \<cdot> g \<cdot> h - s$1 \<cdot> s$1 = 0))
+  INV (\<lambda>s. 0 \<le> s$0 \<and> 2 \<cdot> g \<cdot> s$0 = 2 \<cdot> g \<cdot> h + s$1 \<cdot> s$1))
   {s. 0 \<le> s$0 \<and> s$0 \<le> h}"
-  apply(rule ffb_loopI, simp_all, force, force simp: bb_real_arith, clarsimp, safe)
-  subgoal for s t using bb_real_arith(2)[of g "s$0" h "s$1" t] by (force simp: field_simps)
-  subgoal for s t using bb_real_arith(3)[of g "s$0" h "s$1" t] by (force simp: field_simps)
-  done
+  by (rule ffb_loopI) (auto simp: bb_real_arith)
 
 \<comment> \<open>Verified as a linear system (computing exponential). \<close>
 
