@@ -1,17 +1,30 @@
+(*  Title:       ODEs and Dynamical Systems for HS verification
+    Author:      Jonathan Julián Huerta y Munive, 2019
+    Maintainer:  Jonathan Julián Huerta y Munive <jjhuertaymunive1@sheffield.ac.uk>
+*)
+
+section \<open> Ordinary Differential Equations \<close>
+
+text \<open>Vector fields @{text "f::real \<Rightarrow> 'a \<Rightarrow> ('a::real_normed_vector)"} represent systems 
+of ordinary differential equations (ODEs). Picard-Lindeloef's theorem guarantees existence 
+and uniqueness of local solutions to initial value problems involving Lipschitz continuous 
+vector fields. A (local) flow @{text "\<phi>::real \<Rightarrow> 'a \<Rightarrow> ('a::real_normed_vector)"} for such 
+a system is the function that maps initial conditions to their unique solutions. In dynamical 
+systems, the set of all points @{text "\<phi> t s::'a"} for a fixed @{text "s::'a"} is the flow's 
+orbit. If the orbit of each @{text "s \<in> I"} is conatined in @{text I}, then @{text I} is an 
+invariant set of this system. This section formalises these concepts with a focus on hybrid 
+systems (HS) verification.\<close>
+
 theory hs_prelims_dyn_sys
   imports hs_prelims
-
 begin
-
-
-section\<open> Dynamical Systems \<close>
 
 
 subsection\<open> Initial value problems and orbits \<close>
 
 notation image ("\<P>")
 
-lemma image_le_pred: "(\<P> f A \<subseteq> {s. G s}) = (\<forall>x\<in>A. G (f x))"
+lemma image_le_pred[simp]: "(\<P> f A \<subseteq> {s. G s}) = (\<forall>x\<in>A. G (f x))"
   unfolding image_def by force
 
 definition ivp_sols :: "(real \<Rightarrow> 'a \<Rightarrow> ('a::real_normed_vector)) \<Rightarrow> real set \<Rightarrow> 'a set \<Rightarrow> 
@@ -71,6 +84,7 @@ lemma g_orbitalD:
   using assms unfolding g_orbital_def g_orbit_eq by auto
 
 no_notation g_orbit ("\<gamma>")
+
 
 subsection\<open> Differential Invariants \<close>
 
@@ -200,8 +214,8 @@ shows "diff_invariant (\<lambda>s. I\<^sub>1 s \<or> I\<^sub>2 s) f T S t\<^sub>
 
 subsection\<open> Picard-Lindeloef \<close>
 
-text\<open> A locale with the assumptions of Picard-Lindeloef theorem. It extends @{term "ll_on_open_it"} 
-by assuming that @{term "t\<^sub>0 \<in> T"}.\<close>
+text\<open> A locale with the assumptions of Picard-Lindeloef theorem. It extends 
+@{term "ll_on_open_it"} by providing an initial time @{term "t\<^sub>0 \<in> T"}.\<close>
 
 locale picard_lindeloef =
   fixes f::"real \<Rightarrow> ('a::{heine_borel,banach}) \<Rightarrow> 'a" and T::"real set" and S::"'a set" and t\<^sub>0::real
@@ -299,9 +313,8 @@ lemma picard_lindeloef_constant: "picard_lindeloef (\<lambda>t s. c) UNIV UNIV t
 
 subsection\<open> Flows for ODEs \<close>
 
-text\<open> A locale designed for verification of hybrid systems. The user can select both, the interval
-of existence of her choice, and the computation rule of the flow via the variables @{term "T"} and 
-@{term "\<phi>"}.\<close>
+text\<open> A locale designed for verification of hybrid systems. The user can select the interval 
+of existence and the defining flow equation via the variables @{term "T"} and @{term "\<phi>"}.\<close>
 
 locale local_flow = picard_lindeloef "(\<lambda> t. f)" T S 0 
   for f::"'a::{heine_borel,banach} \<Rightarrow> 'a" and T S L +

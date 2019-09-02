@@ -1,10 +1,18 @@
+(*  Title:       Verification components with predicate transformers
+    Author:      Jonathan Julián Huerta y Munive, 2019
+    Maintainer:  Jonathan Julián Huerta y Munive <jjhuertaymunive1@sheffield.ac.uk>
+*)
+
+section \<open> Verification components with predicate transformers \<close>
+
+text \<open> We use the categorical forward box operator @{text fb\<^sub>\<F>} to compute weakest liberal 
+preconditions (wlps) of hybrid programs. Then we repeat the three methods for verifying 
+correctness specifications of the continuous dynamics of a HS. \<close>
+
 theory cat2funcset
   imports "../hs_prelims_dyn_sys" "Transformer_Semantics.Kleisli_Quantale"
                         
 begin
-
-
-chapter \<open>Hybrid System Verification with predicate transformers\<close>
 
 \<comment> \<open>We start by deleting some notation and introducing some new.\<close>
 
@@ -21,7 +29,7 @@ notation eta ("skip")
      and g_orbital ("(1x\<acute>=_ & _ on _ _ @ _)")
 
 
-section \<open>Verification of regular programs\<close>
+subsection \<open>Verification of regular programs\<close>
 
 text \<open>Properties of the forward box operator. \<close>
 
@@ -64,7 +72,7 @@ lemma ffb_kcomp[simp]: "fb\<^sub>\<F> (G ; F) P = fb\<^sub>\<F> G (fb\<^sub>\<F>
   unfolding ffb_def apply(simp add: kop_def klift_def map_dual_def)
   unfolding dual_set_def f2r_def r2f_def by(auto simp: kcomp_def)
 
-lemma ffb_kcomp_ge:
+lemma hoare_kcomp:
   assumes "P \<le> fb\<^sub>\<F> F R" "R \<le> fb\<^sub>\<F> G Q"
   shows "P \<le> fb\<^sub>\<F> (F ; G) Q"
   apply(subst ffb_kcomp) 
@@ -80,7 +88,7 @@ lemma ffb_if_then_else[simp]:
   "fb\<^sub>\<F> (IF T THEN X ELSE Y) Q = {s. T s \<longrightarrow> s \<in> fb\<^sub>\<F> X Q} \<inter> {s. \<not> T s \<longrightarrow> s \<in> fb\<^sub>\<F> Y Q}"
   unfolding ffb_eq ifthenelse_def by auto
 
-lemma ffb_if_then_elseI:
+lemma hoare_if_then_else:
   assumes "P \<inter> {s. T s} \<le> fb\<^sub>\<F> X Q"
     and "P \<inter> {s. \<not> T s} \<le> fb\<^sub>\<F> Y Q"
   shows "P \<le> fb\<^sub>\<F> (IF T THEN X ELSE Y) Q"
@@ -118,10 +126,10 @@ definition loopi :: "('a \<Rightarrow> 'a set) \<Rightarrow> 'a pred \<Rightarro
 lemma ffb_loopI: "P \<le> {s. I s}  \<Longrightarrow> {s. I s} \<le> Q \<Longrightarrow> {s. I s} \<le> fb\<^sub>\<F> F {s. I s} \<Longrightarrow> P \<le> fb\<^sub>\<F> (LOOP F INV I) Q"
   unfolding loopi_def using ffb_kstarI[of "P"] by simp
 
-section \<open>Verification of hybrid programs\<close>
 
+subsection \<open>Verification of hybrid programs\<close>
 
-subsection \<open>Verification by providing evolution\<close>
+text \<open>Verification by providing evolution\<close>
 
 definition g_evol :: "(('a::ord) \<Rightarrow> 'b \<Rightarrow> 'b) \<Rightarrow> 'b pred \<Rightarrow> 'a set \<Rightarrow> ('b \<Rightarrow> 'b set)" ("EVOL")
   where "EVOL \<phi> G T = (\<lambda>s. g_orbit (\<lambda>t. \<phi> t s) G T)"
@@ -131,14 +139,11 @@ lemma fbox_g_evol[simp]:
   shows "fb\<^sub>\<F> (EVOL \<phi> G T) Q = {s. (\<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (\<phi> \<tau> s)) \<longrightarrow> (\<phi> t s) \<in> Q)}"
   unfolding g_evol_def g_orbit_eq ffb_eq by auto
 
-
-subsection \<open>Verification by providing solutions\<close>
-
-text\<open>The wlp of evolution commands. \<close>
+text \<open>Verification by providing solutions\<close>
 
 lemma ffb_g_orbital: "fb\<^sub>\<F> (x\<acute>= f & G on T S @ t\<^sub>0) Q = 
   {s. \<forall>X\<in>Sols (\<lambda>t. f) T S t\<^sub>0 s. \<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (X \<tau>)) \<longrightarrow> (X t) \<in> Q}"
-  unfolding ffb_eq g_orbital_eq subset_eq by (auto simp: fun_eq_iff image_le_pred)
+  unfolding ffb_eq g_orbital_eq subset_eq by (auto simp: fun_eq_iff)
 
 lemma ffb_g_orbital_eq: "fb\<^sub>\<F> (x\<acute>= f & G on T S @ t\<^sub>0) Q = 
   {s. \<forall>X\<in>Sols (\<lambda>t. f) T S t\<^sub>0 s. \<forall>t\<in>T. (\<P> X (down T t) \<subseteq> {s. G s}) \<longrightarrow> \<P> X (down T t) \<subseteq> Q}"
@@ -158,13 +163,25 @@ lemma ffb_g_ode: "fb\<^sub>\<F> (x\<acute>= f & G on T S @ 0) Q =
   apply(subst eq_solution, simp_all add: ivp_sols_def)
   using init_time by auto
 
+lemma ffb_g_ode_ivl: "t \<ge> 0 \<Longrightarrow> t \<in> T \<Longrightarrow> fb\<^sub>\<F> (x\<acute>=f & G on {0..t} S @ 0) Q = 
+  {s. s \<in> S \<longrightarrow> (\<forall>t\<in>{0..t}. (\<forall>\<tau>\<in>{0..t}. G (\<phi> \<tau> s)) \<longrightarrow> (\<phi> t s) \<in> Q)}"
+  unfolding ffb_g_orbital apply(clarsimp, safe)
+    apply(erule_tac x="\<lambda>t. \<phi> t x" in ballE, force)
+  using in_ivp_sols_ivl apply(force simp: closed_segment_eq_real_ivl)
+  using in_ivp_sols_ivl apply(force simp: ivp_sols_def)
+   apply(subgoal_tac "\<forall>t\<in>{0..t}. (\<forall>\<tau>\<in>{0..t}. X \<tau> = \<phi> \<tau> x)", simp, clarsimp)
+  apply(subst eq_solution_ivl, simp_all add: ivp_sols_def)
+     apply(rule has_vderiv_on_subset, force, force simp: closed_segment_eq_real_ivl)
+    apply(force simp: closed_segment_eq_real_ivl)
+  using interval_time init_time apply (meson is_interval_1 order_trans) 
+  using init_time by force
+
 lemma ffb_orbit: "fb\<^sub>\<F> \<gamma>\<^sup>\<phi> Q = {s. s \<in> S \<longrightarrow> (\<forall> t \<in> T. \<phi> t s \<in> Q)}"
   unfolding orbit_def ffb_g_ode by simp
 
 end
 
-
-subsection\<open> Verification with differential invariants \<close>
+text\<open> Verification with differential invariants \<close>
 
 definition g_ode_inv :: "(('a::banach)\<Rightarrow>'a) \<Rightarrow> 'a pred \<Rightarrow> real set \<Rightarrow> 'a set \<Rightarrow> 
   real \<Rightarrow> 'a pred \<Rightarrow> ('a \<Rightarrow> 'a set)" ("(1x\<acute>=_ & _ on _ _ @ _ DINV _ )") 
@@ -196,7 +213,7 @@ lemma bdf_diff_inv: (* for paper... *)
 lemma diff_inv_guard_ignore: (* for paper... *)
   assumes "{s. I s} \<le> fb\<^sub>\<F> (x\<acute>= f & (\<lambda>s. True) on T S @ t\<^sub>0) {s. I s}"
   shows "{s. I s} \<le> fb\<^sub>\<F> (x\<acute>= f & G on T S @ t\<^sub>0) {s. I s}"
-  using assms unfolding ffb_diff_inv diff_invariant_eq image_le_pred by auto
+  using assms unfolding ffb_diff_inv diff_invariant_eq by auto
 
 context local_flow (* for paper... *)
 begin
@@ -233,7 +250,7 @@ lemma diff_solve_axiom:
   shows "fb\<^sub>\<F> (x\<acute>=(\<lambda>s. c) & G on T UNIV @ 0) Q = 
   {s. \<forall>t\<in>T. (\<P> (\<lambda>\<tau>. s + \<tau> *\<^sub>R c) (down T t) \<subseteq> {s. G s}) \<longrightarrow> (s + t *\<^sub>R c) \<in> Q}"
   apply(subst local_flow.ffb_g_ode[of "\<lambda>s. c" _ _ "(\<lambda>t s. s + t *\<^sub>R c)"])
-  using line_is_local_flow assms unfolding image_le_pred by auto
+  using line_is_local_flow assms by auto
 
 lemma diff_solve_rule:
   assumes "local_flow f T UNIV \<phi>"
@@ -247,17 +264,6 @@ lemma diff_weak_axiom: "fb\<^sub>\<F> (x\<acute>= f & G on T S @ t\<^sub>0) Q = 
 lemma diff_weak_rule: "{s. G s} \<le> Q \<Longrightarrow> P \<le> fb\<^sub>\<F> (x\<acute>= f & G on T S @ t\<^sub>0) Q"
   by(auto intro: g_orbitalD simp: le_fun_def g_orbital_eq ffb_eq)
 
-lemma ffb_eq_univD: "fb\<^sub>\<F> F P = UNIV \<Longrightarrow> (\<forall>y. y \<in> (F s) \<longrightarrow> y \<in> P)"
-proof
-  fix y assume "fb\<^sub>\<F> F P = UNIV"
-  hence "UNIV = {s. \<forall>y. y \<in> (F s) \<longrightarrow> y \<in> P}" 
-    by(subst ffb_eq[symmetric], simp)
-  hence "\<And>x. {x} = {s. s = x \<and> (\<forall>y. y \<in> (F s) \<longrightarrow> y \<in> P)}" 
-    by auto
-  then show "s2p (F s) y \<longrightarrow> y \<in> P" 
-    by auto
-qed
-
 lemma ffb_g_orbital_eq_univD:
   assumes "fb\<^sub>\<F> (x\<acute>= f & G on T S @ t\<^sub>0) {s. C s} = UNIV" 
     and "\<forall>\<tau>\<in>(down T t). x \<tau> \<in> (x\<acute>= f & G on T S @ t\<^sub>0) s"
@@ -267,7 +273,7 @@ proof
   hence "x \<tau> \<in> (x\<acute>= f & G on T S @ t\<^sub>0) s" 
     using assms(2) by blast
   also have "\<forall>y. y \<in> (x\<acute>= f & G on T S @ t\<^sub>0) s \<longrightarrow> C y" 
-    using assms(1) ffb_eq_univD by fastforce
+    using assms(1) unfolding ffb_eq by fastforce
   ultimately show "C (x \<tau>)" by blast
 qed
 
@@ -288,10 +294,9 @@ proof(rule_tac f="\<lambda> x. fb\<^sub>\<F> x Q" in HOL.arg_cong, rule ext, rul
     ultimately have "\<forall>t\<in>(down T \<tau>). X t \<in> (x\<acute>= f & G on T S @ t\<^sub>0) s"
       using g_orbitalI[OF x_ivp] by (metis (mono_tags, lifting))
     hence "\<forall>t\<in>(down T \<tau>). C (X t)" 
-      using assms by (meson ffb_eq_univD mem_Collect_eq)
+      using assms unfolding ffb_eq by fastforce
     hence "s' \<in> (x\<acute>= f & (\<lambda>s. G s \<and> C s) on T S @ t\<^sub>0) s"
-      using g_orbitalI[OF x_ivp \<open>\<tau> \<in> T\<close>] guard_x \<open>X \<tau> = s'\<close> 
-      unfolding image_le_pred by fastforce}
+      using g_orbitalI[OF x_ivp \<open>\<tau> \<in> T\<close>] guard_x \<open>X \<tau> = s'\<close> by fastforce}
   thus "(x\<acute>= f & G on T S @ t\<^sub>0) s \<subseteq> (x\<acute>= f & (\<lambda>s. G s \<and> C s) on T S @ t\<^sub>0) s"
     by blast
 next show "\<And>s. (x\<acute>= f & (\<lambda>s. G s \<and> C s) on T S @ t\<^sub>0) s \<subseteq> (x\<acute>= f & G on T S @ t\<^sub>0) s" 
@@ -306,9 +311,9 @@ lemma diff_cut_rule:
 proof(subst ffb_eq, subst g_orbital_eq, clarsimp)
   fix t::real and X::"real \<Rightarrow> 'a" and s assume "s \<in> P" and "t \<in> T"
     and x_ivp:"X \<in> Sols (\<lambda>t. f) T S t\<^sub>0 s" 
-    and guard_x:"\<P> X (down T t) \<subseteq> {s. G s}"
+    and guard_x:"\<forall>\<tau>. s2p T \<tau> \<and> \<tau> \<le> t \<longrightarrow> G (X \<tau>)"
   have "\<forall>r\<in>(down T t). X r \<in> (x\<acute>= f & G on T S @ t\<^sub>0) s"
-    using g_orbitalI[OF x_ivp] guard_x unfolding image_le_pred by auto
+    using g_orbitalI[OF x_ivp] guard_x by auto
   hence "\<forall>t\<in>(down T t). C (X t)" 
     using ffb_C \<open>s \<in> P\<close> by (subst (asm) ffb_eq, auto)
   hence "X t \<in> (x\<acute>= f & (\<lambda>s. G s \<and> C s) on T S @ t\<^sub>0) s"
@@ -330,7 +335,7 @@ lemma solve:
     and "\<forall>s. s \<in> P \<longrightarrow> (\<forall>t. (\<forall>\<tau>\<le>t. G (\<phi> \<tau> s)) \<longrightarrow> (\<phi> t s) \<in> Q)"
   shows "P \<le> fb\<^sub>\<F> (x\<acute>= f & G) Q"
   apply(rule diff_solve_rule[OF assms(1)])
-  using assms(2) unfolding image_le_pred by simp
+  using assms(2) by simp
 
 lemma DS: 
   fixes c::"'a::{heine_borel, banach}"

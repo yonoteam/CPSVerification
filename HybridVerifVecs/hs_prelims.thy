@@ -1,15 +1,16 @@
+(*  Title:       Preliminaries for hybrid systems verification
+    Author:      Jonathan Julián Huerta y Munive, 2019
+    Maintainer:  Jonathan Julián Huerta y Munive <jjhuertaymunive1@sheffield.ac.uk>
+*)
+
+section \<open> Hybrid Systems Preliminaries \<close>
+
+text \<open>Hybrid systems combine continuous dynamics with discrete control. This section contains 
+auxiliary lemmas for verification of hybrid systems.\<close>
+
 theory hs_prelims
   imports "Ordinary_Differential_Equations.Picard_Lindeloef_Qualitative"
-
 begin
-
-
-chapter\<open> Hybrid Systems Preliminaries \<close>
-
-text\<open> This chapter contains preliminary lemmas for verification of Hybrid Systems.\<close>
-
-
-section\<open> Miscellaneous \<close>
 
 
 subsection\<open> Functions \<close>
@@ -21,7 +22,7 @@ lemma case_of_snd[simp]: "(\<lambda>x. case x of (t, x) \<Rightarrow> f x) = (\<
   by auto
 
 
-subsection\<open> Limits \<close>
+subsection\<open> Orders \<close>
 
 lemma cSup_eq_linorder:
   fixes c::"'a::conditionally_complete_linorder"
@@ -85,7 +86,7 @@ lemma suminf_eq_sum:
 
 subsection\<open> Real numbers \<close>
 
-lemma sqrt_le_itself: "1 \<le> x \<Longrightarrow> sqrt x \<le> x"
+lemma ge_one_sqrt_le: "1 \<le> x \<Longrightarrow> sqrt x \<le> x"
   by (metis basic_trans_rules(23) monoid_mult_class.power2_eq_square more_arith_simps(6) 
       mult_left_mono real_sqrt_le_iff' zero_le_one)
 
@@ -115,26 +116,10 @@ lemma real_ivl_eqs:
   using assms apply(auto simp: cball_def ball_def dist_norm)
   by(simp_all add: field_simps)
 
-named_theorems trig_simps "simplification rules for trigonometric identities"
-
-lemmas trig_identities = sin_squared_eq[THEN sym] cos_squared_eq[symmetric] cos_diff[symmetric] cos_double
-
-declare sin_minus [trig_simps]
-    and cos_minus [trig_simps]
-    and trig_identities(1,2) [trig_simps]
-    and sin_cos_squared_add [trig_simps]
-    and sin_cos_squared_add2 [trig_simps]
-    and sin_cos_squared_add3 [trig_simps]
-    and trig_identities(3) [trig_simps]
-
-lemma sin_cos_squared_add4 [trig_simps]:
-  fixes x :: "'a:: {banach,real_normed_field}"
-  shows "x * (sin t)\<^sup>2 + x * (cos t)\<^sup>2 = x"
-  by (metis mult.right_neutral semiring_normalization_rules(34) sin_cos_squared_add)
-
-lemma [trig_simps, simp]:
+lemma norm_rotate_simps[simp]:
   fixes x :: "'a:: {banach,real_normed_field}"
   shows "(x * cos t - y * sin t)\<^sup>2 + (x * sin t + y * cos t)\<^sup>2 = x\<^sup>2 + y\<^sup>2"
+    and "(x * cos t + y * sin t)\<^sup>2 + (y * cos t - x * sin t)\<^sup>2 = x\<^sup>2 + y\<^sup>2"
 proof-
   have "(x * cos t - y * sin t)\<^sup>2 = x\<^sup>2 * (cos t)\<^sup>2 + y\<^sup>2 * (sin t)\<^sup>2 - 2 * (x * cos t) * (y * sin t)"
     by(simp add: power2_diff power_mult_distrib)
@@ -142,17 +127,9 @@ proof-
     by(simp add: power2_sum power_mult_distrib)
   ultimately show "(x * cos t - y * sin t)\<^sup>2 + (x * sin t + y * cos t)\<^sup>2 = x\<^sup>2 + y\<^sup>2"  
     by (simp add: Groups.mult_ac(2) Groups.mult_ac(3) right_diff_distrib sin_squared_eq) 
+  thus "(x * cos t + y * sin t)\<^sup>2 + (y * cos t - x * sin t)\<^sup>2 = x\<^sup>2 + y\<^sup>2"
+    by (simp add: add.commute add.left_commute power2_diff power2_sum)
 qed
-
-lemma [trig_simps, simp]:
-  fixes x :: "'a:: {banach,real_normed_field}"
-  shows "(x * cos t + y * sin t)\<^sup>2 + (y * cos t - x * sin t)\<^sup>2 = x\<^sup>2 + y\<^sup>2"
-  using trig_simps(10)[of y t x] by (simp add: add.commute)
-
-thm trig_simps
-
-
-section\<open> Analisys \<close>
 
 
 subsection \<open> Single variable derivatives \<close>
@@ -235,16 +212,17 @@ lemma has_vderiv_on_exp_comp:
   apply(rule has_vderiv_on_compose_eq[of "\<lambda>t. exp t"])
   by (rule has_vderiv_on_exp, simp_all add: mult.commute)
 
-lemma [poly_derivatives]: "D f = f' on T \<Longrightarrow> g = (\<lambda>t. - f' t) \<Longrightarrow> D (\<lambda>t. - f t) = g on T"
+lemma vderiv_uminus_intro[poly_derivatives]: 
+  "D f = f' on T \<Longrightarrow> g = (\<lambda>t. - f' t) \<Longrightarrow> D (\<lambda>t. - f t) = g on T"
   using has_vderiv_on_uminus by auto
 
-lemma [poly_derivatives]:
+lemma vderiv_div_cnst_intro[poly_derivatives]:
   assumes "(a::real) \<noteq> 0" and "D f = f' on T" and "g = (\<lambda>t. (f' t)/a)"
   shows "D (\<lambda>t. (f t)/a) = g on T"
   apply(rule has_vderiv_on_compose_eq[of "\<lambda>t. t/a" "\<lambda>t. 1/a"])
   using assms by(auto intro: has_vderiv_on_divide_cnst)
 
-lemma [poly_derivatives]:
+lemma vderiv_npow_intro[poly_derivatives]:
   fixes f::"real \<Rightarrow> real"
   assumes "n \<ge> 1" and "D f = f' on T" and "g = (\<lambda>t. n * (f' t) * (f t)^(n-1))"
   shows "D (\<lambda>t. (f t)^n) = g on T"
@@ -252,20 +230,22 @@ lemma [poly_derivatives]:
   using assms(1) apply(rule has_vderiv_on_power)
   using assms by auto
 
-lemma [poly_derivatives]:
+lemma vderiv_cos_intro[poly_derivatives]:
   assumes "D (f::real \<Rightarrow> real) = f' on T" and "g = (\<lambda>t. - (f' t) * sin (f t))"
   shows "D (\<lambda>t. cos (f t)) = g on T"
   using assms and has_vderiv_on_cos_comp by auto
 
-lemma [poly_derivatives]:
+lemma vderiv_sin_intro[poly_derivatives]:
   assumes "D (f::real \<Rightarrow> real) = f' on T" and "g = (\<lambda>t. (f' t) * cos (f t))"
   shows "D (\<lambda>t. sin (f t)) = g on T"
   using assms and has_vderiv_on_sin_comp by auto
 
-lemma [poly_derivatives]:
+lemma vderiv_exp_intro[poly_derivatives]:
   assumes "D (f::real \<Rightarrow> real) = f' on T" and "g = (\<lambda>t. (f' t) * exp (f t))"
   shows "D (\<lambda>t. exp (f t)) = g on T"
   using assms and has_vderiv_on_exp_comp by auto
+
+\<comment> \<open>Examples for checking derivatives\<close>
 
 lemma "D (\<lambda>t. a * t\<^sup>2 / 2 + v * t + x) = (\<lambda>t. a * t + v) on T"
   by(auto intro!: poly_derivatives)
@@ -286,6 +266,7 @@ lemma "c \<noteq> 0 \<Longrightarrow> D (\<lambda>t. exp (a * sin (cos (t^4) / c
 (\<lambda>t. - 4 * a * t^3 * sin (t^4) / c * cos (cos (t^4) / c) * exp (a * sin (cos (t^4) / c))) on T"
   apply(intro poly_derivatives)
   using poly_derivatives(1,2) by force+
+
 
 subsection\<open> Filters \<close>
 

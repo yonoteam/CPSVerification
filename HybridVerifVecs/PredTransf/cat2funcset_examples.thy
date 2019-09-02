@@ -1,17 +1,24 @@
+(*  Title:       Examples of hybrid systems verifications
+    Author:      Jonathan Julián Huerta y Munive, 2019
+    Maintainer:  Jonathan Julián Huerta y Munive <jjhuertaymunive1@sheffield.ac.uk>
+*)
+
+subsection \<open> Examples \<close>
+
+text \<open> We prove partial correctness specifications of some hybrid systems with our 
+recently described verification components.\<close>
+
 theory cat2funcset_examples
   imports "../hs_prelims_matrices" cat2funcset
 
 begin
 
-
-subsection\<open> Examples \<close>
-
 text\<open> Preliminary lemmas for the examples.\<close>
 
-lemma [simp]: "i \<noteq> (0::2) \<longrightarrow> i = 1" 
-  using exhaust_2 by fastforce
-
 lemma two_eq_zero: "(2::2) = 0" 
+  by simp
+
+lemma four_eq_zero: "(4::4) = 0"
   by simp
 
 lemma UNIV_2: "(UNIV::2 set) = {0, 1}"
@@ -20,12 +27,15 @@ lemma UNIV_2: "(UNIV::2 set) = {0, 1}"
 lemma UNIV_3: "(UNIV::3 set) = {0, 1, 2}"
   apply safe using exhaust_3 three_eq_zero by auto
 
-lemma sum_axis_UNIV_3[simp]: "(\<Sum>j\<in>(UNIV::3 set). axis i 1 $ j \<cdot> f j) = (f::3 \<Rightarrow> real) i"
-  unfolding axis_def UNIV_3 apply simp
-  using exhaust_3 by force
+lemma UNIV_4: "(UNIV::4 set) = {0, 1, 2, 3}"
+  apply safe using exhaust_4 four_eq_zero by auto
 
 
 subsubsection\<open>Pendulum\<close>
+
+text \<open> The ODEs @{text "x' t = y t"} and {text "y' t = - x t"} describe the circular motion of 
+a mass attached to a string looked from above. We use @{text "s$0"} to represent the x-coordinate
+and @{text "s$1"} for the y-coordinate. We prove that this motion remains circular. \<close>
 
 \<comment> \<open>Verified with differential invariants. \<close>
 
@@ -76,6 +86,13 @@ no_notation fpend ("f")
 
 
 subsubsection\<open> Bouncing Ball \<close>
+
+text \<open> A ball is dropped from rest at an initial height @{text "h"}. The motion is described with 
+the free-fall equations @{text "x' t = v t"} and @{text "v' t = g"} where @{text "g"} is the 
+constant acceleration due to gravity. The bounce is modelled with a variable assigntment that 
+flips the velocity, thus it is a completely elastic collision with the ground. We use @{text "s$0"} 
+to ball's height and @{text "s$1"} for its velocity. We prove that the ball remains above ground
+and below its initial resting position. \<close>
 
 \<comment> \<open>Verified with differential invariants. \<close>
 
@@ -222,8 +239,124 @@ lemma bouncing_ball_sq_mtx:
   using bb_real_arith(2) apply(force simp: add.commute mult.commute)
   using bb_real_arith(3) by (force simp: add.commute mult.commute)
 
-no_notation fpend ("f")
-        and pend_flow ("\<phi>")
+no_notation fball ("f")
+        and ball_flow ("\<phi>")
         and ball_sq_mtx ("A")
+
+subsubsection \<open> Thermostat \<close>
+
+text \<open> A thermostat has a chronometer, a thermometer and a switch to turn on and off a heater. 
+At most every @{text "t"} minutes, it sets its chronometer to @{term "0::real"}, it registers 
+the room temperature, and it turns the heater on (or off) based on this reading. The temperature 
+follows the ODE @{text "T' = - a * (T - U)"} where @{text "U"} is @{text "L \<ge> 0"} when the heater 
+is on, and @{text "0"} when it is off. We use @{term "0::4"} to denote the room's temperature, 
+@{term "1::4"} is time as measured by the thermostat's chronometer, @{term "2::4"} is the 
+temperature detected by the thermometer, and @{term "3::4"} states whether the heater is on 
+(@{text "s$3 = 1"}) or off (@{text "s$3 = 0"}). We prove that the thermostat keeps the room's 
+temperature between @{text "Tmin"} and @{text "Tmax"}. \<close>
+
+abbreviation temp_vec_field :: "real \<Rightarrow> real \<Rightarrow> real^4 \<Rightarrow> real^4" ("f")
+  where "f a L s \<equiv> (\<chi> i. if i = 1 then 1 else (if i = 0 then - a * (s$0 - L) else 0))"
+
+abbreviation temp_flow :: "real \<Rightarrow> real \<Rightarrow> real \<Rightarrow> real^4 \<Rightarrow> real^4" ("\<phi>")
+  where "\<phi> a L t s \<equiv> (\<chi> i. if i = 0 then - exp(-a * t) * (L - s$0) + L else 
+  (if i = 1 then t + s$1 else (if i = 2 then s$2 else s$3)))"
+
+\<comment> \<open>Verified with the flow. \<close>
+
+lemma norm_diff_temp_dyn: "0 < a \<Longrightarrow> \<parallel>f a L s\<^sub>1 - f a L s\<^sub>2\<parallel> = \<bar>a\<bar> * \<bar>s\<^sub>1$0 - s\<^sub>2$0\<bar>"
+proof(simp add: norm_vec_def L2_set_def, unfold UNIV_4, simp)
+  assume a1: "0 < a"
+  have f2: "\<And>r ra. \<bar>(r::real) + - ra\<bar> = \<bar>ra + - r\<bar>"
+    by (metis abs_minus_commute minus_real_def)
+  have "\<And>r ra rb. (r::real) * ra + - (r * rb) = r * (ra + - rb)"
+    by (metis minus_real_def right_diff_distrib)
+  hence "\<bar>a * (s\<^sub>1$0 + - L) + - (a * (s\<^sub>2$0 + - L))\<bar> = a * \<bar>s\<^sub>1$0 + - s\<^sub>2$0\<bar>"
+    using a1 by (simp add: abs_mult)
+  thus "\<bar>a * (s\<^sub>2$0 - L) - a * (s\<^sub>1$0 - L)\<bar> = a * \<bar>s\<^sub>1$0 - s\<^sub>2$0\<bar>"
+    using f2 minus_real_def by presburger
+qed
+
+lemma local_lipschitz_temp_dyn:
+  assumes "0 < (a::real)"
+  shows "local_lipschitz UNIV UNIV (\<lambda>t::real. f a L)"
+  apply(unfold local_lipschitz_def lipschitz_on_def dist_norm)
+  apply(clarsimp, rule_tac x=1 in exI, clarsimp, rule_tac x=a in exI)
+  using assms apply(simp_all add: norm_diff_temp_dyn)
+  apply(simp add: norm_vec_def L2_set_def, unfold UNIV_4, clarsimp)
+  unfolding real_sqrt_abs[symmetric] by (rule real_le_lsqrt) auto
+
+lemma local_flow_temp: "a > 0 \<Longrightarrow> local_flow (f a L) UNIV UNIV (\<phi> a L)"
+  by (unfold_locales, auto intro!: poly_derivatives local_lipschitz_temp_dyn 
+      simp: forall_4 vec_eq_iff four_eq_zero)
+
+lemma temp_dyn_down_real_arith:
+  assumes "a > 0" and Thyps: "0 < Tmin" "Tmin \<le> T" "T \<le> Tmax"
+    and thyps: "0 \<le> (t::real)" "\<forall>\<tau>\<in>{0..t}. \<tau> \<le> - (ln (Tmin / T) / a) "
+  shows "Tmin \<le> exp (-a * t) * T" and "exp (-a * t) * T \<le> Tmax"
+proof-
+  have "0 \<le> t \<and> t \<le> - (ln (Tmin / T) / a)"
+    using thyps by auto
+  hence "ln (Tmin / T) \<le> - a * t \<and> - a * t \<le> 0"
+    using assms(1) divide_le_cancel by fastforce
+  also have "Tmin / T > 0"
+    using Thyps by auto
+  ultimately have obs: "Tmin / T \<le> exp (-a * t)" "exp (-a * t) \<le> 1"
+    using exp_ln exp_le_one_iff by (metis exp_less_cancel_iff not_less, simp)
+  thus "Tmin \<le> exp (-a * t) * T"
+    using Thyps by (simp add: pos_divide_le_eq)
+  show "exp (-a * t) * T \<le> Tmax"
+    using Thyps mult_left_le_one_le[OF _ exp_ge_zero obs(2), of T] 
+      less_eq_real_def order_trans_rules(23) by blast
+qed
+
+lemma temp_dyn_up_real_arith:
+  assumes "a > 0" and Thyps: "Tmin \<le> T" "T \<le> Tmax" "Tmax < (L::real)"
+    and thyps: "0 \<le> t" "\<forall>\<tau>\<in>{0..t}. \<tau> \<le> - (ln ((L - Tmax) / (L - T)) / a) "
+  shows "L - Tmax \<le> exp (-(a * t)) * (L - T)" 
+    and "L - exp (-(a * t)) * (L - T) \<le> Tmax" 
+    and "Tmin \<le> L - exp (-(a * t)) * (L - T)"
+proof-
+  have "0 \<le> t \<and> t \<le> - (ln ((L - Tmax) / (L - T)) / a)"
+    using thyps by auto
+  hence "ln ((L - Tmax) / (L - T)) \<le> - a * t \<and> - a * t \<le> 0"
+    using assms(1) divide_le_cancel by fastforce
+  also have "(L - Tmax) / (L - T) > 0"
+    using Thyps by auto
+  ultimately have "(L - Tmax) / (L - T) \<le> exp (-a * t) \<and> exp (-a * t) \<le> 1"
+    using exp_ln exp_le_one_iff by (metis exp_less_cancel_iff not_less)
+  moreover have "L - T > 0"
+    using Thyps by auto
+  ultimately have obs: "(L - Tmax) \<le> exp (-a * t) * (L - T) \<and> exp (-a * t) * (L - T) \<le> (L - T)"
+    by (simp add: pos_divide_le_eq)
+  thus "(L - Tmax) \<le> exp (-(a * t)) * (L - T)"
+    by auto
+  thus "L - exp (-(a * t)) * (L - T) \<le> Tmax"
+    by auto
+  show "Tmin \<le> L - exp (-(a * t)) * (L - T)"
+    using Thyps and obs by auto
+qed
+
+lemmas ffb_temp_dyn = local_flow.ffb_g_ode_ivl[OF local_flow_temp _ UNIV_I]
+
+lemma thermostat: 
+  assumes "a > 0" and "0 \<le> t" and "0 < Tmin" and "Tmax < L"
+  shows "{s. Tmin \<le> s$0 \<and> s$0 \<le> Tmax \<and> s$3 = 0} \<le> fb\<^sub>\<F> 
+  (LOOP 
+    \<comment> \<open>control\<close>
+    ((1 ::= (\<lambda>s. 0));(2 ::= (\<lambda>s. s$0));
+    (IF (\<lambda>s. s$3 = 0 \<and> s$2 \<le> Tmin + 1) THEN (3 ::= (\<lambda>s.1)) ELSE 
+    (IF (\<lambda>s. s$3 = 1 \<and> s$2 \<ge> Tmax - 1) THEN (3 ::= (\<lambda>s.0)) ELSE skip));
+    \<comment> \<open>dynamics\<close>
+    (IF (\<lambda>s. s$3 = 0) THEN (x\<acute>=(f a 0) & (\<lambda>s. s$1 \<le> - (ln (Tmin/s$2))/a) on {0..t} UNIV @ 0) 
+    ELSE (x\<acute>=(f a L) & (\<lambda>s. s$1 \<le> - (ln ((L-Tmax)/(L-s$2)))/a) on {0..t} UNIV @ 0)) )
+  INV (\<lambda>s. Tmin \<le>s$0 \<and> s$0 \<le> Tmax \<and> (s$3 = 0 \<or> s$3 = 1)))
+  {s. Tmin \<le> s$0 \<and> s$0 \<le> Tmax}"
+  apply(rule ffb_loopI, simp_all add: ffb_temp_dyn[OF assms(1,2)] le_fun_def, safe)
+  using temp_dyn_up_real_arith[OF assms(1) _ _ assms(4), of Tmin]
+    and temp_dyn_down_real_arith[OF assms(1,3), of _ Tmax] by auto
+
+no_notation temp_vec_field ("f")
+        and temp_flow ("\<phi>")
 
 end
