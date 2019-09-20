@@ -102,7 +102,7 @@ lemma diff_inv_eq_inv_set: (* for paper... *)
 
 named_theorems diff_invariant_rules "rules for obtainin differential invariants."
 
-lemma [diff_invariant_rules]:
+lemma diff_invariant_eq_rule [diff_invariant_rules]:
   assumes Thyp: "is_interval T" "t\<^sub>0 \<in> T"
     and "\<forall>X. (D X = (\<lambda>\<tau>. f (X \<tau>)) on T) \<longrightarrow> (D (\<lambda>\<tau>. \<mu> (X \<tau>) - \<nu> (X \<tau>)) = ((*\<^sub>R) 0) on T)"
   shows "diff_invariant (\<lambda>s. \<mu> s = \<nu> s) f T S t\<^sub>0 G"
@@ -121,7 +121,7 @@ proof(simp add: diff_invariant_eq ivp_sols_def, clarsimp)
     by (simp add: x_ivp(2))
 qed
 
-lemma [diff_invariant_rules]:
+lemma diff_invariant_leq_rule [diff_invariant_rules]:
   fixes \<mu>::"'a::banach \<Rightarrow> real"
   assumes Thyp: "is_interval T" "t\<^sub>0 \<in> T"
     and "\<forall>X. (D X = (\<lambda>\<tau>. f (X \<tau>)) on T) \<longrightarrow> (\<forall>\<tau>\<in>T. (\<tau> > t\<^sub>0 \<longrightarrow> \<mu>' (X \<tau>) \<ge> \<nu>' (X \<tau>)) \<and> 
@@ -160,7 +160,7 @@ proof(simp add: diff_invariant_eq ivp_sols_def, clarsimp)
     using x_ivp by blast
 qed
 
-lemma [diff_invariant_rules]:
+lemma diff_invariant_less_rule [diff_invariant_rules]:
   fixes \<mu>::"'a::banach \<Rightarrow> real"
   assumes Thyp: "is_interval T" "t\<^sub>0 \<in> T"
     and "\<forall> X. (D X = (\<lambda>\<tau>. f (X \<tau>)) on T) \<longrightarrow> (\<forall>\<tau>\<in>T. (\<tau> > t\<^sub>0 \<longrightarrow> \<mu>' (X \<tau>) \<ge> \<nu>' (X \<tau>)) \<and> 
@@ -199,13 +199,13 @@ proof(simp add: diff_invariant_eq ivp_sols_def, clarsimp)
     using x_ivp by blast
 qed
 
-lemma [diff_invariant_rules]:
+lemma diff_invariant_conj_rule [diff_invariant_rules]:
 assumes "diff_invariant I\<^sub>1 f T S t\<^sub>0 G" 
     and "diff_invariant I\<^sub>2 f T S t\<^sub>0 G"
 shows "diff_invariant (\<lambda>s. I\<^sub>1 s \<and> I\<^sub>2 s) f T S t\<^sub>0 G"
   using assms unfolding diff_invariant_def by auto
 
-lemma [diff_invariant_rules]:
+lemma diff_invariant_disj_rule [diff_invariant_rules]:
 assumes "diff_invariant I\<^sub>1 f T S t\<^sub>0 G" 
     and "diff_invariant I\<^sub>2 f T S t\<^sub>0 G"
 shows "diff_invariant (\<lambda>s. I\<^sub>1 s \<or> I\<^sub>2 s) f T S t\<^sub>0 G"

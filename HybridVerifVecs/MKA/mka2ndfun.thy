@@ -13,121 +13,9 @@ for verifying correctness specifications for the continuous dynamics of HS. \<cl
 theory mka2ndfun
   imports 
     "../hs_prelims_dyn_sys" 
-    "Transformer_Semantics.Kleisli_Quantale" 
-    "KAD.Modal_Kleene_Algebra"
+    "../hs_prelims_ka"
 
 begin
-
-
-subsection \<open> Modal Kleene algebra preparation \<close>
-
-context antidomain_kleene_algebra
-begin
-
-lemma fbox_frame: "d p \<cdot> x \<le> x \<cdot> d p \<Longrightarrow> d q \<le> |x] t \<Longrightarrow> d p \<cdot> d q \<le> |x] (d p \<cdot> d t)"    
-  using dual.mult_isol_var fbox_add1 fbox_demodalisation3 fbox_simp by auto
-
-lemma fbox_export1: "ad p + |x] q = |d p \<cdot> x] q"
-  using a_d_add_closure addual.ars_r_def fbox_def fbox_mult by auto
-
-lemma plus_inv: "i \<le> |x] i \<Longrightarrow> j \<le> |x] j \<Longrightarrow> (i + j) \<le> |x] (i + j)"
-  by (metis ads_d_def dka.dsr5 fbox_simp fbox_subdist join.sup_mono order_trans)
-
-lemma mult_inv: "d i \<le> |x] d i \<Longrightarrow> d j \<le> |x] d j \<Longrightarrow> (d i \<cdot> d j) \<le> |x] (d i \<cdot> d j)"
-  using fbox_demodalisation3 fbox_frame fbox_simp by auto
-
-lemma fbox_stari: "d p \<le> d i \<Longrightarrow> d i \<le> |x] i \<Longrightarrow> d i \<le> d q \<Longrightarrow> d p \<le> |x\<^sup>\<star>] q"
-  by (meson dual_order.trans fbox_iso fbox_star_induct_var)
-
-declare fbox_mult [simp]
-
-definition cond :: "'a \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> 'a" ("if _ then _ else _ fi" [64,64,64] 63) 
-  where "if p then x else y fi = d p \<cdot> x + ad p \<cdot> y"
-
-lemma fbox_cond_var [simp]: "|if p then x else y fi] q = (ad p + |x] q) \<cdot> (d p + |y] q)"  
-  using cond_def a_closure' ads_d_def ans_d_def fbox_add2 fbox_export1 by auto
-
-definition loopi :: "'a \<Rightarrow> 'a \<Rightarrow> 'a" ("loop _ inv _ " [64,64] 63)
-  where "loop x inv i = x\<^sup>\<star>"
-
-lemma fbox_loopi: "d p \<le> d i \<Longrightarrow> d i \<le> |x] i \<Longrightarrow> d i \<le> d q \<Longrightarrow> d p \<le> |loop x inv i] q"
-  unfolding loopi_def using fbox_stari by blast
-
-end
-
-
-subsection \<open> Non-deterministic functions \<close>
-
-text\<open> Our semantics now corresponds to nondeterministic functions @{typ "'a nd_fun"}. Below we prove
-some auxiliary lemmas for them and show that they form an antidomain kleene algebra. The proof just 
-extends the results on the Transformer\_Semantics.Kleisli\_Quantale theory.\<close>
-
-
-notation Abs_nd_fun ("_\<^sup>\<bullet>" [101] 100) 
-     and Rep_nd_fun ("_\<^sub>\<bullet>" [101] 100)
-     and fbox ("wp")
-
-declare Abs_nd_fun_inverse [simp]
-
-lemma nd_fun_ext: "(\<And>x. (f\<^sub>\<bullet>) x = (g\<^sub>\<bullet>) x) \<Longrightarrow> f = g"
-  apply(subgoal_tac "Rep_nd_fun f = Rep_nd_fun g")
-  using Rep_nd_fun_inject apply blast
-  by(rule ext, simp)
-
-lemma nd_fun_eq_iff: "(f = g) = (\<forall>x. (f\<^sub>\<bullet>) x = (g\<^sub>\<bullet>) x)"
-  by (auto simp: nd_fun_ext)
-
-instantiation nd_fun :: (type) antidomain_kleene_algebra
-begin
-
-definition "ad f = (\<lambda>x. if ((f\<^sub>\<bullet>) x = {}) then {x} else {})\<^sup>\<bullet>"
-
-definition "0 = \<zeta>\<^sup>\<bullet>"
-
-definition "star_nd_fun f = qstar f" for f::"'a nd_fun"
-
-definition "f + g = ((f\<^sub>\<bullet>) \<squnion> (g\<^sub>\<bullet>))\<^sup>\<bullet>"
-
-named_theorems nd_fun_aka "antidomain kleene algebra properties for nondeterministic functions."
-
-lemma nd_fun_plus_assoc[nd_fun_aka]: "x + y + z = x + (y + z)"
-  and nd_fun_plus_comm[nd_fun_aka]: "x + y = y + x"
-  and nd_fun_plus_idem[nd_fun_aka]: "x + x = x" for x::"'a nd_fun"
-  unfolding plus_nd_fun_def by (simp add: ksup_assoc, simp_all add: ksup_comm)
-
-lemma nd_fun_distr[nd_fun_aka]: "(x + y) \<cdot> z = x \<cdot> z + y \<cdot> z"
-  and nd_fun_distl[nd_fun_aka]: "x \<cdot> (y + z) = x \<cdot> y + x \<cdot> z" for x::"'a nd_fun"
-  unfolding plus_nd_fun_def times_nd_fun_def by (simp_all add: kcomp_distr kcomp_distl)
-
-lemma nd_fun_plus_zerol[nd_fun_aka]: "0 + x = x" 
-  and nd_fun_mult_zerol[nd_fun_aka]: "0 \<cdot> x = 0"
-  and nd_fun_mult_zeror[nd_fun_aka]: "x \<cdot> 0 = 0" for x::"'a nd_fun"
-  unfolding plus_nd_fun_def zero_nd_fun_def times_nd_fun_def by auto
-
-lemma nd_fun_leq[nd_fun_aka]: "(x \<le> y) = (x + y = y)"
-  and nd_fun_less[nd_fun_aka]: "(x < y) = (x + y = y \<and> x \<noteq> y)"
-  and nd_fun_leq_add[nd_fun_aka]: "z \<cdot> x \<le> z \<cdot> (x + y)" for x::"'a nd_fun"
-  unfolding less_eq_nd_fun_def less_nd_fun_def plus_nd_fun_def times_nd_fun_def sup_fun_def
-  by (unfold nd_fun_eq_iff le_fun_def, auto simp: kcomp_def)
-
-lemma nd_fun_ad_zero[nd_fun_aka]: "ad x \<cdot> x = 0"
-  and nd_fun_ad[nd_fun_aka]: "ad (x \<cdot> y) + ad (x \<cdot> ad (ad y)) = ad (x \<cdot> ad (ad y))"
-  and nd_fun_ad_one[nd_fun_aka]: "ad (ad x) + ad x = 1" for x::"'a nd_fun"
-  unfolding antidomain_op_nd_fun_def times_nd_fun_def plus_nd_fun_def zero_nd_fun_def 
-  by (auto simp: nd_fun_eq_iff kcomp_def one_nd_fun_def)
-
-lemma nd_star_one[nd_fun_aka]: "1 + x \<cdot> x\<^sup>\<star> \<le> x\<^sup>\<star>"
-  and nd_star_unfoldl[nd_fun_aka]: "z + x \<cdot> y \<le> y \<Longrightarrow> x\<^sup>\<star> \<cdot> z \<le> y"
-  and nd_star_unfoldr[nd_fun_aka]: "z + y \<cdot> x \<le> y \<Longrightarrow> z \<cdot> x\<^sup>\<star> \<le> y" for x::"'a nd_fun"
-  unfolding plus_nd_fun_def star_nd_fun_def
-    apply(simp_all add: fun_star_inductl sup_nd_fun.rep_eq fun_star_inductr)
-  by (metis order_refl sup_nd_fun.rep_eq uwqlka.conway.dagger_unfoldl_eq)
-
-instance
-  apply intro_classes
-  using nd_fun_aka by simp_all
-
-end
 
 
 subsection \<open> Store and weakest preconditions \<close>
@@ -140,14 +28,17 @@ preconditions.\<close>
 
 type_synonym 'a pred = "'a \<Rightarrow> bool"
 
-term bqtran
+notation fbox ("wp")
 
-no_notation Archimedean_Field.ceiling ("\<lceil>_\<rceil>")
+no_notation bqtran ("\<lfloor>_\<rfloor>")
+        and Archimedean_Field.ceiling ("\<lceil>_\<rceil>")
         and Archimedean_Field.floor ("\<lfloor>_\<rfloor>")
-        and bqtran ("\<lfloor>_\<rfloor>")
         and Relation.relcomp (infixl ";" 75)
         and Range_Semiring.antirange_semiring_class.ars_r ("r")
         and antidomain_semiringl.ads_d ("d")
+        and Hoare ("H")
+        and n_op ("n _" [90] 91)
+        and tau ("\<tau>")
 
 abbreviation p2ndf :: "'a pred \<Rightarrow> 'a nd_fun" ("(1\<lceil>_\<rceil>)")
   where "\<lceil>Q\<rceil> \<equiv> (\<lambda> x::'a. {s::'a. s = x \<and> Q s})\<^sup>\<bullet>"
@@ -220,10 +111,10 @@ abbreviation skip :: "'a nd_fun"
   where "skip \<equiv> 1"
 
 abbreviation cond_sugar :: "'a pred \<Rightarrow> 'a nd_fun \<Rightarrow> 'a nd_fun \<Rightarrow> 'a nd_fun" ("IF _ THEN _ ELSE _" [64,64] 63) 
-  where "IF P THEN X ELSE Y \<equiv> cond \<lceil>P\<rceil> X Y"
+  where "IF P THEN X ELSE Y \<equiv> aka_cond \<lceil>P\<rceil> X Y"
 
 abbreviation loopi_sugar :: "'a nd_fun \<Rightarrow> 'a pred \<Rightarrow> 'a nd_fun" ("LOOP _ INV _ " [64,64] 63)
-  where "LOOP R INV I \<equiv> loopi R \<lceil>I\<rceil>"
+  where "LOOP R INV I \<equiv> aka_loop_inv R \<lceil>I\<rceil>"
 
 lemma wp_loopI: "\<lceil>P\<rceil> \<le> \<lceil>I\<rceil> \<Longrightarrow> \<lceil>I\<rceil> \<le> \<lceil>Q\<rceil> \<Longrightarrow> \<lceil>I\<rceil> \<le> wp R \<lceil>I\<rceil> \<Longrightarrow> \<lceil>P\<rceil> \<le> wp (LOOP R INV I) \<lceil>Q\<rceil>"
   using fbox_loopi[of "\<lceil>P\<rceil>"] by auto

@@ -11,125 +11,9 @@ liberal preconditions (wlps) of hybrid programs. Finally, we derive our three me
 for verifying correctness specifications for the continuous dynamics of HS in this setting. \<close>
 
 theory mka2rel
-  imports "../hs_prelims_dyn_sys" "KAD.Modal_Kleene_Algebra"
+  imports "../hs_prelims_dyn_sys" "../hs_prelims_ka"
 
 begin
-
-
-subsection \<open> Modal Kleene algebra preparation \<close> 
-
-context dioid_one_zero (* by Victor Gomes, Georg Struth *)
-begin
-
-lemma power_inductl: "z + x \<cdot> y \<le> y \<Longrightarrow> (x ^ n) \<cdot> z \<le> y"
-  by(induct n, auto, metis mult.assoc mult_isol order_trans)
-
-lemma power_inductr: "z + y \<cdot> x \<le> y \<Longrightarrow> z \<cdot> (x ^ n) \<le> y"
-proof (induct n)
-  case 0 show ?case
-    using "0.prems" by auto
-  case Suc
-  {
-    fix n
-    assume "z + y \<cdot> x \<le> y \<Longrightarrow> z \<cdot> x ^ n \<le> y"
-      and "z + y \<cdot> x \<le> y"
-    hence "z \<cdot> x ^ n \<le> y"
-      by auto
-    also have "z \<cdot> x ^ Suc n = z \<cdot> x \<cdot> x ^ n"
-      by (metis mult.assoc power_Suc)
-    moreover have "... = (z \<cdot> x ^ n) \<cdot> x"
-      by (metis mult.assoc power_commutes)
-    moreover have "... \<le> y \<cdot> x"
-      by (metis calculation(1) mult_isor)
-    moreover have "... \<le> y"
-      using \<open>z + y \<cdot> x \<le> y\<close> by auto
-    ultimately have "z \<cdot> x ^ Suc n \<le> y" by auto
-  }
-  thus ?case
-    by (metis Suc)
-qed
-
-end
-
-context antidomain_kleene_algebra
-begin
-
-lemma fbox_frame: "d p \<cdot> x \<le> x \<cdot> d p \<Longrightarrow> d q \<le> |x] t \<Longrightarrow> d p \<cdot> d q \<le> |x] (d p \<cdot> d t)"    
-  using dual.mult_isol_var fbox_add1 fbox_demodalisation3 fbox_simp by auto
-
-lemma plus_inv: "i \<le> |x] i \<Longrightarrow> j \<le> |x] j \<Longrightarrow> (i + j) \<le> |x] (i + j)"
-  by (metis ads_d_def dka.dsr5 fbox_simp fbox_subdist join.sup_mono order_trans)
-
-lemma mult_inv: "d i \<le> |x] d i \<Longrightarrow> d j \<le> |x] d j \<Longrightarrow> (d i \<cdot> d j) \<le> |x] (d i \<cdot> d j)"
-  using fbox_demodalisation3 fbox_frame fbox_simp by auto
-
-lemma fbox_export1: "ad p + |x] q = |d p \<cdot> x] q"
-  using a_d_add_closure addual.ars_r_def fbox_def fbox_mult by auto
-
-lemma fbox_stari: "d p \<le> d i \<Longrightarrow> d i \<le> |x] i \<Longrightarrow> d i \<le> d q \<Longrightarrow> d p \<le> |x\<^sup>\<star>] q"
-  by (meson dual_order.trans fbox_iso fbox_star_induct_var)
-
-declare fbox_mult [simp]
-
-definition cond :: "'a \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> 'a" ("if _ then _ else _ fi" [64,64,64] 63) 
-  where "if p then x else y fi = d p \<cdot> x + ad p \<cdot> y"
-
-lemma fbox_cond_var [simp]: "|if p then x else y fi] q = (ad p + |x] q) \<cdot> (d p + |y] q)"  
-  using cond_def a_closure' ads_d_def ans_d_def fbox_add2 fbox_export1 by auto
-
-definition loopi :: "'a \<Rightarrow> 'a \<Rightarrow> 'a" ("loop _ inv _ " [64,64] 63)
-  where "loop x inv i = x\<^sup>\<star>"
-
-lemma fbox_loopi: "d p \<le> d i \<Longrightarrow> d i \<le> |x] i \<Longrightarrow> d i \<le> d q \<Longrightarrow> d p \<le> |loop x inv i] q"
-  unfolding loopi_def using fbox_stari by blast
-
-end
-
-
-subsection \<open> Relational model \<close> (* by Victor Gomes, Georg Struth *)
-
-interpretation rel_dioid: dioid_one_zero "(\<union>)" "(O)" Id "{}" "(\<subseteq>)" "(\<subset>)"
-  by (unfold_locales, auto)
-
-lemma power_is_relpow: "rel_dioid.power X n = X ^^ n"
-proof (induct n)
-  case 0 show ?case
-    by (metis rel_dioid.power_0 relpow.simps(1))
-  case Suc thus ?case
-    by (metis rel_dioid.power_Suc2 relpow.simps(2))
-qed
-
-lemma rel_star_def: "X^* = (\<Union>n. rel_dioid.power X n)"
-  by (simp add: power_is_relpow rtrancl_is_UN_relpow)
-
-lemma rel_star_contl: "X O Y^* = (\<Union>n. X O rel_dioid.power Y n)"
-by (metis rel_star_def relcomp_UNION_distrib)
-
-lemma rel_star_contr: "X^* O Y = (\<Union>n. (rel_dioid.power X n) O Y)"
-by (metis rel_star_def relcomp_UNION_distrib2)
-
-interpretation rel_ka: kleene_algebra "(\<union>)" "(O)" Id "{}" "(\<subseteq>)" "(\<subset>)" rtrancl
-proof
-  fix x y z :: "'a rel"
-  show "Id \<union> x O x\<^sup>* \<subseteq> x\<^sup>*"
-    by (metis order_refl r_comp_rtrancl_eq rtrancl_unfold)
-next
-  fix x y z :: "'a rel"
-  assume "z \<union> x O y \<subseteq> y"
-  thus "x\<^sup>* O z \<subseteq> y"
-    by (simp only: rel_star_contr, metis (lifting) SUP_le_iff rel_dioid.power_inductl)
-next
-  fix x y z :: "'a rel"
-  assume "z \<union> y O x \<subseteq> y"
-  thus "z O x\<^sup>* \<subseteq> y"
-    by (simp only: rel_star_contl, metis (lifting) SUP_le_iff rel_dioid.power_inductr)
-qed
-
-definition rel_ad :: "'a rel \<Rightarrow> 'a rel" where
-  "rel_ad R = {(x,x) | x. \<not> (\<exists>y. (x,y) \<in> R)}"
-
-interpretation rel_aka: antidomain_kleene_algebra rel_ad "(\<union>)" "(O)" Id "{}" "(\<subseteq>)" "(\<subset>)" rtrancl
-  by  unfold_locales (auto simp: rel_ad_def)
 
 
 subsection \<open> Store and weakest preconditions \<close>
@@ -139,9 +23,11 @@ type_synonym 'a pred = "'a \<Rightarrow> bool"
 no_notation Archimedean_Field.ceiling ("\<lceil>_\<rceil>")
         and Range_Semiring.antirange_semiring_class.ars_r ("r")
         and antidomain_semiringl.ads_d ("d")
+        and n_op ("n _" [90] 91)
+        and Hoare ("H")
+        and tau ("\<tau>")
 
 notation Id ("skip")
-     and relcomp (infixl ";" 70)
      and zero_class.zero ("0")
      and rel_aka.fbox ("wp")
 
@@ -170,10 +56,10 @@ lemma wp_assign [simp]: "wp (x ::= e) \<lceil>Q\<rceil> = \<lceil>\<lambda>s. Q 
   unfolding wp_rel vec_upd_def assign_def by (auto simp: fun_upd_def)
 
 abbreviation cond_sugar :: "'a pred \<Rightarrow> 'a rel \<Rightarrow> 'a rel \<Rightarrow> 'a rel" ("IF _ THEN _ ELSE _" [64,64] 63) 
-  where "IF P THEN X ELSE Y \<equiv> rel_aka.cond \<lceil>P\<rceil> X Y"
+  where "IF P THEN X ELSE Y \<equiv> rel_aka.aka_cond \<lceil>P\<rceil> X Y"
 
 abbreviation loopi_sugar :: "'a rel \<Rightarrow> 'a pred \<Rightarrow> 'a rel" ("LOOP _ INV _ " [64,64] 63)
-  where "LOOP R INV I \<equiv> rel_aka.loopi R \<lceil>I\<rceil>"
+  where "LOOP R INV I \<equiv> rel_aka.aka_loop_inv R \<lceil>I\<rceil>"
 
 lemma wp_loopI: "\<lceil>P\<rceil> \<le> \<lceil>I\<rceil> \<Longrightarrow> \<lceil>I\<rceil> \<le> \<lceil>Q\<rceil> \<Longrightarrow> \<lceil>I\<rceil> \<le> wp R \<lceil>I\<rceil> \<Longrightarrow> \<lceil>P\<rceil> \<le> wp (LOOP R INV I) \<lceil>Q\<rceil>"
   using rel_aka.fbox_loopi[of "\<lceil>P\<rceil>"] by auto
@@ -286,7 +172,7 @@ lemma wp_g_odei: "\<lceil>P\<rceil> \<le> \<lceil>I\<rceil> \<Longrightarrow> \<
 
 subsection\<open> Derivation of the rules of dL \<close>
 
-text\<open> We derive domain specific rules of differential dynamic logic (dL). First we present a 
+text \<open> We derive domain specific rules of differential dynamic logic (dL). First we present a 
 generalised version, then we show the rules as instances of the general ones.\<close>
 
 lemma diff_solve_axiom: 

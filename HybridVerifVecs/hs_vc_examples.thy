@@ -427,4 +427,59 @@ no_notation thermostat_vars.to_var ("\<restriction>\<^sub>V")
         and temp_vec_field ("f\<^sub>T")
         and temp_flow ("\<phi>\<^sub>T")
 
+
+subsubsection\<open> Thermostat \<close>
+
+abbreviation tank_vec_field :: "real \<Rightarrow> real^4 \<Rightarrow> real^4" ("f")
+  where "f k s \<equiv> (\<chi> i. if i = 2 then 1 else (if i = 1 then k else 0))"
+
+abbreviation tank_flow :: "real \<Rightarrow> real \<Rightarrow> real^4 \<Rightarrow> real^4" ("\<phi>")
+  where "\<phi> k \<tau> s \<equiv> (\<chi> i. if i = 1 then k * \<tau> + s$1 else 
+  (if i = 2 then \<tau> + s$2 else s$i))"
+
+abbreviation tank_guard :: "real \<Rightarrow> real \<Rightarrow> real^4 \<Rightarrow> bool" ("G")
+  where "G Hm k s \<equiv> s$2 \<le> (Hm - s$3)/k"
+
+abbreviation tank_loop_inv :: "real \<Rightarrow> real \<Rightarrow> real^4 \<Rightarrow> bool" ("I")
+  where "I hmin hmax s \<equiv> hmin \<le> s$1 \<and> s$1 \<le> hmax \<and> (s$4 = 0 \<or> s$4 = 1)"
+
+abbreviation tank_diff_inv :: "real \<Rightarrow> real \<Rightarrow> real \<Rightarrow> real^4 \<Rightarrow> bool" ("dI")
+  where "dI hmin hmax k s \<equiv> s$1 = k * s$2 + s$3 \<and> 0 \<le> s$2 \<and> 
+    hmin \<le> s$3 \<and> s$3 \<le> hmax \<and> (s$4 =0 \<or> s$4 = 1)"
+
+lemma local_flow_tank: "local_flow (f k) UNIV UNIV (\<phi> k)"
+  apply (unfold_locales, unfold local_lipschitz_def lipschitz_on_def, simp_all, clarsimp)
+  apply(rule_tac x="1/2" in exI, clarsimp, rule_tac x=1 in exI)
+  apply(simp add: dist_norm norm_vec_def L2_set_def, unfold UNIV_4)
+  by (auto intro!: poly_derivatives simp: vec_eq_iff)
+
+lemma tank_arith:
+  assumes "0 \<le> (\<tau>::real)" and "0 < c\<^sub>o" and "c\<^sub>o < c\<^sub>i"
+  shows "\<forall>\<tau>\<in>{0..\<tau>}. \<tau> \<le> - ((hmin - y) / c\<^sub>o) \<Longrightarrow>  hmin \<le> y - c\<^sub>o * \<tau>"
+    and "\<forall>\<tau>\<in>{0..\<tau>}. \<tau> \<le> (hmax - y) / (c\<^sub>i - c\<^sub>o) \<Longrightarrow>  (c\<^sub>i - c\<^sub>o) * \<tau> + y \<le> hmax"
+    and "hmin \<le> y \<Longrightarrow> hmin \<le> (c\<^sub>i - c\<^sub>o) * \<tau> + y"
+    and "y \<le> hmax \<Longrightarrow> y - c\<^sub>o * \<tau> \<le> hmax"
+  apply(simp_all add: field_simps le_divide_eq assms)
+  using assms apply (meson add_mono less_eq_real_def mult_left_mono)
+  using assms by (meson add_increasing2 less_eq_real_def mult_nonneg_nonneg) 
+
+lemma tank_flow:
+  assumes "0 \<le> \<tau>" and "0 < c\<^sub>o" and "c\<^sub>o < c\<^sub>i"
+  shows "I hmin hmax \<le>
+  |LOOP 
+    \<comment> \<open>control\<close>
+    ((2 ::=(\<lambda>s.0));(3 ::=(\<lambda>s. s$1));
+    (IF (\<lambda>s. s$4 = 0 \<and> s$3 \<le> hmin + 1) THEN (4 ::= (\<lambda>s.1)) ELSE 
+    (IF (\<lambda>s. s$4 = 1 \<and> s$3 \<ge> hmax - 1) THEN (4 ::= (\<lambda>s.0)) ELSE skip));
+    \<comment> \<open>dynamics\<close>
+    (IF (\<lambda>s. s$4 = 0) THEN (x\<acute>= f (c\<^sub>i-c\<^sub>o) & G hmax (c\<^sub>i-c\<^sub>o) on {0..\<tau>} UNIV @ 0) 
+     ELSE (x\<acute>= f (-c\<^sub>o) & G hmin (-c\<^sub>o) on {0..\<tau>} UNIV @ 0)) ) INV I hmin hmax]  
+  I hmin hmax"
+  apply(rule fbox_loopI, simp_all add: le_fun_def)
+  apply(clarsimp simp: le_fun_def local_flow.fbox_g_ode_ivl[OF local_flow_tank assms(1) UNIV_I])
+  using assms tank_arith[OF _ assms(2,3)] by auto
+
+no_notation tank_vec_field ("f")
+        and tank_flow ("\<phi>")
+
 end
