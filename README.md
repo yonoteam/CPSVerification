@@ -1,8 +1,12 @@
 # Hybrid Systems Verification
-A repository for Isabelle modules to implement verification of Hybrid Systems, a model for Cyber-Physical Systems.
+A repository for Isabelle modules to implement verification of hybrid programs, a model for Cyber-Physical Systems.
 
-As of mid 2019, there are various different formalizations of similar results. The differences depend on the codification of systems of Ordinary Differential Equations and on the implementation of the semantics. Generally, the implementations are:
-* Relational semantics with list representation (in folder HybridVerifLists).
+As of late 2019, the modularity of the approach provides various formalizations of similar results. The differences reside on the codification of systems of Ordinary Differential Equations, on the algebra chosen for verification, and on the implementation of the semantics. The implementations are:
+* Spartan version with predicate transformers and a vector representation of the hybrid store. (our most powerful and lightweight version in HybridVerifVecs).
+* Semantics of predicate transformers and Kleisli arrows (in HybridVerifVecs/PredTransf)
+* Modal Kleene Algebra approach with both, relational and state transformer semantics (in HybridVerifVecs/MKA)
+* Hoare logic and refinement calculus in Kleene Algebra with Tests semantics with both, relational and state transformer semantics (in HybridVerifVecs/KAT)
+* Relational semantics in MKA with a list representation of systems of ODEs (in folder HybridVerifLists).
 * Relational semantics with vector codification (in folder HybridVerifVecs/rels).
 * Nondeterministic functions semantics with vector representation (in folder HybridVerifVecs/nd_funs).
 * Semantics using generalized functions with a vector codification (in folder HybridVerifVecs/funcsets).
