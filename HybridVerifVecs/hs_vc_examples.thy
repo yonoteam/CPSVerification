@@ -44,24 +44,6 @@ lemma program_vars_exhaust: "x = \<restriction>\<^sub>V''x'' \<or> x = \<restric
 abbreviation val_p :: "real^program_vars \<Rightarrow> string \<Rightarrow> real" (infixl "\<downharpoonright>\<^sub>V" 90) 
   where "store\<downharpoonright>\<^sub>Vvar \<equiv> store$\<restriction>\<^sub>Vvar"
 
-\<comment> \<open>Alternative to the finite set of program variables.\<close>
-
-lemma "CARD(2) = CARD(program_vars)"
-  unfolding number_of_program_vars by simp
-
-lemma two_eq_zero: "(2::2) = 0" 
-  by simp
-
-lemma UNIV_2: "(UNIV::2 set) = {0, 1}"
-  apply safe using exhaust_2 two_eq_zero by auto
-
-lemma UNIV_3: "(UNIV::3 set) = {0, 1, 2}"
-  apply safe using exhaust_3 three_eq_zero by auto
-
-lemma sum_axis_UNIV_3[simp]: "(\<Sum>j\<in>(UNIV::3 set). axis i 1 $ j * f j) = (f::3 \<Rightarrow> real) i"
-  unfolding axis_def UNIV_3 apply simp
-  using exhaust_3 by force
-
 
 subsubsection\<open>Circular Motion\<close>
 
@@ -103,20 +85,20 @@ no_notation circular_motion_vec_field ("C")
 \<comment> \<open>Verified as a linear system (using uniqueness). \<close>
 
 abbreviation circular_motion_sq_mtx :: "2 sq_mtx" ("C")
-  where "C \<equiv> sq_mtx_chi (\<chi> i. if i=0 then - \<e> 1 else \<e> 0)"
+  where "C \<equiv> sq_mtx_chi (\<chi> i. if i=1 then - \<e> 2 else \<e> 1)"
 
 abbreviation circular_motion_mtx_flow :: "real \<Rightarrow> real^2 \<Rightarrow> real^2" ("\<phi>\<^sub>C")
-  where "\<phi>\<^sub>C t s \<equiv> (\<chi> i. if i = 0 then s$0 * cos t - s$1 * sin t else s$0 * sin t + s$1 * cos t)"
+  where "\<phi>\<^sub>C t s \<equiv> (\<chi> i. if i = 1 then s$1 * cos t - s$2 * sin t else s$1 * sin t + s$2 * cos t)"
 
 lemma circular_motion_mtx_exp_eq: "exp (t *\<^sub>R C) *\<^sub>V s = \<phi>\<^sub>C t s"
-  apply(rule local_flow.eq_solution[OF local_flow_exp, symmetric])
-    apply(rule ivp_solsI, simp add: sq_mtx_vec_prod_def matrix_vector_mult_def)
+  apply(rule local_flow.eq_solution[OF local_flow_sq_mtx_linear, symmetric])
+    apply(rule ivp_solsI, simp add: sq_mtx_vec_mult_def matrix_vector_mult_def)
       apply(force intro!: poly_derivatives simp: matrix_vector_mult_def)
-  using exhaust_2 two_eq_zero by (force simp: vec_eq_iff, auto)
+  using exhaust_2 by (force simp: vec_eq_iff, auto)
 
 lemma circular_motion_sq_mtx:
-  "(\<lambda>s. r\<^sup>2 = (s$0)\<^sup>2 + (s$1)\<^sup>2) \<le> fbox (x\<acute>=(*\<^sub>V) C & G) (\<lambda>s. r\<^sup>2 = (s$0)\<^sup>2 + (s$1)\<^sup>2)"
-  unfolding local_flow.fbox_g_ode[OF local_flow_exp] circular_motion_mtx_exp_eq by auto
+  "(\<lambda>s. r\<^sup>2 = (s$1)\<^sup>2 + (s$2)\<^sup>2) \<le> fbox (x\<acute>=(*\<^sub>V) C & G) (\<lambda>s. r\<^sup>2 = (s$1)\<^sup>2 + (s$2)\<^sup>2)"
+  unfolding local_flow.fbox_g_ode[OF local_flow_sq_mtx_linear] circular_motion_mtx_exp_eq by auto
 
 no_notation circular_motion_sq_mtx ("C")
         and circular_motion_mtx_flow ("\<phi>\<^sub>C")
@@ -237,9 +219,9 @@ no_notation cnst_acc_vec_field ("K")
 \<comment> \<open>Verified as a linear system (computing exponential). \<close>
 
 abbreviation cnst_acc_sq_mtx :: "3 sq_mtx" ("K")
-  where "K \<equiv> sq_mtx_chi (\<chi> i::3. if i=0 then \<e> 1 else if i=1 then \<e> 2 else 0)"
+  where "K \<equiv> sq_mtx_chi (\<chi> i::3. if i=1 then \<e> 2 else if i=2 then \<e> 3 else 0)"
 
-lemma const_acc_mtx_pow2: "K\<^sup>2 = sq_mtx_chi (\<chi> i. if i=0 then \<e> 2 else 0)"
+lemma const_acc_mtx_pow2: "K\<^sup>2 = sq_mtx_chi (\<chi> i. if i=1 then \<e> 3 else 0)"
   unfolding power2_eq_square times_sq_mtx_def 
   by(simp add: sq_mtx_chi_inject vec_eq_iff matrix_matrix_mult_def)
 
@@ -252,31 +234,64 @@ lemma const_acc_mtx_powN: "n > 2 \<Longrightarrow> (\<tau> *\<^sub>R K)^n = 0"
 lemma exp_cnst_acc_sq_mtx: "exp (\<tau> *\<^sub>R K) = ((\<tau> *\<^sub>R K)\<^sup>2/\<^sub>R 2) + (\<tau> *\<^sub>R K) + 1"
   unfolding exp_def apply(subst suminf_eq_sum[of 2])
   using const_acc_mtx_powN by (simp_all add: numeral_2_eq_2)
+
+lemma exp_cnst_acc_eq: "exp (\<tau> *\<^sub>R K) $$ i $ j = vector (map vector  
+   ([1, \<tau>, \<tau>^2/2] # 
+    [0, 1,     \<tau>] #
+    [0, 0,     1] # [])) $ i $ j"
+  unfolding exp_cnst_acc_sq_mtx scaleR_power const_acc_mtx_pow2 vector_def
+  using exhaust_3 by (force simp: axis_def)
+
+lemma "exp (\<tau> *\<^sub>R K) $$ i $ j = vector 
+  [vector [1, \<tau>, \<tau>^2/2], 
+   vector [0, 1,     \<tau>],
+   vector [0, 0,     1]] $ i $ j"
+  unfolding exp_cnst_acc_sq_mtx scaleR_power const_acc_mtx_pow2 vector_def
+  using exhaust_3 by (force simp: axis_def)
  
 lemma exp_cnst_acc_sq_mtx_simps:
-  "exp (\<tau> *\<^sub>R K) $$ 0 $ 0 = 1" "exp (\<tau> *\<^sub>R K) $$ 0 $ 1 = \<tau>" "exp (\<tau> *\<^sub>R K) $$ 0 $ 2 = \<tau>^2/2"
-  "exp (\<tau> *\<^sub>R K) $$ 1 $ 0 = 0" "exp (\<tau> *\<^sub>R K) $$ 1 $ 1 = 1" "exp (\<tau> *\<^sub>R K) $$ 1 $ 2 = \<tau>"
-  "exp (\<tau> *\<^sub>R K) $$ 2 $ 0 = 0" "exp (\<tau> *\<^sub>R K) $$ 2 $ 1 = 0" "exp (\<tau> *\<^sub>R K) $$ 2 $ 2 = 1"
+  "exp (\<tau> *\<^sub>R K) $$ 1 $ 1 = 1" "exp (\<tau> *\<^sub>R K) $$ 1 $ 2 = \<tau>" "exp (\<tau> *\<^sub>R K) $$ 1 $ 3 = \<tau>^2/2"
+  "exp (\<tau> *\<^sub>R K) $$ 2 $ 1 = 0" "exp (\<tau> *\<^sub>R K) $$ 2 $ 2 = 1" "exp (\<tau> *\<^sub>R K) $$ 2 $ 3 = \<tau>"
+  "exp (\<tau> *\<^sub>R K) $$ 3 $ 1 = 0" "exp (\<tau> *\<^sub>R K) $$ 3 $ 2 = 0" "exp (\<tau> *\<^sub>R K) $$ 3 $ 3 = 1"
   unfolding exp_cnst_acc_sq_mtx scaleR_power const_acc_mtx_pow2
   by (auto simp: plus_sq_mtx_def scaleR_sq_mtx_def one_sq_mtx_def 
       mat_def scaleR_vec_def axis_def plus_vec_def)
 
 lemma bouncing_ball_sq_mtx: 
-  "(\<lambda>s. 0 \<le> s$0 \<and> s$0 = h \<and> s$1 = 0 \<and> 0 > s$2) \<le> fbox 
-  (LOOP ((x\<acute>=(*\<^sub>V) K & (\<lambda> s. s$0 \<ge> 0)) ;
-  (IF (\<lambda> s. s$0 = 0) THEN (1 ::= (\<lambda>s. - s$1)) ELSE skip))
-  INV (\<lambda>s. 0\<le>s$0 \<and> 0>s$2 \<and> 2 * s$2 * s$0 = 2 * s$2 * h + (s$1 * s$1)))
-  (\<lambda>s. 0 \<le> s$0 \<and> s$0 \<le> h)"
-  apply(rule fbox_loopI[of _ "(\<lambda>s. 0\<le>s$0 \<and> 0>s$2 \<and> 2 * s$2 * s$0 = 2 * s$2 * h + (s$1 * s$1))"])
-    apply(simp_all add: local_flow.fbox_g_ode[OF local_flow_exp] sq_mtx_vec_prod_eq)
+  "(\<lambda>s. 0 \<le> s$1 \<and> s$1 = h \<and> s$2 = 0 \<and> 0 > s$3) \<le> fbox 
+  (LOOP ((x\<acute>=(*\<^sub>V) K & (\<lambda> s. s$1 \<ge> 0)) ;
+  (IF (\<lambda> s. s$1 = 0) THEN (2 ::= (\<lambda>s. - s$2)) ELSE skip))
+  INV (\<lambda>s. 0\<le>s$1 \<and> s$3<0 \<and> 2 * s$3 * s$1 = 2 * s$3 * h + (s$2 * s$2)))
+  (\<lambda>s. 0 \<le> s$1 \<and> s$1 \<le> h)"
+  apply(rule fbox_loopI[of _ "(\<lambda>s. 0\<le>s$1 \<and> 0>s$3 \<and> 2 * s$3 * s$1 = 2 * s$3 * h + (s$2 * s$2))"])
     apply(force, force simp: bb_real_arith)
-  unfolding UNIV_3 apply(simp add: exp_cnst_acc_sq_mtx_simps, safe)
-  using bb_real_arith(2)[of _ _ h] apply (force simp: field_simps)
-  subgoal for s \<tau> using bb_real_arith(3)[of "s$2"] by(simp add: field_simps)
+    apply(simp add: local_flow.fbox_g_ode[OF local_flow_sq_mtx_linear] sq_mtx_vec_mult_eq)
+  unfolding UNIV_3 apply(simp add: exp_cnst_acc_eq, safe)
+  subgoal for s t using bb_real_arith(2)[of "s$3" "s$1" h] by (force simp: field_simps)
+  subgoal for s \<tau> using bb_real_arith(3)[of "s$3" "s$1" h] by (simp add: field_simps)
   done
 
 no_notation cnst_acc_sq_mtx ("K")
 
+
+subsubsection\<open> Differential Ghosts \<close>
+
+abbreviation "ghosts_vec_field s \<equiv> \<chi> i. if i=1 then - s$1 else 0" (* less than half an hour to prove this *)
+abbreviation "ghosts_flow t s \<equiv> \<chi> i. if i=1 then s$1 * exp (- t) else s$i"
+notation ghosts_vec_field ("f")
+     and ghosts_flow ("\<phi>")
+
+lemma "(\<lambda>s::real^2. s$1 > 0) \<le> fbox (x\<acute>= f & (\<lambda>s. True)) (\<lambda>s. s$1 > (0::real))"
+  apply(subst local_flow.fbox_g_ode[of f UNIV UNIV \<phi> "\<lambda>s. True"])
+  apply(unfold_locales, simp_all add: local_lipschitz_def lipschitz_on_def)
+     apply(clarsimp, rule_tac x=1 in exI, clarsimp, rule_tac x=1 in exI)
+     apply(clarsimp simp: dist_norm norm_vec_def L2_set_def UNIV_2)
+  unfolding real_sqrt_abs[symmetric] apply (rule real_le_lsqrt, simp, simp)
+     apply (smt power2_diff power2_sum real_less_rsqrt zero_le_power2)
+  by (auto simp: forall_2 vec_eq_iff intro!: poly_derivatives)
+
+no_notation ghosts_vec_field ("f")
+     and ghosts_flow ("\<phi>")
 
 subsubsection\<open> Thermostat \<close>
 
@@ -428,7 +443,7 @@ no_notation thermostat_vars.to_var ("\<restriction>\<^sub>V")
         and temp_flow ("\<phi>\<^sub>T")
 
 
-subsubsection\<open> Thermostat \<close>
+subsubsection\<open> Tank \<close>
 
 abbreviation tank_vec_field :: "real \<Rightarrow> real^4 \<Rightarrow> real^4" ("f")
   where "f k s \<equiv> (\<chi> i. if i = 2 then 1 else (if i = 1 then k else 0))"

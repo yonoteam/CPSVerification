@@ -62,14 +62,14 @@ abbreviation pend_sq_mtx :: "2 sq_mtx" ("A")
   where "A \<equiv> sq_mtx_chi (\<chi> i. if i=1 then \<e> 2 else - \<e> 1)"
 
 lemma pend_sq_mtx_exp_eq_flow: "exp (t *\<^sub>R A) *\<^sub>V s = \<phi> t s"
-  apply(rule local_flow.eq_solution[OF local_flow_exp, symmetric])
-    apply(rule ivp_solsI, simp add: sq_mtx_vec_prod_def matrix_vector_mult_def)
+  apply(rule local_flow.eq_solution[OF local_flow_sq_mtx_linear, symmetric])
+    apply(rule ivp_solsI, simp add: sq_mtx_vec_mult_def matrix_vector_mult_def)
       apply(force intro!: poly_derivatives simp: matrix_vector_mult_def)
   using exhaust_2 by (force simp: vec_eq_iff, auto)
 
 lemma pendulum_sq_mtx:
   "\<lceil>\<lambda>s. r\<^sup>2 = (s$1)\<^sup>2 + (s$2)\<^sup>2\<rceil> \<le> wp (x\<acute>= ((*\<^sub>V) A) & G) \<lceil>\<lambda>s. r\<^sup>2 = (s$1)\<^sup>2 + (s$2)\<^sup>2\<rceil>"
-  unfolding local_flow.wp_g_ode[OF local_flow_exp] pend_sq_mtx_exp_eq_flow by auto
+  unfolding local_flow.wp_g_ode[OF local_flow_sq_mtx_linear] pend_sq_mtx_exp_eq_flow by auto
 
 no_notation fpend ("f")
         and pend_sq_mtx ("A")
@@ -231,9 +231,9 @@ lemma bouncing_ball_sq_mtx:
       (IF (\<lambda> s. s$1 = 0) THEN (2 ::= (\<lambda>s. - s$2)) ELSE skip))
     INV (\<lambda>s. 0 \<le> s$1 \<and> 0 > s$3 \<and> 2 \<cdot> s$3 \<cdot> s$1 = 2 \<cdot> s$3 \<cdot> h + (s$2 \<cdot> s$2)))
   \<lceil>\<lambda>s. 0 \<le> s$1 \<and> s$1 \<le> h\<rceil>"
-  apply(rule wp_loopI, simp_all add: local_flow.wp_g_ode[OF local_flow_exp])
+  apply(rule wp_loopI, simp_all add: local_flow.wp_g_ode[OF local_flow_sq_mtx_linear])
    apply(force simp: bb_real_arith)
-  apply(simp add: sq_mtx_vec_prod_eq)
+  apply(simp add: sq_mtx_vec_mult_eq)
   unfolding UNIV_3 apply(simp add: exp_ball_sq_mtx_simps, safe)
   using bb_real_arith(2) apply(force simp: add.commute mult.commute)
   using bb_real_arith(3) by (force simp: add.commute mult.commute)
