@@ -152,10 +152,9 @@ lemma onorm_set_proptys:
     and "bdd_above (range (\<lambda>x. (\<parallel>A *v x\<parallel>) / (\<parallel>x\<parallel>)))"
     and "(range (\<lambda>x. (\<parallel>A *v x\<parallel>) / (\<parallel>x\<parallel>))) \<noteq> {}"
   unfolding bounded_def bdd_above_def image_def dist_real_def apply(rule_tac x=0 in exI)
-    apply(rule_tac x="\<parallel>(\<chi> i j. \<parallel>A $ i $ j\<parallel>) *v 1\<parallel>" in exI, clarsimp,
+  by (rule_tac x="\<parallel>(\<chi> i j. \<parallel>A $ i $ j\<parallel>) *v 1\<parallel>" in exI, clarsimp,
       subst mult_norm_matrix_sgn_eq[symmetric], clarsimp,
-      rule_tac x="sgn _" in norm_matrix_bound, simp add: norm_sgn)+
-  by force
+      rule_tac x="sgn _" in norm_matrix_bound, simp add: norm_sgn)+ force
 
 lemma op_norm_set_proptys:
   fixes A :: "('a::real_normed_algebra_1)^'n^'m"
@@ -202,9 +201,12 @@ lemma blin_matrix_vector_mult: "bounded_linear ((*v) A)" for A :: "('a::real_nor
   by (unfold_locales) (auto intro: norm_matrix_le_mult_op_norm simp: 
       mult.commute matrix_vector_right_distrib vector_scaleR_commute)
 
-lemma op_norm_zero_iff: "(\<parallel>A\<parallel>\<^sub>o\<^sub>p = 0) = (A = 0)" for A :: "('a::real_normed_field)^'n^'m"
+lemma op_norm_eq_0: "(\<parallel>A\<parallel>\<^sub>o\<^sub>p = 0) = (A = 0)" for A :: "('a::real_normed_field)^'n^'m"
   unfolding onorm_eq_0[OF blin_matrix_vector_mult] using matrix_axis_0[of 1 A] by fastforce
 
+lemma op_norm0: "\<parallel>(0::('a::real_normed_field)^'n^'m)\<parallel>\<^sub>o\<^sub>p = 0"
+  using op_norm_eq_0[of 0] by simp
+                  
 lemma op_norm_triangle: "\<parallel>A + B\<parallel>\<^sub>o\<^sub>p \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p) + (\<parallel>B\<parallel>\<^sub>o\<^sub>p)" 
   using onorm_triangle[OF blin_matrix_vector_mult[of A] blin_matrix_vector_mult[of B]]
     matrix_vector_mult_add_rdistrib[symmetric, of A _ B] by simp
@@ -283,12 +285,11 @@ qed
 
 subsubsection\<open> Matrix maximum norm \<close>
 
-abbreviation "max_norm (A::real^'n^'m) \<equiv> Max (abs ` (entries A))"
-
-notation max_norm ("(1\<parallel>_\<parallel>\<^sub>m\<^sub>a\<^sub>x)" [65] 61)
+abbreviation max_norm :: "real^'n^'m \<Rightarrow> real" ("(1\<parallel>_\<parallel>\<^sub>m\<^sub>a\<^sub>x)" [65] 61)
+  where "\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x \<equiv> Max (\<P> abs (entries A))"
 
 lemma max_norm_def: "\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x = Max {\<bar>A $ i $ j\<bar>|i j. i\<in>UNIV \<and> j\<in>UNIV}"
-  by(simp add: image_def, rule arg_cong[of _ _ Max], blast)
+  by (simp add: image_def, rule arg_cong[of _ _ Max], blast)
 
 lemma max_norm_set_proptys: "finite {\<bar>A $ i $ j\<bar> |i j. i \<in> UNIV \<and> j \<in> UNIV}" (is "finite ?X")
 proof-
@@ -302,12 +303,8 @@ proof-
 qed
 
 lemma max_norm_ge_0: "0 \<le> \<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x"
-proof-
-  have "\<And> i j. \<bar>A $ i $ j\<bar> \<ge> 0" by simp
-  also have "\<And> i j. \<bar>A $ i $ j\<bar> \<le> \<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x"
-    unfolding max_norm_def using max_norm_set_proptys Max_ge max_norm_def by blast
-  finally show "0 \<le> \<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x" .
-qed
+  unfolding max_norm_def apply(rule order.trans[OF abs_ge_zero[of "A $ _ $ _"] Max_ge])
+  using max_norm_set_proptys by auto
 
 lemma op_norm_le_max_norm:
   fixes A :: "real^('n::finite)^('m::finite)"
@@ -322,34 +319,101 @@ text\<open> Now we prove our first objective. First we obtain the Lipschitz cons
 of ODEs, and then we prove that IVPs arising from these satisfy the conditions for Picard-Lindeloef 
 theorem (hence, they have a unique solution). \<close>
 
-lemma matrix_lipschitz_constant:
-  fixes A :: "real^'n^'n"
-  shows "dist (A *v x) (A *v y) \<le> (real CARD('n))\<^sup>2 * (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x) * dist x y"
-  unfolding dist_norm matrix_vector_mult_diff_distrib[symmetric]
-proof(subst mult_norm_matrix_sgn_eq[symmetric])
-  have "\<parallel>A\<parallel>\<^sub>o\<^sub>p \<le> (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x) * (real CARD('n) * real CARD('n))"
-    by (metis (no_types) Groups.mult_ac(2) op_norm_le_max_norm)
-  then have "(\<parallel>A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>x - y\<parallel>) \<le> (real CARD('n))\<^sup>2 * (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x) * (\<parallel>x - y\<parallel>)"
-    by (metis (no_types, lifting) mult.commute mult_right_mono norm_ge_zero power2_eq_square)
-  also have "(\<parallel>A *v sgn (x - y)\<parallel>) * (\<parallel>x - y\<parallel>) \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>x - y\<parallel>)"
-    by (simp add: norm_sgn_le_op_norm mult_mono') 
-  ultimately show "(\<parallel>A *v sgn (x - y)\<parallel>) * (\<parallel>x - y\<parallel>) \<le> (real CARD('n))\<^sup>2 * (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x) * (\<parallel>x - y\<parallel>)"
-    using order_trans_rules(23) by blast
+lemma continuous_on_matrix_vector_multl:
+  fixes A :: "real \<Rightarrow> real^'n^'m"
+  assumes "\<forall>t \<in> T. \<forall>\<epsilon> > 0. \<exists> \<delta> > 0. \<forall>\<tau>\<in>T. \<bar>\<tau> - t\<bar> < \<delta> \<longrightarrow> \<parallel>A \<tau> - A t\<parallel>\<^sub>o\<^sub>p \<le> \<epsilon>"
+  shows "continuous_on T (\<lambda>t. A t *v s)"
+proof(rule continuous_onI, simp add: dist_norm)
+  fix e t::real assume "0 < e" and "t \<in> T"
+  let ?\<epsilon> = "e/(\<parallel>(if s = 0 then 1 else s)\<parallel>)"
+  have "?\<epsilon> > 0"
+    using \<open>0 < e\<close> by simp 
+  then obtain \<delta> where dHyp: "\<delta> > 0 \<and> (\<forall>\<tau>\<in>T. \<bar>\<tau> - t\<bar> < \<delta> \<longrightarrow> \<parallel>A \<tau> - A t\<parallel>\<^sub>o\<^sub>p \<le> ?\<epsilon>)"
+    using assms \<open>t \<in> T\<close> unfolding dist_norm by fastforce
+  {fix \<tau> assume "\<tau> \<in> T" and "\<bar>\<tau> - t\<bar> < \<delta>"
+    have obs: "?\<epsilon> * (\<parallel>s\<parallel>) = (if s = 0 then 0 else e)"
+      by auto
+    have "\<parallel>A \<tau> *v s - A t *v s\<parallel> = \<parallel>(A \<tau> - A t) *v s\<parallel>"
+      by (simp add: matrix_vector_mult_diff_rdistrib)      
+    also have "... \<le> (\<parallel>A \<tau> - A t\<parallel>\<^sub>o\<^sub>p) * (\<parallel>s\<parallel>)"
+      using norm_matrix_le_mult_op_norm by blast
+    also have "... \<le> ?\<epsilon> * (\<parallel>s\<parallel>)"
+      using dHyp \<open>\<tau> \<in> T\<close> \<open>\<bar>\<tau> - t\<bar> < \<delta>\<close> mult_right_mono norm_ge_zero by blast 
+    finally have "\<parallel>A \<tau> *v s - A t *v s\<parallel> \<le> e"
+      by (subst (asm) obs) (metis (mono_tags, hide_lams) \<open>0 < e\<close> less_eq_real_def order_trans)}
+  thus "\<exists>d>0. \<forall>\<tau>\<in>T. \<bar>\<tau> - t\<bar> < d \<longrightarrow> \<parallel>A \<tau> *v s - A t *v s\<parallel> \<le> e"
+    using dHyp by blast
 qed
 
-lemma picard_lindeloef_linear_system:
-  fixes A :: "real^'n^'n"
-  defines "L \<equiv> (real CARD('n))\<^sup>2 * (\<parallel>A\<parallel>\<^sub>m\<^sub>a\<^sub>x)"
-  shows "picard_lindeloef (\<lambda> t. (*v) A) UNIV UNIV 0"
-  apply(unfold_locales, simp_all add: local_lipschitz_def lipschitz_on_def, clarsimp)
-  apply(rule_tac x=1 in exI, clarsimp, rule_tac x="L" in exI, safe)
-  using max_norm_ge_0[of A] unfolding assms by force (rule matrix_lipschitz_constant)
+lemma lipschitz_cond_affine:
+  fixes A :: "real \<Rightarrow> real^'n^'m" and T::"real set"
+  defines "L \<equiv> Sup {\<parallel>A t\<parallel>\<^sub>o\<^sub>p |t. t \<in> T}"
+  assumes "t \<in> T" and "bdd_above {\<parallel>A t\<parallel>\<^sub>o\<^sub>p |t. t \<in> T}"
+  shows "\<parallel>A t *v x - A t *v y\<parallel> \<le> L * (\<parallel>x - y\<parallel>)"
+proof-
+  have obs: "\<parallel>A t\<parallel>\<^sub>o\<^sub>p \<le> Sup {\<parallel>A t\<parallel>\<^sub>o\<^sub>p |t. t \<in> T}"
+    apply(rule cSup_upper)
+    using continuous_on_subset assms by (auto simp: dist_norm)
+  have "\<parallel>A t *v x - A t *v y\<parallel> = \<parallel>A t *v (x - y)\<parallel>"
+    by (simp add: matrix_vector_mult_diff_distrib)
+  also have "... \<le> (\<parallel>A t\<parallel>\<^sub>o\<^sub>p) * (\<parallel>x - y\<parallel>)"
+    using norm_matrix_le_mult_op_norm by blast
+  also have "... \<le> Sup {\<parallel>A t\<parallel>\<^sub>o\<^sub>p |t. t \<in> T} * (\<parallel>x - y\<parallel>)"
+    using obs mult_right_mono norm_ge_zero by blast 
+  finally show "\<parallel>A t *v x - A t *v y\<parallel> \<le> L * (\<parallel>x - y\<parallel>)"
+    unfolding assms .
+qed
 
-lemma picard_lindeloef_affine_system:
+lemma local_lipschitz_affine:
+  fixes A :: "real \<Rightarrow> real^'n^'n"
+  assumes "open T" and "open S" 
+    and Ahyp: "\<And>\<tau> \<epsilon>. \<epsilon> > 0 \<Longrightarrow> \<tau> \<in> T \<Longrightarrow> cball \<tau> \<epsilon> \<subseteq> T \<Longrightarrow> bdd_above {\<parallel>A t\<parallel>\<^sub>o\<^sub>p |t. t \<in> cball \<tau> \<epsilon>}"
+  shows "local_lipschitz T S (\<lambda>t s. A t *v s + B t)"
+proof(unfold local_lipschitz_def lipschitz_on_def, clarsimp)
+  fix s t assume "s \<in> S" and "t \<in> T"
+  then obtain e1 e2 where "cball t e1 \<subseteq> T" and "cball s e2 \<subseteq> S" and "min e1 e2 > 0"
+    using open_cballE[OF _ \<open>open T\<close>] open_cballE[OF _ \<open>open S\<close>] by force
+  hence obs: "cball t (min e1 e2) \<subseteq> T"
+    by auto
+  let ?L = "Sup {\<parallel>A \<tau>\<parallel>\<^sub>o\<^sub>p |\<tau>. \<tau> \<in> cball t (min e1 e2)}"
+  have "\<parallel>A t\<parallel>\<^sub>o\<^sub>p \<in> {\<parallel>A \<tau>\<parallel>\<^sub>o\<^sub>p |\<tau>. \<tau> \<in> cball t (min e1 e2)}"
+    using \<open>min e1 e2 > 0\<close> by auto
+  moreover have bdd: "bdd_above {\<parallel>A \<tau>\<parallel>\<^sub>o\<^sub>p |\<tau>. \<tau> \<in> cball t (min e1 e2)}"
+    by (rule Ahyp, simp only: \<open>min e1 e2 > 0\<close>, simp_all add: \<open>t \<in> T\<close> obs)
+  moreover have "Sup {\<parallel>A \<tau>\<parallel>\<^sub>o\<^sub>p |\<tau>. \<tau> \<in> cball t (min e1 e2)} \<ge> 0"
+    apply(rule order.trans[OF op_norm_ge_0[of "A t"]])
+    by (rule cSup_upper[OF calculation])
+  moreover have "\<forall>x\<in>cball s (min e1 e2) \<inter> S. \<forall>y\<in>cball s (min e1 e2) \<inter> S. 
+    \<forall>\<tau>\<in>cball t (min e1 e2) \<inter> T. dist (A \<tau> *v x) (A \<tau> *v y) \<le> ?L * dist x y"
+    apply(clarify, simp only: dist_norm, rule lipschitz_cond_affine)
+    using \<open>min e1 e2 > 0\<close> bdd by auto
+  ultimately show "\<exists>e>0. \<exists>L. \<forall>t\<in>cball t e \<inter> T. 0 \<le> L \<and> 
+    (\<forall>x\<in>cball s e \<inter> S. \<forall>y\<in>cball s e \<inter> S. dist (A t *v x) (A t *v y) \<le> L * dist x y)"
+    using \<open>min e1 e2 > 0\<close> by blast
+qed
+
+lemma picard_lindeloef_affine:
+  fixes A :: "real \<Rightarrow> real^'n^'n"
+  assumes Ahyp: "\<forall>t \<in> T. \<forall>\<epsilon> > 0. \<exists> \<delta> > 0. \<forall>\<tau>\<in>T. \<bar>\<tau> - t\<bar> < \<delta> \<longrightarrow> \<parallel>A \<tau> - A t\<parallel>\<^sub>o\<^sub>p \<le> \<epsilon>"
+      and "\<And>\<tau> \<epsilon>. \<tau> \<in> T \<Longrightarrow> \<epsilon> > 0 \<Longrightarrow> bdd_above {\<parallel>A t\<parallel>\<^sub>o\<^sub>p |t. dist \<tau> t \<le> \<epsilon>}"
+      and Bhyp: "continuous_on T B" and "open S" 
+      and "t\<^sub>0 \<in> T" and Thyp: "open T" "is_interval T" 
+    shows "picard_lindeloef (\<lambda> t s. A t *v s + B t) T S t\<^sub>0"
+  apply(unfold_locales, simp_all add: assms, clarsimp)
+  apply(rule continuous_on_add[OF continuous_on_matrix_vector_multl[OF Ahyp] Bhyp])
+  by (rule local_lipschitz_affine) (simp_all add: assms)
+
+lemma picard_lindeloef_affine_constant:
   fixes A :: "real^'n^'n"
-  shows "picard_lindeloef (\<lambda> t s. A *v s + b) UNIV UNIV 0"
-  apply(rule picard_lindeloef_add[OF picard_lindeloef_linear_system])
-  using picard_lindeloef_constant by auto
+  shows "picard_lindeloef (\<lambda> t s. A *v s + B) UNIV UNIV 0"
+  using picard_lindeloef_affine[of _ "\<lambda>t. A" "\<lambda>t. B"]
+  by (simp only: diff_self op_norm0, auto)
+
+lemma picard_lindeloef_linear_constant:
+  fixes A :: "real^'n^'n"
+  shows "picard_lindeloef (\<lambda> t. (*v) A) UNIV UNIV 0"
+  using picard_lindeloef_affine_constant[of A 0] by force
+
 
 subsection\<open> Diagonalization \<close>
 
@@ -523,7 +587,6 @@ proof(rule sym, subst cSup_eq_Max[symmetric], simp_all, subst cSup_eq_Max[symmet
   ultimately show "Sup {\<bar>f i\<bar> |i. i \<in> A} = sqrt (Sup {(f i)\<^sup>2 |i. i \<in> A})"
     using cSup_mem_eq[of "\<bar>f i\<bar>" "{\<bar>f i\<bar> |i. i \<in> A}"] lhs by auto
 qed
-
 
 lemma op_norm_diag_mat_eq: "\<parallel>diag_mat f\<parallel>\<^sub>o\<^sub>p = Max {\<bar>f i\<bar> |i. i \<in> UNIV}"
 proof(unfold op_norm_def)
@@ -735,7 +798,7 @@ definition open_sq_mtx :: "'a sq_mtx set \<Rightarrow> bool"
 instance apply intro_classes 
   unfolding sgn_sq_mtx_def open_sq_mtx_def dist_sq_mtx_def uniformity_sq_mtx_def
   prefer 10 apply(transfer, simp add: norm_sq_mtx_def op_norm_triangle)
-  prefer 9 apply(simp_all add: norm_sq_mtx_def zero_sq_mtx_def op_norm_zero_iff)
+  prefer 9 apply(simp_all add: norm_sq_mtx_def zero_sq_mtx_def op_norm_eq_0)
   by(transfer, simp add: norm_sq_mtx_def op_norm_scaleR algebra_simps)+
 
 end
@@ -1036,6 +1099,17 @@ lemma exp_sq_mtx_diag: "exp (sq_mtx_diag f) = (\<d>\<i>\<a>\<g> i. exp (f i))"
   using exp_converges[of "f _"] 
   unfolding sums_def LIMSEQ_iff exp_def by force
 
+lemma exp_scaleR_similar_sq_mtx_diag_eq:
+  assumes "mtx_invertible P" and "A = P\<^sup>-\<^sup>1 * (sq_mtx_diag f) * P"
+    shows "exp (t *\<^sub>R A) = P\<^sup>-\<^sup>1 * (\<d>\<i>\<a>\<g> i. exp (t * f i)) * P"
+proof-
+  have "exp (t *\<^sub>R A) = exp (P\<^sup>-\<^sup>1 * (t *\<^sub>R sq_mtx_diag f) * P)"
+    using assms by simp
+  also have "... = P\<^sup>-\<^sup>1 * (\<d>\<i>\<a>\<g> i. exp (t * f i)) * P"
+    by (metis assms(1) exp_similiar_sq_mtx_diag_eq exp_sq_mtx_diag scaleR_sq_mtx_diag)
+  finally show "exp (t *\<^sub>R A) = P\<^sup>-\<^sup>1 * (\<d>\<i>\<a>\<g> i. exp (t * f i)) * P" .
+qed
+
 lemma has_derivative_mtx_ith[derivative_intros]:
   fixes t::real and T :: "real set"
   defines "t\<^sub>0 \<equiv> netlimit (at t within T)"
@@ -1087,57 +1161,71 @@ subsection\<open> Flow for squared matrix systems \<close>
 text\<open>Finally, we can use the @{term exp} operation to characterize the general solutions for linear 
 systems of ODEs. We show that they satisfy the @{term "local_flow"} locale.\<close>
 
-lemma picard_lindeloef_sq_mtx_linear:
-  fixes A :: "('n::finite) sq_mtx"
-  defines "L \<equiv> (real CARD('n))\<^sup>2 * (\<parallel>to_vec A\<parallel>\<^sub>m\<^sub>a\<^sub>x)"
-  shows "picard_lindeloef (\<lambda> t s. A *\<^sub>V s) UNIV UNIV t\<^sub>0"
-  apply(unfold_locales, simp_all add: local_lipschitz_def lipschitz_on_def, clarsimp)
-  apply(rule_tac x=1 in exI, clarsimp, rule_tac x="L" in exI, safe)
-  using max_norm_ge_0[of "to_vec A"] unfolding assms apply force
-  by transfer (rule matrix_lipschitz_constant)
+lemma continuous_on_sq_mtx_vec_multl:
+  fixes A :: "real \<Rightarrow> ('n::finite) sq_mtx"
+  assumes "continuous_on T A"
+  shows "continuous_on T (\<lambda>t. A t *\<^sub>V s)"
+proof-
+  have "\<forall>t\<in>T. \<forall>\<epsilon>>0. \<exists>\<delta>>0. \<forall>\<tau>\<in>T. \<bar>\<tau> - t\<bar> < \<delta> \<longrightarrow> \<parallel>to_vec (A \<tau>) - to_vec (A t)\<parallel>\<^sub>o\<^sub>p \<le> \<epsilon>"
+    using assms unfolding continuous_on_iff dist_norm norm_sq_mtx_def by force
+  hence "continuous_on T (\<lambda>t. to_vec (A t) *v s)"
+    by (rule continuous_on_matrix_vector_multl)
+  thus ?thesis
+    by transfer
+qed
+
+lemmas continuous_on_affine = continuous_on_add[OF continuous_on_sq_mtx_vec_multl]
+
+lemma lipschitz_cond_sq_mtx_affine:
+  fixes A :: "real \<Rightarrow> ('n::finite) sq_mtx"
+  assumes "t \<in> T" and "bdd_above {\<parallel>A t\<parallel> |t. t \<in> T}"
+  shows "\<parallel>A t *\<^sub>V x - A t *\<^sub>V y\<parallel> \<le> Sup {\<parallel>A t\<parallel> |t. t \<in> T} * (\<parallel>x - y\<parallel>)"
+  using assms unfolding norm_sq_mtx_def apply transfer
+  using lipschitz_cond_affine by force
+
+lemma local_lipschitz_sq_mtx_affine:
+  fixes A :: "real \<Rightarrow> ('n::finite) sq_mtx"
+  assumes "continuous_on T A" "open T" "open S"
+  shows "local_lipschitz T S (\<lambda>t s. A t *\<^sub>V s + B t)"
+proof-
+  have obs: "\<And>\<tau> \<epsilon>. 0 < \<epsilon> \<Longrightarrow>  \<tau> \<in> T \<Longrightarrow> cball \<tau> \<epsilon> \<subseteq> T \<Longrightarrow> bdd_above {\<parallel>A t\<parallel> |t. t \<in> cball \<tau> \<epsilon>}"
+    by (rule bdd_above_norm_cont_comp, rule continuous_on_subset[OF assms(1)], simp_all)
+  hence "\<And>\<tau> \<epsilon>. 0 < \<epsilon> \<Longrightarrow> \<tau> \<in> T \<Longrightarrow> cball \<tau> \<epsilon> \<subseteq> T \<Longrightarrow> bdd_above {\<parallel>to_vec (A t)\<parallel>\<^sub>o\<^sub>p |t. t \<in> cball \<tau> \<epsilon>}"
+    by (simp add: norm_sq_mtx_def)
+  hence "local_lipschitz T S (\<lambda>t s. to_vec (A t) *v s + B t)"
+    using local_lipschitz_affine[OF assms(2,3)] by force
+  thus ?thesis
+    by transfer 
+qed
 
 lemma picard_lindeloef_sq_mtx_affine:
-  fixes A :: "('n::finite) sq_mtx"
-  shows "picard_lindeloef (\<lambda> t s. A *\<^sub>V s + b) UNIV UNIV t\<^sub>0"
-  apply(rule picard_lindeloef_add[OF picard_lindeloef_sq_mtx_linear])
-  using picard_lindeloef_constant by auto
+  fixes A :: "real \<Rightarrow> ('n::finite) sq_mtx"
+  assumes "continuous_on T A" and "continuous_on T B" 
+       and "t\<^sub>0 \<in> T" "is_interval T" "open T" and "open S"
+    shows "picard_lindeloef (\<lambda>t s. A t *\<^sub>V s + B t) T S t\<^sub>0"
+  apply(unfold_locales, simp_all add: assms, clarsimp)
+  using continuous_on_affine assms apply blast
+  by (rule local_lipschitz_sq_mtx_affine, simp_all add: assms)
 
-lemma local_flow_sq_mtx_linear:
-  fixes A :: "('n::finite) sq_mtx"
-  shows "local_flow ((*\<^sub>V) A) UNIV UNIV (\<lambda>t s. exp (t *\<^sub>R A) *\<^sub>V s)"
+lemma local_flow_sq_mtx_linear: "local_flow ((*\<^sub>V) A) UNIV UNIV (\<lambda>t s. exp (t *\<^sub>R A) *\<^sub>V s)"
   unfolding local_flow_def local_flow_axioms_def apply safe
-  using picard_lindeloef_sq_mtx_linear apply blast
+  using picard_lindeloef_sq_mtx_affine[of _ "\<lambda>t. A" "\<lambda>t. 0"] apply force
   apply(rule vderiv_mtx_vec_mult_intro, rule poly_derivatives)
   by (rule has_vderiv_on_exp_scaleRl) (auto simp: fun_eq_iff
       exp_times_scaleR_commute sq_mtx_times_vec_assoc intro: poly_derivatives)
 
-lemma local_flow_sq_mtx_affine:
-  fixes A :: "('n::finite) sq_mtx"
-  shows "local_flow (\<lambda>s. A *\<^sub>V s + b) UNIV UNIV 
-  (\<lambda>t s. (exp (t *\<^sub>R A)) *\<^sub>V s + (exp (t *\<^sub>R A)) *\<^sub>V ivl_integral 0 t (\<lambda>\<tau>. (exp (- \<tau> *\<^sub>R A)) *\<^sub>V b))"
+lemma local_flow_sq_mtx_affine: "local_flow (\<lambda>s. A *\<^sub>V s + B) UNIV UNIV 
+  (\<lambda>t s. (exp (t *\<^sub>R A)) *\<^sub>V s + (exp (t *\<^sub>R A)) *\<^sub>V ivl_integral 0 t (\<lambda>\<tau>. (exp (- \<tau> *\<^sub>R A)) *\<^sub>V B))"
   unfolding local_flow_def local_flow_axioms_def apply safe
-  using picard_lindeloef_sq_mtx_affine apply blast
-    apply(intro poly_derivatives, rule poly_derivatives, rule poly_derivatives, force, force)
-        apply(rule ivl_integral_has_vderiv_on[OF continuous_on_mtx_vec_multl])
-        apply(intro poly_derivatives, simp_all add: mtx_vec_mult_add_rdistl)
-  unfolding sq_mtx_times_vec_assoc[symmetric]
-  by (auto intro: poly_derivatives simp:  exp_minus_inverse exp_times_scaleR_commute)
+  using picard_lindeloef_sq_mtx_affine[of _ "\<lambda>t. A" "\<lambda>t. B"] apply force
+    apply(intro poly_derivatives; (rule ivl_integral_has_vderiv_on[OF continuous_on_mtx_vec_multl])?)
+            apply(rule poly_derivatives, (force)?, (force)?)+
+    apply(simp_all add: mtx_vec_mult_add_rdistl sq_mtx_times_vec_assoc[symmetric])
+  by (auto simp: exp_minus_inverse exp_times_scaleR_commute)
 
-lemma local_flow_sq_mtx_diag_linear:
-  fixes A :: "('n::finite) sq_mtx"     
-  assumes "mtx_invertible P"
-      and "A = P\<^sup>-\<^sup>1 * (sq_mtx_diag f) * P"
-    shows "local_flow ((*\<^sub>V) A) UNIV UNIV (\<lambda>t s. (P\<^sup>-\<^sup>1 * (\<d>\<i>\<a>\<g> i. exp (t * f i)) * P) *\<^sub>V s)"
-proof-
-  {fix t have "exp (t *\<^sub>R A) = exp (P\<^sup>-\<^sup>1 * (t *\<^sub>R sq_mtx_diag f) * P)"
-      using assms by simp
-    also have "... = P\<^sup>-\<^sup>1 * (\<d>\<i>\<a>\<g> i. exp (t * f i)) * P"
-      by (metis assms(1) exp_similiar_sq_mtx_diag_eq exp_sq_mtx_diag scaleR_sq_mtx_diag)
-    finally have "exp (t *\<^sub>R A) = P\<^sup>-\<^sup>1 * (\<d>\<i>\<a>\<g> i. exp (t * f i)) * P" .}
-  hence "\<And> t s. exp (t *\<^sub>R A) *\<^sub>V s = (P\<^sup>-\<^sup>1 * (\<d>\<i>\<a>\<g> i. exp (t * f i)) * P) *\<^sub>V s"
-    by force
-  thus ?thesis
-    using local_flow_sq_mtx_linear[of A] by force
-qed
+lemma (* name? *)
+  assumes "mtx_invertible P" and "A = P\<^sup>-\<^sup>1 * (sq_mtx_diag f) * P"
+  shows "local_flow ((*\<^sub>V) A) UNIV UNIV (\<lambda>t s. (P\<^sup>-\<^sup>1 * (\<d>\<i>\<a>\<g> i. exp (t * f i)) * P) *\<^sub>V s)"
+  using exp_scaleR_similar_sq_mtx_diag_eq[OF assms] local_flow_sq_mtx_linear[of A] by force
 
 end

@@ -12,12 +12,14 @@ theory hs_prelims
   imports "Ordinary_Differential_Equations.Picard_Lindeloef_Qualitative"
 begin
 
-
 notation has_derivative ("(1(D _ \<mapsto> (_))/ _)" [65,65] 61)
 notation has_vderiv_on ("(1 D _ = (_)/ on _)" [65,65] 61)
 notation norm ("(1\<parallel>_\<parallel>)" [65] 61)
 
 subsection\<open> Functions \<close>
+
+lemma nemptyE: "T \<noteq> {} \<Longrightarrow> \<exists>t. t \<in> T"
+  by blast
 
 lemma case_of_fst[simp]: "(\<lambda>x. case x of (t, x) \<Rightarrow> f t) = (\<lambda> x. (f \<circ> fst) x)"
   by auto
@@ -63,6 +65,24 @@ lemma cMax_finite_ex:
   "finite X \<Longrightarrow> X \<noteq> {} \<Longrightarrow> \<exists>x\<in>X. Max X = x" for X::"'a::conditionally_complete_linorder set"
   apply(subst cSup_eq_Max[symmetric])
   using cSup_finite_ex by auto
+
+lemmas compact_imp_bdd_above = compact_imp_bounded[THEN bounded_imp_bdd_above]
+
+lemma comp_cont_image_spec: "continuous_on T f \<Longrightarrow> compact T \<Longrightarrow> compact {f t |t. t \<in> T}"
+  using compact_continuous_image by (simp add: Setcompr_eq_image)
+
+lemmas bdd_above_cont_comp_spec = compact_imp_bdd_above[OF comp_cont_image_spec]
+
+lemmas bdd_above_norm_cont_comp = continuous_on_norm[THEN bdd_above_cont_comp_spec]
+
+lemma cSup_norm_cont_comp_ge: 
+  "t \<in> T \<Longrightarrow> continuous_on T f \<Longrightarrow> compact T \<Longrightarrow> \<parallel>f t\<parallel> \<le> Sup {\<parallel>f t\<parallel> |t. t \<in> T}"
+  by (rule cSup_upper[OF _ bdd_above_norm_cont_comp], auto) 
+
+lemma cSup_norm_cont_comp_ge0:
+  "T \<noteq> {} \<Longrightarrow> continuous_on T f \<Longrightarrow> compact T \<Longrightarrow> 0 \<le> Sup {\<parallel>f t\<parallel> |t. t \<in> T}"
+  apply(drule nemptyE, clarsimp)
+  subgoal for t by(rule order.trans [OF _ cSup_norm_cont_comp_ge[of t]], auto) .
 
 lemma bdd_above_ltimes:
   fixes c::"'a::linordered_ring_strict"
@@ -143,6 +163,17 @@ lemma real_ivl_eqs:
   unfolding open_segment_eq_real_ivl closed_segment_eq_real_ivl
   using assms apply(auto simp: cball_def ball_def dist_norm)
   by(simp_all add: field_simps)
+
+lemma in_real_ivl_eqs:
+  "(t \<in> cball t0 r) = (\<bar>t - t0\<bar> \<le> r)" 
+  "(t \<in> ball t0 r) = (\<bar>t - t0\<bar> < r)"
+  using dist_real_def by auto
+
+lemma open_cballE: "t\<^sub>0 \<in> T \<Longrightarrow> open T \<Longrightarrow> \<exists>e>0. cball t\<^sub>0 e \<subseteq> T"
+  using open_contains_cball by blast
+
+lemma open_ballE: "t\<^sub>0 \<in> T \<Longrightarrow> open T \<Longrightarrow> \<exists>e>0. ball t\<^sub>0 e \<subseteq> T"
+  using open_contains_ball by blast
 
 lemma norm_rotate_simps[simp]:
   fixes x :: "'a:: {banach,real_normed_field}"
@@ -441,8 +472,8 @@ lemma has_derivative_vec_nth:
   using frechet_vec_nth assms unfolding has_derivative_def by auto
 
 lemma has_vderiv_on_vec_eq[simp]:
-  fixes x::"real \<Rightarrow> ('a::banach)^('n::finite)"
-  shows "(D x = x' on T) = (\<forall>i. D (\<lambda>t. x t $ i) = (\<lambda>t. x' t $ i) on T)"
+  fixes X::"real \<Rightarrow> ('a::banach)^('n::finite)"
+  shows "(D X = X' on T) = (\<forall>i. D (\<lambda>t. X t $ i) = (\<lambda>t. X' t $ i) on T)"
   unfolding has_vderiv_on_def has_vector_derivative_def apply safe
   using has_derivative_vec_nth has_derivative_vec_lambda by blast+
 
