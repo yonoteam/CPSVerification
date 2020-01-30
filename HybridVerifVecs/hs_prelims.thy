@@ -12,14 +12,19 @@ theory hs_prelims
   imports "Ordinary_Differential_Equations.Picard_Lindeloef_Qualitative"
 begin
 
+no_notation has_vderiv_on (infix "(has'_vderiv'_on)" 50)
+
 notation has_derivative ("(1(D _ \<mapsto> (_))/ _)" [65,65] 61)
-notation has_vderiv_on ("(1 D _ = (_)/ on _)" [65,65] 61)
-notation norm ("(1\<parallel>_\<parallel>)" [65] 61)
+     and has_vderiv_on ("(1 D _ = (_)/ on _)" [65,65] 61)
+     and norm ("(1\<parallel>_\<parallel>)" [65] 61)
 
 subsection\<open> Functions \<close>
 
 lemma nemptyE: "T \<noteq> {} \<Longrightarrow> \<exists>t. t \<in> T"
   by blast
+
+lemma funcset_UNIV: "f \<in> A \<rightarrow> UNIV"
+  by auto
 
 lemma case_of_fst[simp]: "(\<lambda>x. case x of (t, x) \<Rightarrow> f t) = (\<lambda> x. (f \<circ> fst) x)"
   by auto
@@ -140,6 +145,11 @@ lemma ge_one_sqrt_le: "1 \<le> x \<Longrightarrow> sqrt x \<le> x"
 
 lemma sqrt_real_nat_le:"sqrt (real n) \<le> real n"
   by (metis (full_types) abs_of_nat le_square of_nat_mono of_nat_mult real_sqrt_abs2 real_sqrt_le_iff)
+
+lemma exp_add: "x * y - y * x = 0 \<Longrightarrow> exp (x + y) = exp x * exp y" 
+  by (rule exp_add_commuting) (simp add: ac_simps)
+
+lemmas mult_exp_exp = exp_add[symmetric]
 
 lemma sq_le_cancel:
   shows "(a::real) \<ge> 0 \<Longrightarrow> b \<ge> 0 \<Longrightarrow> a^2 \<le> b * a \<Longrightarrow> a \<le> b"

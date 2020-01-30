@@ -24,11 +24,17 @@ subsection\<open> Properties of some vector operations \<close>
 
 abbreviation "\<e> k \<equiv> axis k 1"
 
+syntax
+  "_ivl_integral" :: "real \<Rightarrow> real \<Rightarrow> 'a \<Rightarrow> pttrn \<Rightarrow> bool" ("(3\<integral>\<^sub>_\<^sup>_ (_)\<partial>/_)" [0, 0, 10] 10)
+
+translations
+  "\<integral>\<^sub>a\<^sup>b f \<partial>x" \<rightleftharpoons> "CONST ivl_integral a b (\<lambda>x. f)"
+
 notation matrix_inv ("_\<^sup>-\<^sup>1" [90])
 
 abbreviation "entries (A::'a^'n^'m) \<equiv> {A $ i $ j | i j. i \<in> UNIV \<and> j \<in> UNIV}"
 
-lemma finite_sum_univ_singleton: "(sum g UNIV) = sum g {i} + sum g (UNIV - {i})" for i :: "'a::finite"
+lemma finite_sum_univ_singleton: "(sum g UNIV) = sum g {i::'a::finite} + sum g (UNIV - {i})"
   by (metis add.commute finite_class.finite_UNIV sum.subset_diff top_greatest)
 
 lemma kronecker_delta_simps[simp]:
@@ -115,7 +121,7 @@ qed
 subsection\<open> Matrix norms \<close>
 
 text\<open> Here we develop the foundations for obtaining the Lipschitz constant for every system of ODEs 
-of the form  @{term "x' t = A *v (x t)"}. We derive some properties of two matrix norms.\<close>
+of the form  @{term "X' t = A t *v (X t) + (B t)"}. We derive some properties of two matrix norms.\<close>
 
 
 subsubsection\<open> Matrix operator norm \<close>
@@ -167,9 +173,7 @@ lemma op_norm_set_proptys:
    apply(rule_tac x="\<parallel>(\<chi> i j. \<parallel>A $ i $ j\<parallel>) *v 1\<parallel>" in exI, force simp: norm_matrix_bound)
   using ex_norm_eq_1 by blast
 
-lemma op_norm_def: 
-  fixes A :: "('a::real_normed_algebra_1)^'n^'m"
-  shows "\<parallel>A\<parallel>\<^sub>o\<^sub>p = Sup {\<parallel>A *v x\<parallel> | x. \<parallel>x\<parallel> = 1}"
+lemma op_norm_def: "\<parallel>A\<parallel>\<^sub>o\<^sub>p = Sup {\<parallel>A *v x\<parallel> | x. \<parallel>x\<parallel> = 1}"
   apply(rule antisym[OF onorm_le cSup_least[OF op_norm_set_proptys(3)]])
    apply(case_tac "x = 0", simp)
    apply(subst mult_norm_matrix_sgn_eq[symmetric], simp)
@@ -214,9 +218,7 @@ lemma op_norm_triangle: "\<parallel>A + B\<parallel>\<^sub>o\<^sub>p \<le> (\<pa
 lemma op_norm_scaleR: "\<parallel>c *\<^sub>R A\<parallel>\<^sub>o\<^sub>p = \<bar>c\<bar> * (\<parallel>A\<parallel>\<^sub>o\<^sub>p)"
   unfolding onorm_scaleR[OF blin_matrix_vector_mult, symmetric] scaleR_vector_assoc ..
 
-lemma op_norm_matrix_matrix_mult_le: 
-  fixes A :: "('a::real_normed_algebra_1)^'n^'m"
-  shows "\<parallel>A ** B\<parallel>\<^sub>o\<^sub>p \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>B\<parallel>\<^sub>o\<^sub>p)" 
+lemma op_norm_matrix_matrix_mult_le: "\<parallel>A ** B\<parallel>\<^sub>o\<^sub>p \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>B\<parallel>\<^sub>o\<^sub>p)" 
 proof(rule onorm_le)
   have "0 \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p)" 
     by(rule onorm_pos_le[OF blin_matrix_vector_mult])
@@ -313,15 +315,17 @@ lemma op_norm_le_max_norm:
   unfolding max_norm_def by(rule Max_ge[OF max_norm_set_proptys]) force
 
 
-subsection\<open> Picard Lindeloef for linear systems \<close>
+subsection\<open> Picard Lindeloef for affine systems \<close>
 
-text\<open> Now we prove our first objective. First we obtain the Lipschitz constant for linear systems
-of ODEs, and then we prove that IVPs arising from these satisfy the conditions for Picard-Lindeloef 
-theorem (hence, they have a unique solution). \<close>
+text\<open> Now we prove our first objective. First we obtain the Lipschitz constant for affine systems
+of ODEs. Then we prove that IVPs arising from these systems satisfy the conditions for Picard-
+Lindeloef theorem (hence, they have a unique solution). \<close>
+
+definition matrix_continuous_on :: "real set \<Rightarrow> (real \<Rightarrow> ('a::real_normed_algebra_1)^'n^'m) \<Rightarrow> bool" 
+  where "matrix_continuous_on T A = (\<forall>t \<in> T. \<forall>\<epsilon> > 0. \<exists> \<delta> > 0. \<forall>\<tau>\<in>T. \<bar>\<tau> - t\<bar> < \<delta> \<longrightarrow> \<parallel>A \<tau> - A t\<parallel>\<^sub>o\<^sub>p \<le> \<epsilon>)"
 
 lemma continuous_on_matrix_vector_multl:
-  fixes A :: "real \<Rightarrow> real^'n^'m"
-  assumes "\<forall>t \<in> T. \<forall>\<epsilon> > 0. \<exists> \<delta> > 0. \<forall>\<tau>\<in>T. \<bar>\<tau> - t\<bar> < \<delta> \<longrightarrow> \<parallel>A \<tau> - A t\<parallel>\<^sub>o\<^sub>p \<le> \<epsilon>"
+  assumes "matrix_continuous_on T A"
   shows "continuous_on T (\<lambda>t. A t *v s)"
 proof(rule continuous_onI, simp add: dist_norm)
   fix e t::real assume "0 < e" and "t \<in> T"
@@ -329,7 +333,7 @@ proof(rule continuous_onI, simp add: dist_norm)
   have "?\<epsilon> > 0"
     using \<open>0 < e\<close> by simp 
   then obtain \<delta> where dHyp: "\<delta> > 0 \<and> (\<forall>\<tau>\<in>T. \<bar>\<tau> - t\<bar> < \<delta> \<longrightarrow> \<parallel>A \<tau> - A t\<parallel>\<^sub>o\<^sub>p \<le> ?\<epsilon>)"
-    using assms \<open>t \<in> T\<close> unfolding dist_norm by fastforce
+    using assms \<open>t \<in> T\<close> unfolding dist_norm matrix_continuous_on_def by fastforce
   {fix \<tau> assume "\<tau> \<in> T" and "\<bar>\<tau> - t\<bar> < \<delta>"
     have obs: "?\<epsilon> * (\<parallel>s\<parallel>) = (if s = 0 then 0 else e)"
       by auto
@@ -346,7 +350,7 @@ proof(rule continuous_onI, simp add: dist_norm)
 qed
 
 lemma lipschitz_cond_affine:
-  fixes A :: "real \<Rightarrow> real^'n^'m" and T::"real set"
+  fixes A :: "real \<Rightarrow> 'a::real_normed_algebra_1^'n^'m" and T::"real set"
   defines "L \<equiv> Sup {\<parallel>A t\<parallel>\<^sub>o\<^sub>p |t. t \<in> T}"
   assumes "t \<in> T" and "bdd_above {\<parallel>A t\<parallel>\<^sub>o\<^sub>p |t. t \<in> T}"
   shows "\<parallel>A t *v x - A t *v y\<parallel> \<le> L * (\<parallel>x - y\<parallel>)"
@@ -365,7 +369,7 @@ proof-
 qed
 
 lemma local_lipschitz_affine:
-  fixes A :: "real \<Rightarrow> real^'n^'n"
+  fixes A :: "real \<Rightarrow> 'a::real_normed_algebra_1^'n^'n"
   assumes "open T" and "open S" 
     and Ahyp: "\<And>\<tau> \<epsilon>. \<epsilon> > 0 \<Longrightarrow> \<tau> \<in> T \<Longrightarrow> cball \<tau> \<epsilon> \<subseteq> T \<Longrightarrow> bdd_above {\<parallel>A t\<parallel>\<^sub>o\<^sub>p |t. t \<in> cball \<tau> \<epsilon>}"
   shows "local_lipschitz T S (\<lambda>t s. A t *v s + B t)"
@@ -393,8 +397,8 @@ proof(unfold local_lipschitz_def lipschitz_on_def, clarsimp)
 qed
 
 lemma picard_lindeloef_affine:
-  fixes A :: "real \<Rightarrow> real^'n^'n"
-  assumes Ahyp: "\<forall>t \<in> T. \<forall>\<epsilon> > 0. \<exists> \<delta> > 0. \<forall>\<tau>\<in>T. \<bar>\<tau> - t\<bar> < \<delta> \<longrightarrow> \<parallel>A \<tau> - A t\<parallel>\<^sub>o\<^sub>p \<le> \<epsilon>"
+  fixes A :: "real \<Rightarrow> 'a::{banach,real_normed_algebra_1,heine_borel}^'n^'n"
+  assumes Ahyp: "matrix_continuous_on T A"
       and "\<And>\<tau> \<epsilon>. \<tau> \<in> T \<Longrightarrow> \<epsilon> > 0 \<Longrightarrow> bdd_above {\<parallel>A t\<parallel>\<^sub>o\<^sub>p |t. dist \<tau> t \<le> \<epsilon>}"
       and Bhyp: "continuous_on T B" and "open S" 
       and "t\<^sub>0 \<in> T" and Thyp: "open T" "is_interval T" 
@@ -403,16 +407,22 @@ lemma picard_lindeloef_affine:
   apply(rule continuous_on_add[OF continuous_on_matrix_vector_multl[OF Ahyp] Bhyp])
   by (rule local_lipschitz_affine) (simp_all add: assms)
 
-lemma picard_lindeloef_affine_constant:
-  fixes A :: "real^'n^'n"
-  shows "picard_lindeloef (\<lambda> t s. A *v s + B) UNIV UNIV 0"
-  using picard_lindeloef_affine[of _ "\<lambda>t. A" "\<lambda>t. B"]
-  by (simp only: diff_self op_norm0, auto)
+lemma picard_lindeloef_autonomous_affine: 
+  fixes A :: "'a::{banach,real_normed_field,heine_borel}^'n^'n"
+  shows "picard_lindeloef (\<lambda> t s. A *v s + B) UNIV UNIV t\<^sub>0"
+  using picard_lindeloef_affine[of _ "\<lambda>t. A" "\<lambda>t. B"] 
+  unfolding matrix_continuous_on_def by (simp only: diff_self op_norm0, auto)
 
-lemma picard_lindeloef_linear_constant:
-  fixes A :: "real^'n^'n"
-  shows "picard_lindeloef (\<lambda> t. (*v) A) UNIV UNIV 0"
-  using picard_lindeloef_affine_constant[of A 0] by force
+lemma picard_lindeloef_autonomous_linear:
+  fixes A :: "'a::{banach,real_normed_field,heine_borel}^'n^'n"
+  shows "picard_lindeloef (\<lambda> t. (*v) A) UNIV UNIV t\<^sub>0"
+  using picard_lindeloef_autonomous_affine[of A 0] by force
+
+lemmas unique_sol_autonomous_affine = picard_lindeloef.unique_solution[OF 
+    picard_lindeloef_autonomous_affine _ _ funcset_UNIV UNIV_I _ _ funcset_UNIV UNIV_I]
+
+lemmas unique_sol_autonomous_linear = picard_lindeloef.unique_solution[OF 
+    picard_lindeloef_autonomous_linear _ _ funcset_UNIV UNIV_I _ _ funcset_UNIV UNIV_I]
 
 
 subsection\<open> Diagonalization \<close>
@@ -626,11 +636,11 @@ lemma "CARD('a) \<ge> 2 \<Longrightarrow> \<parallel>diag_mat f\<parallel>\<^sub
 no_notation matrix_inv ("_\<^sup>-\<^sup>1" [90])
         and similar_matrix (infixr "\<sim>" 25)
 
-subsection\<open> Squared matrices \<close>
+subsection\<open> Square matrices \<close>
 
-text\<open> The general solution for linear systems of ODEs involves the an exponential function. 
+text\<open> The general solution for affine systems of ODEs involves the exponential function. 
 Unfortunately, this operation is only available in Isabelle for the type class ``banach''. 
-Hence, we define a type of squared matrices and prove that it is an instance of this class.\<close>
+Hence, we define a type of square matrices and prove that it is an instance of this class.\<close>
 
 typedef 'm sq_mtx = "UNIV::(real^'m^'m) set"
   morphisms to_vec sq_mtx_chi by simp
@@ -692,7 +702,7 @@ lemma row_ith[simp]:"\<r>\<o>\<w> i A = A $$ i"
 lemma mtx_vec_mult_canon:"A *\<^sub>V (\<e> i) = \<c>\<o>\<l> i A" 
   by (transfer, simp add: matrix_vector_mult_basis)
 
-subsubsection\<open> Squared matrices form a real normed vector space \<close>
+subsubsection\<open> Square matrices form a real normed vector space \<close>
 
 instantiation sq_mtx :: (finite) ring 
 begin
@@ -754,15 +764,15 @@ lemma mtx_vec_mult_0l[simp]: "0 *\<^sub>V x = 0"
 lemma mtx_vec_mult_0r[simp]: "A *\<^sub>V 0 = 0"
   by (transfer, simp)
 
-lemma mtx_vec_mult_add_rdistr:"(A + B) *\<^sub>V x = A *\<^sub>V x + B *\<^sub>V x"
+lemma mtx_vec_mult_add_rdistr: "(A + B) *\<^sub>V x = A *\<^sub>V x + B *\<^sub>V x"
   unfolding plus_sq_mtx_def apply(transfer)
   by (simp add: matrix_vector_mult_add_rdistrib)
 
-lemma mtx_vec_mult_add_rdistl:"A *\<^sub>V (x + y) = A *\<^sub>V x + A *\<^sub>V y"
+lemma mtx_vec_mult_add_rdistl: "A *\<^sub>V (x + y) = A *\<^sub>V x + A *\<^sub>V y"
   unfolding plus_sq_mtx_def apply transfer
   by (simp add: matrix_vector_right_distrib)
 
-lemma mtx_vec_mult_minus_rdistrib:"(A - B) *\<^sub>V x = A *\<^sub>V x - B *\<^sub>V x"
+lemma mtx_vec_mult_minus_rdistrib: "(A - B) *\<^sub>V x = A *\<^sub>V x - B *\<^sub>V x"
   unfolding minus_sq_mtx_def by(transfer, simp add: matrix_vector_mult_diff_rdistrib)
 
 lemma mtx_vec_mult_minus_ldistrib: "A *\<^sub>V (x - y) =  A *\<^sub>V x -  A *\<^sub>V y"
@@ -772,7 +782,7 @@ lemma mtx_vec_mult_minus_ldistrib: "A *\<^sub>V (x - y) =  A *\<^sub>V x -  A *\
 lemma sq_mtx_times_vec_assoc: "(A * B) *\<^sub>V x = A *\<^sub>V (B *\<^sub>V x)"
   by (transfer, simp add: matrix_vector_mul_assoc)
 
-lemma sq_mtx_vec_mult_sum_cols:"A *\<^sub>V x = sum (\<lambda>i. x $ i *\<^sub>R \<c>\<o>\<l> i A) UNIV"
+lemma sq_mtx_vec_mult_sum_cols: "A *\<^sub>V x = sum (\<lambda>i. x $ i *\<^sub>R \<c>\<o>\<l> i A) UNIV"
   by(transfer) (simp add: matrix_mult_sum scalar_mult_eq_scaleR)
 
 
@@ -853,7 +863,7 @@ lemma norm_column_le_norm: "\<parallel>A $$ i\<parallel> \<le> \<parallel>A\<par
   using norm_vec_mult_le[of "A\<^sup>\<dagger>" "\<e> i"] by simp
 
 
-subsubsection\<open> Squared matrices form a Banach space \<close>
+subsubsection\<open> Square matrices form a Banach space \<close>
 
 instantiation sq_mtx :: (finite) real_normed_algebra_1
 begin
@@ -1133,6 +1143,10 @@ lemma vderiv_mtx_vec_mult_intro[poly_derivatives]:
   apply(rule derivative_eq_intros(146))
   by (auto simp: fun_eq_iff mtrx_vec_scaleR_commute pth_6 scaleR_mtx_vec_assoc)
 
+lemmas has_vderiv_on_ivl_integral = ivl_integral_has_vderiv_on[OF vderiv_on_continuous_on]
+
+declare has_vderiv_on_ivl_integral [poly_derivatives]
+
 lemma has_derivative_mtx_vec_multl[derivative_intros]:
   assumes "\<And> i j. D (\<lambda>t. (A t) $$ i $ j) \<mapsto> (\<lambda>\<tau>. \<tau> *\<^sub>R (A' t) $$ i $ j) (at t within T)"
   shows "D (\<lambda>t. A t *\<^sub>V x) \<mapsto> (\<lambda>\<tau>. \<tau> *\<^sub>R (A' t) *\<^sub>V x) at t within T"
@@ -1144,10 +1158,6 @@ lemma has_derivative_mtx_vec_multl[derivative_intros]:
   apply(rule has_derivative_vec_lambda)
   by (simp add: scaleR_vec_def)
 
-lemma continuous_on_mtx_vec_multl: "D A = A' on T \<Longrightarrow> continuous_on T (\<lambda>\<tau>. A \<tau> *\<^sub>V b)"
-  apply(rule vderiv_on_continuous_on[OF vderiv_mtx_vec_mult_intro])
-  by (rule derivative_intros, auto)
-
 lemma continuous_on_mtx_vec_multr: "continuous_on S ((*\<^sub>V) A)"
   by transfer (simp add: matrix_vector_mult_linear_continuous_on)
 
@@ -1156,9 +1166,9 @@ lemma continuous_on_mtx_vec_multr: "continuous_on S ((*\<^sub>V) A)"
 thm derivative_eq_intros(145,146,147)
 
 
-subsection\<open> Flow for squared matrix systems \<close>
+subsection\<open> Flow for affine systems \<close>
 
-text\<open>Finally, we can use the @{term exp} operation to characterize the general solutions for linear 
+text\<open>Finally, we can use the @{term exp} operation to characterize the general solutions for affine 
 systems of ODEs. We show that they satisfy the @{term "local_flow"} locale.\<close>
 
 lemma continuous_on_sq_mtx_vec_multl:
@@ -1166,8 +1176,8 @@ lemma continuous_on_sq_mtx_vec_multl:
   assumes "continuous_on T A"
   shows "continuous_on T (\<lambda>t. A t *\<^sub>V s)"
 proof-
-  have "\<forall>t\<in>T. \<forall>\<epsilon>>0. \<exists>\<delta>>0. \<forall>\<tau>\<in>T. \<bar>\<tau> - t\<bar> < \<delta> \<longrightarrow> \<parallel>to_vec (A \<tau>) - to_vec (A t)\<parallel>\<^sub>o\<^sub>p \<le> \<epsilon>"
-    using assms unfolding continuous_on_iff dist_norm norm_sq_mtx_def by force
+  have "matrix_continuous_on T (\<lambda>t. to_vec (A t))"
+    using assms by (force simp: continuous_on_iff dist_norm norm_sq_mtx_def matrix_continuous_on_def)
   hence "continuous_on T (\<lambda>t. to_vec (A t) *v s)"
     by (rule continuous_on_matrix_vector_multl)
   thus ?thesis
@@ -1175,13 +1185,6 @@ proof-
 qed
 
 lemmas continuous_on_affine = continuous_on_add[OF continuous_on_sq_mtx_vec_multl]
-
-lemma lipschitz_cond_sq_mtx_affine:
-  fixes A :: "real \<Rightarrow> ('n::finite) sq_mtx"
-  assumes "t \<in> T" and "bdd_above {\<parallel>A t\<parallel> |t. t \<in> T}"
-  shows "\<parallel>A t *\<^sub>V x - A t *\<^sub>V y\<parallel> \<le> Sup {\<parallel>A t\<parallel> |t. t \<in> T} * (\<parallel>x - y\<parallel>)"
-  using assms unfolding norm_sq_mtx_def apply transfer
-  using lipschitz_cond_affine by force
 
 lemma local_lipschitz_sq_mtx_affine:
   fixes A :: "real \<Rightarrow> ('n::finite) sq_mtx"
@@ -1199,7 +1202,6 @@ proof-
 qed
 
 lemma picard_lindeloef_sq_mtx_affine:
-  fixes A :: "real \<Rightarrow> ('n::finite) sq_mtx"
   assumes "continuous_on T A" and "continuous_on T B" 
        and "t\<^sub>0 \<in> T" "is_interval T" "open T" and "open S"
     shows "picard_lindeloef (\<lambda>t s. A t *\<^sub>V s + B t) T S t\<^sub>0"
@@ -1207,21 +1209,58 @@ lemma picard_lindeloef_sq_mtx_affine:
   using continuous_on_affine assms apply blast
   by (rule local_lipschitz_sq_mtx_affine, simp_all add: assms)
 
+lemmas sq_mtx_unique_sol_autonomous_affine = picard_lindeloef.unique_solution[OF 
+    picard_lindeloef_sq_mtx_affine[OF 
+      continuous_on_const 
+      continuous_on_const 
+      UNIV_I is_interval_univ 
+      open_UNIV open_UNIV] 
+    _ _ funcset_UNIV UNIV_I _ _ funcset_UNIV UNIV_I]
+
+lemma vderiv_on_sq_mtx_linear:
+  "D (\<lambda>t. exp ((t - t\<^sub>0) *\<^sub>R A) *\<^sub>V s) = (\<lambda>t. A *\<^sub>V (exp ((t - t\<^sub>0) *\<^sub>R A) *\<^sub>V s)) on {t\<^sub>0--t}"
+  by (rule poly_derivatives)+ (auto simp: exp_times_scaleR_commute sq_mtx_times_vec_assoc)
+
+lemma vderiv_on_sq_mtx_affine:
+  fixes t\<^sub>0::real and A :: "('a::finite) sq_mtx"
+  defines "lSol c t \<equiv> exp ((c * (t - t\<^sub>0)) *\<^sub>R A)"
+  shows "D (\<lambda>t. lSol 1 t *\<^sub>V s + lSol 1 t *\<^sub>V (\<integral>\<^sub>t\<^sub>0\<^sup>t (lSol (-1) \<tau> *\<^sub>V B) \<partial>\<tau>)) = 
+  (\<lambda>t. A *\<^sub>V (lSol 1 t *\<^sub>V s + lSol 1 t *\<^sub>V (\<integral>\<^sub>t\<^sub>0\<^sup>t (lSol (-1) \<tau> *\<^sub>V B) \<partial>\<tau>)) + B) on {t\<^sub>0--t}"
+  unfolding assms apply(simp only: mult.left_neutral mult_minus1)
+  apply(rule poly_derivatives, (force)?, (force)?, (force)?, (force)?)+
+  by (simp add: mtx_vec_mult_add_rdistl sq_mtx_times_vec_assoc[symmetric] 
+      exp_minus_inverse exp_times_scaleR_commute mult_exp_exp  scale_left_distrib[symmetric])
+
+lemma autonomous_linear_sol_is_exp:
+  assumes "D X = (\<lambda>t. A *\<^sub>V X t) on {t\<^sub>0--t}" and "X t\<^sub>0 = s" 
+  shows "X t = exp ((t - t\<^sub>0) *\<^sub>R A) *\<^sub>V s"
+  apply(rule sq_mtx_unique_sol_autonomous_affine[of X A 0, OF _ \<open>X t\<^sub>0 = s\<close>])
+  using assms vderiv_on_sq_mtx_linear by force+
+
+lemma autonomous_affine_sol_is_exp_plus_int:
+  assumes "D X = (\<lambda>t. A *\<^sub>V X t + B) on {t\<^sub>0--t}" and "X t\<^sub>0 = s" 
+  shows "X t = exp ((t - t\<^sub>0) *\<^sub>R A) *\<^sub>V s + exp ((t - t\<^sub>0) *\<^sub>R A) *\<^sub>V (\<integral>\<^sub>t\<^sub>0\<^sup>t(exp (- (\<tau> - t\<^sub>0) *\<^sub>R A) *\<^sub>V B)\<partial>\<tau>)"
+  apply(rule sq_mtx_unique_sol_autonomous_affine[OF assms])
+  using vderiv_on_sq_mtx_affine by force+
+
 lemma local_flow_sq_mtx_linear: "local_flow ((*\<^sub>V) A) UNIV UNIV (\<lambda>t s. exp (t *\<^sub>R A) *\<^sub>V s)"
   unfolding local_flow_def local_flow_axioms_def apply safe
   using picard_lindeloef_sq_mtx_affine[of _ "\<lambda>t. A" "\<lambda>t. 0"] apply force
-  apply(rule vderiv_mtx_vec_mult_intro, rule poly_derivatives)
-  by (rule has_vderiv_on_exp_scaleRl) (auto simp: fun_eq_iff
-      exp_times_scaleR_commute sq_mtx_times_vec_assoc intro: poly_derivatives)
+  using vderiv_on_sq_mtx_linear[of 0] by auto
 
 lemma local_flow_sq_mtx_affine: "local_flow (\<lambda>s. A *\<^sub>V s + B) UNIV UNIV 
-  (\<lambda>t s. (exp (t *\<^sub>R A)) *\<^sub>V s + (exp (t *\<^sub>R A)) *\<^sub>V ivl_integral 0 t (\<lambda>\<tau>. (exp (- \<tau> *\<^sub>R A)) *\<^sub>V B))"
+  (\<lambda>t s. exp (t *\<^sub>R A) *\<^sub>V s + exp (t *\<^sub>R A) *\<^sub>V (\<integral>\<^sub>0\<^sup>t(exp (- \<tau> *\<^sub>R A) *\<^sub>V B)\<partial>\<tau>))"
   unfolding local_flow_def local_flow_axioms_def apply safe
   using picard_lindeloef_sq_mtx_affine[of _ "\<lambda>t. A" "\<lambda>t. B"] apply force
-    apply(intro poly_derivatives; (rule ivl_integral_has_vderiv_on[OF continuous_on_mtx_vec_multl])?)
-            apply(rule poly_derivatives, (force)?, (force)?)+
-    apply(simp_all add: mtx_vec_mult_add_rdistl sq_mtx_times_vec_assoc[symmetric])
-  by (auto simp: exp_minus_inverse exp_times_scaleR_commute)
+  using vderiv_on_sq_mtx_affine[of 0 A] by auto
+
+lemma (* name? *)
+  assumes "mtx_invertible P" and "A = P\<^sup>-\<^sup>1 * (sq_mtx_diag f) * P"
+  assumes "D X = (\<lambda>t. A *\<^sub>V X t + B) on {t\<^sub>0--t}" and "X t\<^sub>0 = s" 
+  shows "X t = (P\<^sup>-\<^sup>1 * (\<d>\<i>\<a>\<g> i. exp ((t - t\<^sub>0) * f i)) * P) *\<^sub>V (s + (\<integral>\<^sub>t\<^sub>0\<^sup>t (P\<^sup>-\<^sup>1 * (\<d>\<i>\<a>\<g> i. exp (- (\<tau> - t\<^sub>0) * f i)) * P) *\<^sub>V B\<partial>\<tau>))"
+  apply(subst mtx_vec_mult_add_rdistl)
+  apply(subst exp_scaleR_similar_sq_mtx_diag_eq[OF assms(1,2), symmetric])+
+  by (rule autonomous_affine_sol_is_exp_plus_int[OF assms(3,4)])
 
 lemma (* name? *)
   assumes "mtx_invertible P" and "A = P\<^sup>-\<^sup>1 * (sq_mtx_diag f) * P"
