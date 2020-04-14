@@ -40,101 +40,12 @@ lemma finite_image_of_finite[simp]:
   shows "finite {x. \<exists>i. x = f i}"
   using finite_Atleast_Atmost_nat by force
 
-lemma le_max_image_of_finite[simp]:
-  fixes f::"'a::finite \<Rightarrow> 'b::linorder"
-  shows "(f i) \<le> Max {x. \<exists>i. x = f i}"
-  by (rule Max.coboundedI, simp_all) (rule_tac x=i in exI, simp)
-
 lemma cSup_eq_linorder:
   fixes c::"'a::conditionally_complete_linorder"
   assumes "X \<noteq> {}" and "\<forall>x \<in> X. x \<le> c" 
     and "bdd_above X" and "\<forall>y<c. \<exists>x\<in>X. y < x"
   shows "Sup X = c"
   by (meson assms cSup_least less_cSup_iff less_le)
-
-lemma cSup_eq:
-  fixes c::"'a::conditionally_complete_lattice"
-  assumes "\<forall>x \<in> X. x \<le> c" and "\<exists>x \<in> X. c \<le> x"
-  shows "Sup X = c"
-  by (metis assms cSup_eq_maximum order_class.order.antisym)
-
-lemma cSup_mem_eq: 
-  "c \<in> X \<Longrightarrow> \<forall>x \<in> X. x \<le> c \<Longrightarrow> Sup X = c" for c::"'a::conditionally_complete_lattice"
-  by (rule cSup_eq, auto)
-
-lemma cSup_finite_ex:
-  "finite X \<Longrightarrow> X \<noteq> {} \<Longrightarrow> \<exists>x\<in>X. Sup X = x" for X::"'a::conditionally_complete_linorder set"
-  by (metis (full_types) bdd_finite(1) cSup_upper finite_Sup_less_iff order_less_le) 
-
-lemma cMax_finite_ex:
-  "finite X \<Longrightarrow> X \<noteq> {} \<Longrightarrow> \<exists>x\<in>X. Max X = x" for X::"'a::conditionally_complete_linorder set"
-  apply(subst cSup_eq_Max[symmetric])
-  using cSup_finite_ex by auto
-
-lemmas compact_imp_bdd_above = compact_imp_bounded[THEN bounded_imp_bdd_above]
-
-lemma comp_cont_image_spec: "continuous_on T f \<Longrightarrow> compact T \<Longrightarrow> compact {f t |t. t \<in> T}"
-  using compact_continuous_image by (simp add: Setcompr_eq_image)
-
-lemmas bdd_above_cont_comp_spec = compact_imp_bdd_above[OF comp_cont_image_spec]
-
-lemmas bdd_above_norm_cont_comp = continuous_on_norm[THEN bdd_above_cont_comp_spec]
-
-lemma cSup_norm_cont_comp_ge: 
-  "t \<in> T \<Longrightarrow> continuous_on T f \<Longrightarrow> compact T \<Longrightarrow> \<parallel>f t\<parallel> \<le> Sup {\<parallel>f t\<parallel> |t. t \<in> T}"
-  by (rule cSup_upper[OF _ bdd_above_norm_cont_comp], auto) 
-
-lemma cSup_norm_cont_comp_ge0:
-  "T \<noteq> {} \<Longrightarrow> continuous_on T f \<Longrightarrow> compact T \<Longrightarrow> 0 \<le> Sup {\<parallel>f t\<parallel> |t. t \<in> T}"
-  apply(drule nemptyE, clarsimp)
-  subgoal for t by(rule order.trans [OF _ cSup_norm_cont_comp_ge[of t]], auto) .
-
-lemma bdd_above_ltimes:
-  fixes c::"'a::linordered_ring_strict"
-  assumes "c \<ge> 0" and "bdd_above X"
-  shows "bdd_above {c * x |x. x \<in> X}"
-  using assms unfolding bdd_above_def apply clarsimp
-  apply(rule_tac x="c * M" in exI, clarsimp)
-  using mult_left_mono by blast
-
-lemma finite_nat_minimal_witness:
-  fixes P :: "('a::finite) \<Rightarrow> nat \<Rightarrow> bool"
-  assumes "\<forall>i. \<exists>N::nat. \<forall>n \<ge> N. P i n"
-  shows "\<exists>N. \<forall>i. \<forall>n \<ge> N. P i n" 
-proof-
-  let "?bound i" = "(LEAST N. \<forall>n \<ge> N. P i n)"
-  let ?N = "Max {?bound i |i. i \<in> UNIV}"
-  {fix n::nat and i::'a 
-    assume "n \<ge> ?N" 
-    obtain M where "\<forall>n \<ge> M. P i n" 
-      using assms by blast
-    hence obs: "\<forall> m \<ge> ?bound i. P i m"
-      using LeastI[of "\<lambda>N. \<forall>n \<ge> N. P i n"] by blast
-    have "finite {?bound i |i. i \<in> UNIV}"
-      by simp
-    hence "?N \<ge> ?bound i"
-      using Max_ge by blast
-    hence "n \<ge> ?bound i" 
-      using \<open>n \<ge> ?N\<close> by linarith
-    hence "P i n" 
-      using obs by blast}
-  thus "\<exists>N. \<forall>i n. N \<le> n \<longrightarrow> P i n" 
-    by blast
-qed
-
-lemma suminfI:
-  fixes f :: "nat \<Rightarrow> 'a::{t2_space,comm_monoid_add}"
-  shows "f sums k \<Longrightarrow> suminf f = k"
-  unfolding sums_iff by simp
-
-lemma suminf_eq_sum:
-  fixes f :: "nat \<Rightarrow> ('a::real_normed_vector)"
-  assumes "\<And>n. n > m \<Longrightarrow> f n = 0"
-  shows "(\<Sum>n. f n) = (\<Sum>n \<le> m. f n)"
-  using assms by (meson atMost_iff finite_atMost not_le suminf_finite)
-
-lemma suminf_multr: "summable f \<Longrightarrow> (\<Sum>n. f n * c) = (\<Sum>n. f n) * c" for c::"'a::real_normed_algebra"
-  by (rule bounded_linear.suminf [OF bounded_linear_mult_left, symmetric])
 
 
 subsection\<open> Real numbers \<close>
@@ -145,17 +56,6 @@ lemma ge_one_sqrt_le: "1 \<le> x \<Longrightarrow> sqrt x \<le> x"
 
 lemma sqrt_real_nat_le:"sqrt (real n) \<le> real n"
   by (metis (full_types) abs_of_nat le_square of_nat_mono of_nat_mult real_sqrt_abs2 real_sqrt_le_iff)
-
-lemma exp_add: "x * y - y * x = 0 \<Longrightarrow> exp (x + y) = exp x * exp y" 
-  by (rule exp_add_commuting) (simp add: ac_simps)
-
-lemmas mult_exp_exp = exp_add[symmetric]
-
-lemma sq_le_cancel:
-  shows "(a::real) \<ge> 0 \<Longrightarrow> b \<ge> 0 \<Longrightarrow> a^2 \<le> b * a \<Longrightarrow> a \<le> b"
-  and "(a::real) \<ge> 0 \<Longrightarrow> b \<ge> 0 \<Longrightarrow> a^2 \<le> a * b \<Longrightarrow> a \<le> b"
-   apply(metis less_eq_real_def mult.commute mult_le_cancel_left semiring_normalization_rules(29))
-  by(metis less_eq_real_def mult_le_cancel_left semiring_normalization_rules(29))
 
 lemma abs_le_eq: 
   shows "(r::real) > 0 \<Longrightarrow> (\<bar>x\<bar> < r) = (-r < x \<and> x < r)"
@@ -237,7 +137,7 @@ lemma has_vector_derivative_mult_const[derivative_intros]:
 lemma has_derivative_mult_const[derivative_intros]: "D (*) a \<mapsto> (\<lambda>t. t *\<^sub>R a) F"
   using has_vector_derivative_mult_const unfolding has_vector_derivative_def by simp
 
-lemma vderiv_on_compose_intro: 
+lemma has_vderiv_on_composeI: 
   assumes "D f = f' on g ` T" 
     and " D g = g' on T"
     and "h = (\<lambda>t. g' t *\<^sub>R f' (g t))"
@@ -262,19 +162,19 @@ lemma has_vderiv_on_exp: "D (\<lambda>t. exp t) = (\<lambda>t. exp t) on T"
 
 lemma has_vderiv_on_cos_comp: 
   "D (f::real \<Rightarrow> real) = f' on T \<Longrightarrow> D (\<lambda>t. cos (f t)) = (\<lambda>t. - (f' t) * sin (f t)) on T"
-  apply(rule vderiv_on_compose_intro[of "\<lambda>t. cos t"])
+  apply(rule has_vderiv_on_composeI[of "\<lambda>t. cos t"])
   unfolding has_vderiv_on_def has_vector_derivative_def apply clarify
   by(auto intro!: derivative_eq_intros simp: fun_eq_iff)
 
 lemma has_vderiv_on_sin_comp: 
   "D (f::real \<Rightarrow> real) = f' on T \<Longrightarrow> D (\<lambda>t. sin (f t)) = (\<lambda>t. (f' t) * cos (f t)) on T"
-  apply(rule vderiv_on_compose_intro[of "\<lambda>t. sin t"])
+  apply(rule has_vderiv_on_composeI[of "\<lambda>t. sin t"])
   unfolding has_vderiv_on_def has_vector_derivative_def apply clarify
   by(auto intro!: derivative_eq_intros simp: fun_eq_iff)
 
 lemma has_vderiv_on_exp_comp: 
   "D (f::real \<Rightarrow> real) = f' on T \<Longrightarrow> D (\<lambda>t. exp (f t)) = (\<lambda>t. (f' t) * exp (f t)) on T"
-  apply(rule vderiv_on_compose_intro[of "\<lambda>t. exp t"])
+  apply(rule has_vderiv_on_composeI[of "\<lambda>t. exp t"])
   by (rule has_vderiv_on_exp, simp_all add: mult.commute)
 
 lemma has_vderiv_on_exp_scaleRl:
@@ -283,40 +183,40 @@ lemma has_vderiv_on_exp_scaleRl:
   using assms unfolding has_vderiv_on_def has_vector_derivative_def apply clarsimp
   by (rule has_derivative_exp_scaleRl, auto simp: fun_eq_iff)
 
-lemma vderiv_uminus_intro[poly_derivatives]: 
+lemma vderiv_uminusI[poly_derivatives]: 
   "D f = f' on T \<Longrightarrow> g = (\<lambda>t. - f' t) \<Longrightarrow> D (\<lambda>t. - f t) = g on T"
   using has_vderiv_on_uminus by auto
 
-lemma vderiv_div_cnst_intro[poly_derivatives]:
+lemma vderiv_div_cnstI[poly_derivatives]:
   assumes "(a::real) \<noteq> 0" and "D f = f' on T" and "g = (\<lambda>t. (f' t)/a)"
   shows "D (\<lambda>t. (f t)/a) = g on T"
-  apply(rule vderiv_on_compose_intro[of "\<lambda>t. t/a" "\<lambda>t. 1/a"])
+  apply(rule has_vderiv_on_composeI[of "\<lambda>t. t/a" "\<lambda>t. 1/a"])
   using assms by(auto intro: has_vderiv_on_divide_cnst)
 
-lemma vderiv_npow_intro[poly_derivatives]:
+lemma vderiv_npowI[poly_derivatives]:
   fixes f::"real \<Rightarrow> real"
   assumes "n \<ge> 1" and "D f = f' on T" and "g = (\<lambda>t. n * (f' t) * (f t)^(n-1))"
   shows "D (\<lambda>t. (f t)^n) = g on T"
-  apply(rule vderiv_on_compose_intro[of "\<lambda>t. t^n"])
+  apply(rule has_vderiv_on_composeI[of "\<lambda>t. t^n"])
   using assms(1) apply(rule has_vderiv_on_power)
   using assms by auto
 
-lemma vderiv_cos_intro[poly_derivatives]:
+lemma vderiv_cosI[poly_derivatives]:
   assumes "D (f::real \<Rightarrow> real) = f' on T" and "g = (\<lambda>t. - (f' t) * sin (f t))"
   shows "D (\<lambda>t. cos (f t)) = g on T"
   using assms and has_vderiv_on_cos_comp by auto
 
-lemma vderiv_sin_intro[poly_derivatives]:
+lemma vderiv_sinI[poly_derivatives]:
   assumes "D (f::real \<Rightarrow> real) = f' on T" and "g = (\<lambda>t. (f' t) * cos (f t))"
   shows "D (\<lambda>t. sin (f t)) = g on T"
   using assms and has_vderiv_on_sin_comp by auto
 
-lemma vderiv_exp_intro[poly_derivatives]:
+lemma vderiv_expI[poly_derivatives]:
   assumes "D (f::real \<Rightarrow> real) = f' on T" and "g = (\<lambda>t. (f' t) * exp (f t))"
   shows "D (\<lambda>t. exp (f t)) = g on T"
   using assms and has_vderiv_on_exp_comp by auto
 
-lemma vderiv_on_exp_scaleRl_intro[poly_derivatives]:
+lemma vderiv_on_exp_scaleRlI[poly_derivatives]:
   assumes "D f = f' on T" and "g' = (\<lambda>x. f' x *\<^sub>R exp (f x *\<^sub>R A) * A)"
   shows "D (\<lambda>x. exp (f x *\<^sub>R A)) = g' on T"
   using has_vderiv_on_exp_scaleRl assms by simp

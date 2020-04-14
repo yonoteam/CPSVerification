@@ -151,7 +151,8 @@ proof(simp add: diff_invariant_eq ivp_sols_def, clarsimp)
   moreover have "t > t\<^sub>0 \<Longrightarrow> (\<mu>' (X t) -  \<nu>' (X t)) \<ge> 0" "t < t\<^sub>0 \<Longrightarrow> (\<mu>' (X t) -  \<nu>' (X t)) \<le> 0"
     using primed(1,2)[OF \<open>t \<in> T\<close>] by auto
   ultimately have "(\<tau> - t\<^sub>0) * (\<mu>' (X t) -  \<nu>' (X t)) \<ge> 0"
-    apply(case_tac "\<tau> \<ge> t\<^sub>0") by (force, auto simp: split_mult_pos_le)
+    apply(case_tac "\<tau> \<ge> t\<^sub>0") 
+    by (force, auto simp: split_mult_pos_le)
   hence "(\<tau> - t\<^sub>0) * (\<mu>' (X t) -  \<nu>' (X t)) + (\<mu> (X t\<^sub>0) - \<nu> (X t\<^sub>0)) \<ge> 0" 
     using  x_ivp(2) by auto
   hence "\<nu> (X \<tau>) \<le> \<mu> (X \<tau>)" 
@@ -190,7 +191,8 @@ proof(simp add: diff_invariant_eq ivp_sols_def, clarsimp)
   moreover have "t > t\<^sub>0 \<Longrightarrow> (\<mu>' (X t) -  \<nu>' (X t)) \<ge> 0" "t < t\<^sub>0 \<Longrightarrow> (\<mu>' (X t) -  \<nu>' (X t)) \<le> 0"
     using primed(1,2)[OF \<open>t \<in> T\<close>] by auto
   ultimately have "(\<tau> - t\<^sub>0) * (\<mu>' (X t) -  \<nu>' (X t)) \<ge> 0"
-    apply(case_tac "\<tau> \<ge> t\<^sub>0") by (force, auto simp: split_mult_pos_le)
+    apply(case_tac "\<tau> \<ge> t\<^sub>0") 
+    by (force, auto simp: split_mult_pos_le)
   hence "(\<tau> - t\<^sub>0) * (\<mu>' (X t) -  \<nu>' (X t)) + (\<mu> (X t\<^sub>0) - \<nu> (X t\<^sub>0)) > 0" 
     using x_ivp(2) by auto
   hence "\<nu> (X \<tau>) < \<mu> (X \<tau>)" 
@@ -297,22 +299,6 @@ proof(unfold diff_invariant_eq, clarsimp)
       using \<open>\<mu> (X \<tau>) = \<nu> (X \<tau>)\<close> by blast}
   ultimately show "\<nu> (X t) < \<mu> (X t)"
     by fastforce
-qed
-
-lemma diff_invariant_neq_rule3 [diff_invariant_rules]:
-  fixes \<mu>::"'a::banach \<Rightarrow> real"
-  assumes Thyp: "is_interval T" "t\<^sub>0 \<in> T" "\<forall>t\<in>T. t\<^sub>0 \<le> t"
-      and conts: "\<forall>X. (D X = (\<lambda>\<tau>. f (X \<tau>)) on T) \<longrightarrow> continuous_on (\<P> X T) \<nu> \<and> continuous_on (\<P> X T) \<mu>"
-      and dIhyp:"diff_invariant (\<lambda>s. \<nu> s \<noteq> \<mu> s) f T S t\<^sub>0 G"
-    shows "diff_invariant (\<lambda>s. \<nu> s > \<mu> s) f T S t\<^sub>0 G"
-proof-
-  have "(\<lambda>s. \<nu> s \<noteq> \<mu> s) = (\<lambda>s. \<mu> s \<noteq> \<nu> s)"
-    by auto
-  hence obs: "\<forall>X. (D X = (\<lambda>\<tau>. f (X \<tau>)) on T) \<longrightarrow> continuous_on (\<P> X T) \<mu> \<and> continuous_on (\<P> X T) \<nu>"
-    "diff_invariant (\<lambda>s. \<mu> s \<noteq> \<nu> s) f T S t\<^sub>0 G"
-    using dIhyp conts by auto
-  show ?thesis
-    using diff_invariant_neq_rule2[OF Thyp obs] .
 qed
 
 lemma diff_invariant_conj_rule [diff_invariant_rules]:
@@ -625,7 +611,7 @@ lemma ivp_sols_collapse:
 lemma additive_in_ivp_sols:
   assumes "s \<in> S" and "\<P> (\<lambda>\<tau>. \<tau> + t) T \<subseteq> T"
   shows "(\<lambda>\<tau>. \<phi> (\<tau> + t) s) \<in> Sols (\<lambda>t. f) T S 0 (\<phi> (0 + t) s)"
-  apply(rule ivp_solsI, rule vderiv_on_compose_intro[OF has_vderiv_on_subset])
+  apply(rule ivp_solsI, rule has_vderiv_on_composeI[OF has_vderiv_on_subset])
        apply(rule has_vderiv_on_domain)
   using in_domain assms by (auto intro: derivative_intros)
 
