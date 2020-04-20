@@ -15,9 +15,9 @@ HybridVerifVecs            | None                      | Predicate Transformer S
 
 Every version runs with [Isabelle2020 (April 2020)](https://isabelle.in.tum.de/). Moreover, they all depend on the AFP entry on [Ordinary Differential Equations](https://www.isa-afp.org/entries/Ordinary_Differential_Equations.html). The theory stack is enormous and its verification takes more than 40 minutes. We recommend building a heap that pre-loads the stack. In order to do this in a Unix system, if all the dependencies (Isabelle+AFP) have already been installed, follow the steps below:
 1. Open Terminal.
-2. Add the Isabelle bin directory to your path, e.g. $ export PATH=$PATH:/Apps/.../Isabelle2020/bin (replace the ... with the actual path to the Isabelle installation directory).
-3. Then execute: $ isabelle build -b Ordinary_Differential_Equations
+2. Add the Isabelle bin directory to your path, e.g. `$ export PATH=$PATH:/Apps/.../Isabelle2020/bin` (replace the `...` with the actual path to the Isabelle installation directory).
+3. Then execute: `$ isabelle build -b Ordinary_Differential_Equations`
 4. Wait for the build to finish, go for tea or coffee. 
-5. To launch, just type $ isabelle jedit -l Ordinary_Differential_Equations
+5. To launch, just type `$ isabelle jedit -l Ordinary_Differential_Equations`
 
 **NOTE:** The build command, is only necessary once. After that, you just need to do step 2 and launch (step 5).
