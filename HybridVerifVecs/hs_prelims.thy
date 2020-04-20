@@ -109,9 +109,9 @@ named_theorems poly_derivatives "compilation of optimised miscellaneous derivati
 
 declare has_vderiv_on_const [poly_derivatives]
     and has_vderiv_on_id [poly_derivatives]
-    and derivative_intros(191) [poly_derivatives]
+    and derivative_intros(189) [poly_derivatives]
+    and derivative_intros(190) [poly_derivatives]
     and derivative_intros(192) [poly_derivatives]
-    and derivative_intros(194) [poly_derivatives]
 
 text \<open>Below, we consistently name lemmas showing that @{term "f'"} is the derivative of @{term "f"} 
 by starting with ``has\dots''. Moreover, if they use the predicate ``has\_derivative\_at'',  we add 
@@ -155,7 +155,7 @@ lemma has_vderiv_on_divide_cnst: "a \<noteq> 0 \<Longrightarrow> D (\<lambda>t. 
 
 lemma has_vderiv_on_power: "n \<ge> 1 \<Longrightarrow> D (\<lambda>t. t ^ n) = (\<lambda>t. n * (t ^ (n - 1))) on T" 
   unfolding has_vderiv_on_def has_vector_derivative_def apply clarify
-  by(rule_tac f'1="\<lambda> t. t" in derivative_eq_intros(15)) auto
+  by(rule_tac f'1="\<lambda> t. t" in derivative_eq_intros(16)) auto
 
 lemma has_vderiv_on_exp: "D (\<lambda>t. exp t) = (\<lambda>t. exp t) on T"
   unfolding has_vderiv_on_def has_vector_derivative_def by (auto intro: derivative_intros)
@@ -223,7 +223,7 @@ lemma vderiv_on_exp_scaleRlI[poly_derivatives]:
 
 \<comment> \<open>Automatically generated derivative rules from this subsection: \<close>
 
-thm derivative_eq_intros(142,143,144)
+thm derivative_eq_intros(140,141,142)
 
 \<comment> \<open>Examples for checking derivatives\<close>
 
@@ -363,7 +363,7 @@ lemma frechet_vec_nth:
   shows "((\<lambda>x. (f x $ i - f x\<^sub>0 $ i - (x - x\<^sub>0) *\<^sub>R f' t $ i) /\<^sub>R (\<parallel>x - x\<^sub>0\<parallel>)) \<longlongrightarrow> 0) (at t within T)"
   apply(rule_tac F="(\<lambda>x. (f x - f x\<^sub>0 - (x - x\<^sub>0) *\<^sub>R f' t) /\<^sub>R (\<parallel>x - x\<^sub>0\<parallel>))" in tendsto_zero_norm_bound)
    apply(clarsimp, rule mult_left_mono)
-    apply (metis norm_nth_le vector_minus_component vector_scaleR_component)
+    apply (metis Finite_Cartesian_Product.norm_nth_le vector_minus_component vector_scaleR_component)
   using assms by simp_all
 
 lemma has_derivative_vec_lambda:

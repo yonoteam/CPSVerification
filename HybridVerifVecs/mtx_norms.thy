@@ -165,7 +165,7 @@ proof-
     using obs apply(unfold op_norm_def)
     by (rule cSup_least[OF op_norm_set_proptys(3)]) clarsimp
   hence "((\<parallel>A\<parallel>\<^sub>o\<^sub>p))\<^sup>2 \<le> (\<parallel>transpose A ** A\<parallel>\<^sub>o\<^sub>p)"
-    using power_mono[of "(\<parallel>A\<parallel>\<^sub>o\<^sub>p)" _ 2] op_norm_ge_0 by force
+    using power_mono[of "(\<parallel>A\<parallel>\<^sub>o\<^sub>p)" _ 2] op_norm_ge_0 by (metis not_le real_less_lsqrt)
   also have "... \<le> (\<parallel>transpose A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>A\<parallel>\<^sub>o\<^sub>p)"
     using op_norm_matrix_matrix_mult_le by blast
   finally have "((\<parallel>A\<parallel>\<^sub>o\<^sub>p))\<^sup>2 \<le> (\<parallel>transpose A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>A\<parallel>\<^sub>o\<^sub>p)"  by linarith

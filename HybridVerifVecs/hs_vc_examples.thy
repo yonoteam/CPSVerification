@@ -140,8 +140,7 @@ lemma inv_conserv_at_air[bb_real_arith]:
   2 * g * h + (g * \<tau> + v) * (g * \<tau> + v)" (is "?lhs = ?rhs")
 proof-
   have "?lhs = g\<^sup>2 * \<tau>\<^sup>2 + 2 * g * v * \<tau> + 2 * g * x" 
-    apply(subst Rat.sign_simps(18))+ 
-    by(auto simp: semiring_normalization_rules(29))
+    by(auto simp: algebra_simps semiring_normalization_rules(29))
   also have "... = g\<^sup>2 * \<tau>\<^sup>2 + 2 * g * v * \<tau> + 2 * g * h + v * v" (is "... = ?middle")
     by(subst invar, simp)
   finally have "?lhs = ?middle".

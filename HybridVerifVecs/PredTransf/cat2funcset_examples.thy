@@ -9,7 +9,7 @@ text \<open> We prove partial correctness specifications of some hybrid systems 
 recently described verification components.\<close>
 
 theory cat2funcset_examples
-  imports "../hs_prelims_matrices" cat2funcset
+  imports "../mtx_flows" cat2funcset
 
 begin
 
@@ -68,7 +68,7 @@ lemma pendulum_dyn: "{s. r\<^sup>2 = (s$0)\<^sup>2 + (s$1)\<^sup>2} \<le> fb\<^s
 \<comment> \<open>Verified as a linear system (using uniqueness). \<close>
 
 abbreviation pend_sq_mtx :: "2 sq_mtx" ("A")
-  where "A \<equiv> sq_mtx_chi (\<chi> i. if i=0 then \<e> 1 else - \<e> 0)"
+  where "A \<equiv> to_mtx (\<chi> i. if i=0 then \<e> 1 else - \<e> 0)"
 
 lemma pend_sq_mtx_exp_eq_flow: "exp (t *\<^sub>R A) *\<^sub>V s = \<phi> t s"
   apply(rule local_flow.eq_solution[OF local_flow_sq_mtx_linear, symmetric])
@@ -166,9 +166,8 @@ lemma [bb_real_arith]:
   2 \<cdot> g \<cdot> h + (g \<cdot> \<tau> \<cdot> (g \<cdot> \<tau> + v) + v \<cdot> (g \<cdot> \<tau> + v))" (is "?lhs = ?rhs")
 proof-
   have "?lhs = g\<^sup>2 \<cdot> \<tau>\<^sup>2 + 2 \<cdot> g \<cdot> v \<cdot> \<tau> + 2 \<cdot> g \<cdot> x" 
-      apply(subst Rat.sign_simps(18))+ 
-      by(auto simp: semiring_normalization_rules(29))
-    also have "... = g\<^sup>2 \<cdot> \<tau>\<^sup>2 + 2 \<cdot> g \<cdot> v \<cdot> \<tau> + 2 \<cdot> g \<cdot> h + v \<cdot> v" (is "... = ?middle")
+    by(auto simp: algebra_simps semiring_normalization_rules(29))
+  also have "... = g\<^sup>2 \<cdot> \<tau>\<^sup>2 + 2 \<cdot> g \<cdot> v \<cdot> \<tau> + 2 \<cdot> g \<cdot> h + v \<cdot> v" (is "... = ?middle")
       by(subst invar, simp)
     finally have "?lhs = ?middle".
   moreover 
@@ -203,16 +202,16 @@ lemma bouncing_ball_dyn: "g < 0 \<Longrightarrow> h \<ge> 0 \<Longrightarrow>
 \<comment> \<open>Verified as a linear system (computing exponential). \<close>
 
 abbreviation ball_sq_mtx :: "3 sq_mtx" ("A")
-  where "ball_sq_mtx \<equiv> sq_mtx_chi (\<chi> i. if i=0 then \<e> 1 else if i=1 then \<e> 2 else 0)"
+  where "ball_sq_mtx \<equiv> to_mtx (\<chi> i. if i=0 then \<e> 1 else if i=1 then \<e> 2 else 0)"
 
-lemma ball_sq_mtx_pow2: "A\<^sup>2 = sq_mtx_chi (\<chi> i. if i=0 then \<e> 2 else 0)"
+lemma ball_sq_mtx_pow2: "A\<^sup>2 = to_mtx (\<chi> i. if i=0 then \<e> 2 else 0)"
   unfolding power2_eq_square times_sq_mtx_def 
-  by(simp add: sq_mtx_chi_inject vec_eq_iff matrix_matrix_mult_def)
+  by(simp add: to_mtx_inject vec_eq_iff matrix_matrix_mult_def)
 
 lemma ball_sq_mtx_powN: "n > 2 \<Longrightarrow> (\<tau> *\<^sub>R A)^n = 0"
   apply(induct n, simp, case_tac "n \<le> 2")
    apply(simp only: le_less_Suc_eq power_Suc, simp)
-  by(auto simp: ball_sq_mtx_pow2 sq_mtx_chi_inject vec_eq_iff 
+  by(auto simp: ball_sq_mtx_pow2 to_mtx_inject vec_eq_iff 
       times_sq_mtx_def zero_sq_mtx_def matrix_matrix_mult_def)
 
 lemma exp_ball_sq_mtx: "exp (\<tau> *\<^sub>R A) = ((\<tau> *\<^sub>R A)\<^sup>2/\<^sub>R 2) + (\<tau> *\<^sub>R A) + 1"

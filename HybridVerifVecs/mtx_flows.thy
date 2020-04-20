@@ -173,7 +173,7 @@ lemma vderiv_mtx_vec_mult_intro[poly_derivatives]:
     shows "D (\<lambda>t. A t *\<^sub>V u t) = g on T"
   using assms unfolding has_vderiv_on_def has_vector_derivative_def apply clarsimp
   apply(erule_tac x=x in ballE, simp_all)+
-  apply(rule derivative_eq_intros(146))
+  apply(rule derivative_eq_intros(144))
   by (auto simp: fun_eq_iff mtx_vec_scaleR_commute pth_6 scaleR_mtx_vec_assoc)
 
 lemmas has_vderiv_on_ivl_integral = ivl_integral_has_vderiv_on[OF vderiv_on_continuous_on]
@@ -184,7 +184,7 @@ lemma has_derivative_mtx_vec_multl[derivative_intros]:
   assumes "\<And> i j. D (\<lambda>t. (A t) $$ i $ j) \<mapsto> (\<lambda>\<tau>. \<tau> *\<^sub>R (A' t) $$ i $ j) (at t within T)"
   shows "D (\<lambda>t. A t *\<^sub>V x) \<mapsto> (\<lambda>\<tau>. \<tau> *\<^sub>R (A' t) *\<^sub>V x) at t within T"
   unfolding sq_mtx_vec_mult_sum_cols
-  apply(rule_tac f'1="\<lambda>i \<tau>. \<tau> *\<^sub>R  (x $ i *\<^sub>R \<c>\<o>\<l> i (A' t))" in derivative_eq_intros(9))
+  apply(rule_tac f'1="\<lambda>i \<tau>. \<tau> *\<^sub>R  (x $ i *\<^sub>R \<c>\<o>\<l> i (A' t))" in derivative_eq_intros(10))
    apply(simp_all add: scaleR_right.sum)
   apply(rule_tac g'1="\<lambda>\<tau>. \<tau> *\<^sub>R \<c>\<o>\<l> i (A' t)" in derivative_eq_intros(4), simp_all add: mult.commute)
   using assms unfolding sq_mtx_col_def column_def apply(transfer, simp)
@@ -196,7 +196,7 @@ lemma continuous_on_mtx_vec_multr: "continuous_on S ((*\<^sub>V) A)"
 
 \<comment> \<open>Automatically generated derivative rules from this subsubsection \<close>
 
-thm derivative_eq_intros(145,146,147)
+thm derivative_eq_intros(142,143,144,145)
 
 
 subsubsection \<open> Existence and uniqueness with square matrices \<close>

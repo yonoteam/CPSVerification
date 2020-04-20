@@ -5,7 +5,13 @@ session "CPSVerification" = "Ordinary_Differential_Equations" +
     Transformer_Semantics
     KAD
     Algebraic_VCs
-  theories [document = false]
+  directories
+    "HybridVerifLists"
+    "HybridVerifVecs"
+    "HybridVerifVecs/KAT"
+    "HybridVerifVecs/MKA"
+    "HybridVerifVecs/PredTransf"
+  (*theories [document = false]
     "afpModified/Antidomain_Semiring"
     "afpModified/Dioid_Models"
     "afpModified/Domain_Semiring"
@@ -19,7 +25,7 @@ session "CPSVerification" = "Ordinary_Differential_Equations" +
     "afpModified/PHL_KAT"
     "afpModified/Range_Semiring"
     "afpModified/VC_KAD"
-    "afpModified/VC_KAT"
+    "afpModified/VC_KAT"*)
   theories
     "HybridVerifVecs/hs_vc_examples"
     "HybridVerifVecs/PredTransf/cat2funcset_examples"

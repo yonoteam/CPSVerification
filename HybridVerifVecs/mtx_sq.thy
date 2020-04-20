@@ -193,7 +193,7 @@ definition dist_sq_mtx :: "'a sq_mtx \<Rightarrow> 'a sq_mtx \<Rightarrow> real"
   where "dist_sq_mtx A B = \<parallel>A - B\<parallel>" 
 
 definition uniformity_sq_mtx :: "('a sq_mtx \<times> 'a sq_mtx) filter" 
-  where "uniformity_sq_mtx = (INF e:{0<..}. principal {(x, y). dist x y < e})"
+  where "uniformity_sq_mtx = (INF e\<in>{0<..}. principal {(x, y). dist x y < e})"
 
 definition open_sq_mtx :: "'a sq_mtx set \<Rightarrow> bool" 
   where "open_sq_mtx U = (\<forall>x\<in>U. \<forall>\<^sub>F (x', y) in uniformity. x' = x \<longrightarrow> y \<in> U)"
@@ -246,7 +246,7 @@ lemma bounded_bilinear_sq_mtx_vec_mult: "bounded_bilinear (\<lambda>A s. A *\<^s
 lemma norm_sq_mtx_def2: "\<parallel>A\<parallel> = Sup {\<parallel>A *\<^sub>V x\<parallel> |x. \<parallel>x\<parallel> = 1}"
   unfolding norm_sq_mtx_def op_norm_def sq_mtx_vec_mult_def by simp
 
-lemma norm_sq_mtx_def3: "\<parallel>A\<parallel> = SUPREMUM UNIV (\<lambda>x. (\<parallel>A *\<^sub>V x\<parallel>) / (\<parallel>x\<parallel>))"
+lemma norm_sq_mtx_def3: "\<parallel>A\<parallel> = (SUP x. (\<parallel>A *\<^sub>V x\<parallel>) / (\<parallel>x\<parallel>))"
   unfolding norm_sq_mtx_def onorm_def sq_mtx_vec_mult_def by simp
 
 lemma norm_sq_mtx_diag: "\<parallel>sq_mtx_diag f\<parallel> = Max {\<bar>f i\<bar> |i. i \<in> UNIV}"
@@ -375,7 +375,7 @@ proof(induct n, simp_all add: assms)
   fix n::nat
   have "P\<^sup>-\<^sup>1 * sq_mtx_diag f * P * (P\<^sup>-\<^sup>1 * (\<d>\<i>\<a>\<g> i. f i ^ n) * P) = 
   P\<^sup>-\<^sup>1 * sq_mtx_diag f * (\<d>\<i>\<a>\<g> i. f i ^ n) * P"
-    by (metis (no_types, lifting) assms(1) sign_simps(4) mtx_invertibleD(2) sq_mtx_one_idty(2))
+    by (metis (no_types, lifting) assms(1) mtx_invertibleD(2) mult.assoc mult.right_neutral)
   also have "... = P\<^sup>-\<^sup>1 * (\<d>\<i>\<a>\<g> i. f i * f i ^ n) * P"
     by (simp add: mult.assoc) 
   finally show "P\<^sup>-\<^sup>1 * sq_mtx_diag f * P * (P\<^sup>-\<^sup>1 * (\<d>\<i>\<a>\<g> i. f i ^ n) * P) = 
