@@ -1,5 +1,5 @@
 # Hybrid Systems Verification
-A repository with Isabelle theories for verification of hybrid programs, a model for Cyber-Physical Systems. Most of this development is now part of the [AFP](https://www.isa-afp.org/). See [Hybrid Systems VCs](https://www.isa-afp.org/entries/Hybrid_Systems_VCs.html) and [Matrices for ODEs](https://www.isa-afp.org/)
+A repository with Isabelle theories for verification of hybrid programs, a model for Cyber-Physical Systems. Most of this development is now part of the [AFP](https://www.isa-afp.org/). See [Hybrid Systems VCs](https://www.isa-afp.org/entries/Hybrid_Systems_VCs.html).
 
 As of mid-2020, the modularity of the approach provides various formalisations of similar results. The differences reside on the codification of systems of ordinary differential equations (ODEs), on the algebraic semantics chosen for verification, and on the model of this semantics:
 
