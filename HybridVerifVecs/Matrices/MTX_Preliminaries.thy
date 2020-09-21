@@ -7,8 +7,8 @@ section \<open> Mathematical Preliminaries \<close>
 
 text \<open>This section adds useful syntax, abbreviations and theorems to the Isabelle distribution. \<close>
 
-theory mtx_prelims
-  imports hs_prelims
+theory MTX_Preliminaries
+  imports "../HS_Preliminaries"
 
 begin
 
@@ -39,16 +39,6 @@ lemmas bdd_above_cont_comp_spec = compact_imp_bdd_above[OF comp_cont_image_spec]
 
 lemmas bdd_above_norm_cont_comp = continuous_on_norm[THEN bdd_above_cont_comp_spec]
 
-lemma cSup_norm_cont_comp_ge: 
-  "t \<in> T \<Longrightarrow> continuous_on T f \<Longrightarrow> compact T \<Longrightarrow> \<parallel>f t\<parallel> \<le> Sup {\<parallel>f t\<parallel> |t. t \<in> T}"
-  by (rule cSup_upper[OF _ bdd_above_norm_cont_comp], auto) 
-
-lemma cSup_norm_cont_comp_ge0:
-  "T \<noteq> {} \<Longrightarrow> continuous_on T f \<Longrightarrow> compact T \<Longrightarrow> 0 \<le> Sup {\<parallel>f t\<parallel> |t. t \<in> T}"
-  apply(drule nemptyE, clarsimp)
-  subgoal for t 
-    by(rule order.trans [OF _ cSup_norm_cont_comp_ge[of t]], auto) .
-
 lemma open_cballE: "t\<^sub>0 \<in> T \<Longrightarrow> open T \<Longrightarrow> \<exists>e>0. cball t\<^sub>0 e \<subseteq> T"
   using open_contains_cball by blast
 
@@ -74,14 +64,6 @@ proof-
   ultimately show ?thesis 
     by simp
 qed
-
-lemma bdd_above_ltimes:
-  fixes c::"'a::linordered_ring_strict"
-  assumes "c \<ge> 0" and "bdd_above X"
-  shows "bdd_above {c * x |x. x \<in> X}"
-  using assms unfolding bdd_above_def apply clarsimp
-  apply(rule_tac x="c * M" in exI, clarsimp)
-  using mult_left_mono by blast
 
 
 subsection \<open> Functions \<close>
@@ -225,8 +207,10 @@ proof(simp add: axis_def norm_vec_def L2_set_def)
   let "?\<delta>\<^sub>K" = "\<lambda>i j k. if i = j then k else 0" 
   have "(\<Sum>j\<in>UNIV. (\<parallel>(?\<delta>\<^sub>K j i k)\<parallel>)\<^sup>2) = (\<Sum>j\<in>{i}. (\<parallel>(?\<delta>\<^sub>K j i k)\<parallel>)\<^sup>2) + (\<Sum>j\<in>(UNIV-{i}). (\<parallel>(?\<delta>\<^sub>K j i k)\<parallel>)\<^sup>2)"
     using finite_sum_univ_singleton by blast 
-  also have "... = (\<parallel>k\<parallel>)\<^sup>2" by simp
-  finally show "sqrt (\<Sum>j\<in>UNIV. (norm (if j = i then k else 0))\<^sup>2) = norm k" by simp
+  also have "... = (\<parallel>k\<parallel>)\<^sup>2" 
+    by simp
+  finally show "sqrt (\<Sum>j\<in>UNIV. (norm (if j = i then k else 0))\<^sup>2) = norm k" 
+    by simp
 qed
 
 lemma matrix_axis_0: 
@@ -238,7 +222,7 @@ proof-
     have "0 = (\<Sum>j\<in>UNIV. (axis i k) $ j *s column j A)" 
       using h matrix_mult_sum[of A "axis i k"] by simp
     also have "... = k *s column i A" 
-      by(simp add: axis_def vector_scalar_mult_def column_def vec_eq_iff mult.commute)
+      by (simp add: axis_def vector_scalar_mult_def column_def vec_eq_iff mult.commute)
     finally have "k *s column i A = 0"
       unfolding axis_def by simp
     hence "column i A = 0" 
@@ -277,7 +261,7 @@ lemma invertibleD[simp]:
   assumes "invertible A" 
   shows "A\<^sup>-\<^sup>1 ** A = mat 1" and "A ** A\<^sup>-\<^sup>1 = mat 1"
   using assms unfolding matrix_inv_def invertible_def
-  by  (simp_all add: verit_sko_ex')
+  by (simp_all add: verit_sko_ex')
 
 lemma matrix_inv_unique:
   assumes "A ** B = mat 1" and "B ** A = mat 1"

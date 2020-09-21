@@ -4,13 +4,14 @@ session "CPSVerification" = "Ordinary_Differential_Equations" +
     Ordinary_Differential_Equations
     Transformer_Semantics
     KAD
-    Algebraic_VCs
+    KAT_and_DRA
   directories
     "HybridVerifLists"
     "HybridVerifVecs"
     "HybridVerifVecs/KAT"
     "HybridVerifVecs/MKA"
     "HybridVerifVecs/PredTransf"
+    "HybridVerifVecs/Matrices"
   (*theories [document = false]
     "afpModified/Antidomain_Semiring"
     "afpModified/Dioid_Models"
@@ -27,13 +28,14 @@ session "CPSVerification" = "Ordinary_Differential_Equations" +
     "afpModified/VC_KAD"
     "afpModified/VC_KAT"*)
   theories
-    "HybridVerifVecs/hs_vc_examples"
-    "HybridVerifVecs/PredTransf/cat2funcset_examples"
-    "HybridVerifVecs/MKA/mka2rel"
-    "HybridVerifVecs/MKA/mka2ndfun"
-    "HybridVerifVecs/MKA/mka_examples"
-    "HybridVerifVecs/KAT/kat2rel_examples"
-    "HybridVerifVecs/KAT/kat2ndfun_examples"
+    "HybridVerifVecs/HS_VC_Examples"
+    "HybridVerifVecs/PredTransf/HS_VC_PT_Examples"
+    "HybridVerifVecs/MKA/HS_VC_MKA_Examples_rel"
+    "HybridVerifVecs/MKA/HS_VC_MKA_Examples_ndfun"
+    "HybridVerifVecs/KAT/HS_VC_KAT_Examples_rel"
+    "HybridVerifVecs/KAT/HS_VC_KAT_Examples_ndfun"
+    "HybridVerifVecs/Matrices/MTX_Examples"
+    "HybridVerifVecs/MKA/ARCH2020_Examples"
     "HybridVerifLists/VC_diffKAD_examples"
   document_files
     "root.tex"

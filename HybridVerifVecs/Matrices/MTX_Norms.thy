@@ -7,8 +7,8 @@ section \<open> Matrix norms \<close>
 
 text \<open> Here, we explore some properties about the operator and the maximum norms for matrices. \<close>
 
-theory mtx_norms
-  imports mtx_prelims
+theory MTX_Norms
+  imports MTX_Preliminaries
 
 begin
 
@@ -46,7 +46,8 @@ lemma onorm_set_proptys:
   shows "bounded (range (\<lambda>x. (\<parallel>A *v x\<parallel>) / (\<parallel>x\<parallel>)))"
     and "bdd_above (range (\<lambda>x. (\<parallel>A *v x\<parallel>) / (\<parallel>x\<parallel>)))"
     and "(range (\<lambda>x. (\<parallel>A *v x\<parallel>) / (\<parallel>x\<parallel>))) \<noteq> {}"
-  unfolding bounded_def bdd_above_def image_def dist_real_def apply(rule_tac x=0 in exI)
+  unfolding bounded_def bdd_above_def image_def dist_real_def 
+    apply(rule_tac x=0 in exI)
   by (rule_tac x="\<parallel>(\<chi> i j. \<parallel>A $ i $ j\<parallel>) *v 1\<parallel>" in exI, clarsimp,
       subst mult_norm_matrix_sgn_eq[symmetric], clarsimp,
       rule_tac x="sgn _" in norm_matrix_bound, simp add: norm_sgn)+ force
@@ -68,7 +69,8 @@ lemma op_norm_def: "\<parallel>A\<parallel>\<^sub>o\<^sub>p = Sup {\<parallel>A 
    apply(subst mult_norm_matrix_sgn_eq[symmetric], simp)
    apply(rule cSup_upper[OF _ op_norm_set_proptys(2)])
    apply(force simp: norm_sgn)
-  unfolding onorm_def apply(rule cSup_upper[OF _ onorm_set_proptys(2)])
+  unfolding onorm_def 
+  apply(rule cSup_upper[OF _ onorm_set_proptys(2)])
   by (simp add: image_def, clarsimp) (metis div_by_1)
 
 lemma norm_matrix_le_op_norm: "\<parallel>x\<parallel> = 1 \<Longrightarrow> \<parallel>A *v x\<parallel> \<le> \<parallel>A\<parallel>\<^sub>o\<^sub>p"
@@ -79,7 +81,7 @@ lemma op_norm_ge_0: "0 \<le> \<parallel>A\<parallel>\<^sub>o\<^sub>p"
   using ex_norm_eq_1 norm_ge_zero norm_matrix_le_op_norm basic_trans_rules(23) by blast
 
 lemma norm_sgn_le_op_norm: "\<parallel>A *v sgn x\<parallel> \<le> \<parallel>A\<parallel>\<^sub>o\<^sub>p"
-  by(cases "x=0", simp_all add: norm_sgn norm_matrix_le_op_norm op_norm_ge_0)
+  by (cases "x=0", simp_all add: norm_sgn norm_matrix_le_op_norm op_norm_ge_0)
 
 lemma norm_matrix_le_mult_op_norm: "\<parallel>A *v x\<parallel> \<le> (\<parallel>A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>x\<parallel>)"
 proof-
@@ -165,10 +167,12 @@ proof-
     using obs apply(unfold op_norm_def)
     by (rule cSup_least[OF op_norm_set_proptys(3)]) clarsimp
   hence "((\<parallel>A\<parallel>\<^sub>o\<^sub>p))\<^sup>2 \<le> (\<parallel>transpose A ** A\<parallel>\<^sub>o\<^sub>p)"
-    using power_mono[of "(\<parallel>A\<parallel>\<^sub>o\<^sub>p)" _ 2] op_norm_ge_0 by (metis not_le real_less_lsqrt)
+    using power_mono[of "(\<parallel>A\<parallel>\<^sub>o\<^sub>p)" _ 2] op_norm_ge_0
+    by (metis not_le real_less_lsqrt)
   also have "... \<le> (\<parallel>transpose A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>A\<parallel>\<^sub>o\<^sub>p)"
     using op_norm_matrix_matrix_mult_le by blast
-  finally have "((\<parallel>A\<parallel>\<^sub>o\<^sub>p))\<^sup>2 \<le> (\<parallel>transpose A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>A\<parallel>\<^sub>o\<^sub>p)"  by linarith
+  finally have "((\<parallel>A\<parallel>\<^sub>o\<^sub>p))\<^sup>2 \<le> (\<parallel>transpose A\<parallel>\<^sub>o\<^sub>p) * (\<parallel>A\<parallel>\<^sub>o\<^sub>p)"
+    by linarith
   thus "(\<parallel>A\<parallel>\<^sub>o\<^sub>p) \<le> (\<parallel>transpose A\<parallel>\<^sub>o\<^sub>p)"
     using sq_le_cancel[of "(\<parallel>A\<parallel>\<^sub>o\<^sub>p)"] op_norm_ge_0 by metis
 qed
@@ -188,7 +192,8 @@ proof-
     using finite_Atleast_Atmost_nat by fastforce
   hence "finite (\<Union>i\<in>UNIV. {\<bar>A $ i $ j\<bar> | j. j \<in> UNIV})" (is "finite ?Y")
     using finite_class.finite_UNIV by blast
-  also have "?X \<subseteq> ?Y" by auto
+  also have "?X \<subseteq> ?Y" 
+    by auto
   ultimately show ?thesis 
     using finite_subset by blast
 qed

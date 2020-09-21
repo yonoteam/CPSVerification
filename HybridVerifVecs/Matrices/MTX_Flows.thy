@@ -11,8 +11,8 @@ system of ODEs $X'\, t = f\, (X\, t)$ turns into $X'\, t = (A\, t)\cdot (X\, t)+
 is affine. The end goal of this section is to prove that every affine system of ODEs has a unique 
 solution, and to obtain a characterization of said solution. \<close>
 
-theory mtx_flows
-  imports mtx_sq hs_prelims_dyn_sys
+theory MTX_Flows
+  imports SQ_MTX "../HS_ODEs"
 
 begin
 
@@ -101,8 +101,8 @@ lemma picard_lindeloef_affine:
       and Bhyp: "continuous_on T B" and "open S" 
       and "t\<^sub>0 \<in> T" and Thyp: "open T" "is_interval T" 
     shows "picard_lindeloef (\<lambda> t s. A t *v s + B t) T S t\<^sub>0"
-  apply(unfold_locales, simp_all add: assms, clarsimp)
-  apply(rule continuous_on_add[OF continuous_on_matrix_vector_multl[OF Ahyp] Bhyp])
+  apply (unfold_locales, simp_all add: assms, clarsimp)
+   apply (rule continuous_on_add[OF continuous_on_matrix_vector_multl[OF Ahyp] Bhyp])
   by (rule local_lipschitz_affine) (simp_all add: assms)
 
 lemma picard_lindeloef_autonomous_affine: 
@@ -116,11 +116,11 @@ lemma picard_lindeloef_autonomous_linear:
   shows "picard_lindeloef (\<lambda> t. (*v) A) UNIV UNIV t\<^sub>0"
   using picard_lindeloef_autonomous_affine[of A 0] by force
 
-lemmas unique_sol_autonomous_affine = picard_lindeloef.unique_solution[OF 
-    picard_lindeloef_autonomous_affine _ _ funcset_UNIV UNIV_I _ _ funcset_UNIV UNIV_I]
+lemmas unique_sol_autonomous_affine = picard_lindeloef.ivp_unique_solution[OF 
+    picard_lindeloef_autonomous_affine UNIV_I _ subset_UNIV]
 
-lemmas unique_sol_autonomous_linear = picard_lindeloef.unique_solution[OF 
-    picard_lindeloef_autonomous_linear _ _ funcset_UNIV UNIV_I _ _ funcset_UNIV UNIV_I]
+lemmas unique_sol_autonomous_linear = picard_lindeloef.ivp_unique_solution[OF 
+    picard_lindeloef_autonomous_linear UNIV_I _ subset_UNIV]
 
 
 subsection \<open> Flow for affine systems \<close>
@@ -142,16 +142,11 @@ proof -
       assms obs by (auto simp: has_vector_derivative_def comp_def)
 qed
 
-lemma has_vderiv_on_exp_scaleRl:
-  assumes "D f = f' on T"
-  shows "D (\<lambda>x. exp (f x *\<^sub>R A)) = (\<lambda>x. f' x *\<^sub>R exp (f x *\<^sub>R A) * A) on T"
-  using assms unfolding has_vderiv_on_def has_vector_derivative_def apply clarsimp
-  by (rule has_derivative_exp_scaleRl, auto simp: fun_eq_iff)
-
 lemma vderiv_on_exp_scaleRlI[poly_derivatives]:
   assumes "D f = f' on T" and "g' = (\<lambda>x. f' x *\<^sub>R exp (f x *\<^sub>R A) * A)"
   shows "D (\<lambda>x. exp (f x *\<^sub>R A)) = g' on T"
-  using has_vderiv_on_exp_scaleRl assms by simp
+  using assms unfolding has_vderiv_on_def has_vector_derivative_def apply clarsimp
+  by (rule has_derivative_exp_scaleRl, auto simp: fun_eq_iff)
 
 lemma has_derivative_mtx_ith[derivative_intros]:
   fixes t::real and T :: "real set"
@@ -167,13 +162,13 @@ lemma has_derivative_mtx_ith[derivative_intros]:
 lemmas has_derivative_mtx_vec_mult[derivative_intros] = 
   bounded_bilinear.FDERIV[OF bounded_bilinear_sq_mtx_vec_mult]
 
-lemma vderiv_mtx_vec_mult_intro[poly_derivatives]: 
+lemma vderiv_on_mtx_vec_multI[poly_derivatives]:
   assumes "D u = u' on T" and "D A = A' on T"
       and "g = (\<lambda>t. A t *\<^sub>V u' t + A' t *\<^sub>V u t )"
     shows "D (\<lambda>t. A t *\<^sub>V u t) = g on T"
   using assms unfolding has_vderiv_on_def has_vector_derivative_def apply clarsimp
   apply(erule_tac x=x in ballE, simp_all)+
-  apply(rule derivative_eq_intros(144))
+  apply(rule derivative_eq_intros(142))
   by (auto simp: fun_eq_iff mtx_vec_scaleR_commute pth_6 scaleR_mtx_vec_assoc)
 
 lemmas has_vderiv_on_ivl_integral = ivl_integral_has_vderiv_on[OF vderiv_on_continuous_on]
@@ -196,7 +191,7 @@ lemma continuous_on_mtx_vec_multr: "continuous_on S ((*\<^sub>V) A)"
 
 \<comment> \<open>Automatically generated derivative rules from this subsubsection \<close>
 
-thm derivative_eq_intros(142,143,144,145)
+thm derivative_eq_intros(140,141,142,143)
 
 
 subsubsection \<open> Existence and uniqueness with square matrices \<close>
@@ -242,13 +237,13 @@ lemma picard_lindeloef_sq_mtx_affine:
   using continuous_on_affine assms apply blast
   by (rule local_lipschitz_sq_mtx_affine, simp_all add: assms)
 
-lemmas sq_mtx_unique_sol_autonomous_affine = picard_lindeloef.unique_solution[OF 
-    picard_lindeloef_sq_mtx_affine[OF 
+lemmas sq_mtx_unique_sol_autonomous_affine = picard_lindeloef.ivp_unique_solution[OF 
+    picard_lindeloef_sq_mtx_affine[OF
       continuous_on_const 
       continuous_on_const 
       UNIV_I is_interval_univ 
       open_UNIV open_UNIV] 
-    _ _ funcset_UNIV UNIV_I _ _ funcset_UNIV UNIV_I]
+    UNIV_I _ subset_UNIV]
 
 lemma has_vderiv_on_sq_mtx_linear:
   "D (\<lambda>t. exp ((t - t\<^sub>0) *\<^sub>R A) *\<^sub>V s) = (\<lambda>t. A *\<^sub>V (exp ((t - t\<^sub>0) *\<^sub>R A) *\<^sub>V s)) on {t\<^sub>0--t}"
@@ -267,13 +262,15 @@ lemma has_vderiv_on_sq_mtx_affine:
 lemma autonomous_linear_sol_is_exp:
   assumes "D X = (\<lambda>t. A *\<^sub>V X t) on {t\<^sub>0--t}" and "X t\<^sub>0 = s" 
   shows "X t = exp ((t - t\<^sub>0) *\<^sub>R A) *\<^sub>V s"
-  apply(rule sq_mtx_unique_sol_autonomous_affine[of X A 0, OF _ \<open>X t\<^sub>0 = s\<close>])
-  using assms has_vderiv_on_sq_mtx_linear by force+
+  apply(rule sq_mtx_unique_sol_autonomous_affine[of "\<lambda>s. {t\<^sub>0--t}" _ t X A 0])
+  using assms apply(simp_all add: ivp_sols_def)
+  using has_vderiv_on_sq_mtx_linear by force+
 
 lemma autonomous_affine_sol_is_exp_plus_int:
   assumes "D X = (\<lambda>t. A *\<^sub>V X t + B) on {t\<^sub>0--t}" and "X t\<^sub>0 = s" 
   shows "X t = exp ((t - t\<^sub>0) *\<^sub>R A) *\<^sub>V s + exp ((t - t\<^sub>0) *\<^sub>R A) *\<^sub>V (\<integral>\<^sub>t\<^sub>0\<^sup>t(exp (- (\<tau> - t\<^sub>0) *\<^sub>R A) *\<^sub>V B)\<partial>\<tau>)"
-  apply(rule sq_mtx_unique_sol_autonomous_affine[OF assms])
+  apply(rule sq_mtx_unique_sol_autonomous_affine[of "\<lambda>s. {t\<^sub>0--t}" _ t X A B])
+  using assms apply(simp_all add: ivp_sols_def)
   using has_vderiv_on_sq_mtx_affine by force+
 
 lemma local_flow_sq_mtx_linear: "local_flow ((*\<^sub>V) A) UNIV UNIV (\<lambda>t s. exp (t *\<^sub>R A) *\<^sub>V s)"

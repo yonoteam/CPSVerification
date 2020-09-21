@@ -6,15 +6,17 @@
 subsection \<open> Examples \<close>
 
 text \<open> We prove partial correctness specifications of some hybrid systems with our
-verification components.\<close>
+recently described verification components. Notice that this is an exact copy of
+the file @{text HS_VC_MKA_Examples}, meaning our components are truly modular and
+we can choose either a relational or predicate transformer semantics.\<close>
 
-theory HS_VC_Examples
-  imports HS_VC_Spartan
+theory HS_VC_MKA_Examples_ndfun
+  imports HS_VC_MKA_ndfun
 
 begin
 
 
-subsubsection \<open>Pendulum\<close>
+subsubsection\<open>Pendulum\<close>
 
 text \<open> The ODEs @{text "x' t = y t"} and {text "y' t = - x t"} describe the circular motion of
 a mass attached to a string looked from above. We use @{text "s$1"} to represent the x-coordinate
@@ -24,17 +26,20 @@ abbreviation fpend :: "real^2 \<Rightarrow> real^2" ("f")
   where "f s \<equiv> (\<chi> i. if i = 1 then s$2 else -s$1)"
 
 abbreviation pend_flow :: "real \<Rightarrow> real^2 \<Rightarrow> real^2" ("\<phi>")
-  where "\<phi> t s \<equiv> (\<chi> i. if i = 1 then s$1 * cos t + s$2 * sin t else - s$1 * sin t + s$2 * cos t)"
+  where "\<phi> t s \<equiv> (\<chi> i. if i = 1 then s$1 * cos t + s$2 * sin t
+  else - s$1 * sin t + s$2 * cos t)"
 
-\<comment> \<open>Verified with annotated dynamics. \<close>
+\<comment> \<open>Verified by providing dynamics. \<close>
 
-lemma pendulum_dyn: "(\<lambda>s. r\<^sup>2 = (s$1)\<^sup>2 + (s$2)\<^sup>2) \<le> |EVOL \<phi> G T] (\<lambda>s. r\<^sup>2 = (s$1)\<^sup>2 + (s$2)\<^sup>2)"
-  by force
+lemma pendulum_dyn:
+  "\<lceil>\<lambda>s. r\<^sup>2 = (s$1)\<^sup>2 + (s$2)\<^sup>2\<rceil> \<le> wp (EVOL \<phi> G T) \<lceil>\<lambda>s. r\<^sup>2 = (s$1)\<^sup>2 + (s$2)\<^sup>2\<rceil>"
+  by simp
 
 \<comment> \<open>Verified with differential invariants. \<close>
 
-lemma pendulum_inv: "(\<lambda>s. r\<^sup>2 = (s$1)\<^sup>2 + (s$2)\<^sup>2) \<le> |x\<acute>= f & G] (\<lambda>s. r\<^sup>2 = (s$1)\<^sup>2 + (s$2)\<^sup>2)"
-  by (auto intro!: diff_invariant_rules poly_derivatives)
+lemma pendulum_inv:
+  "\<lceil>\<lambda>s. r\<^sup>2 = (s$1)\<^sup>2 + (s$2)\<^sup>2\<rceil> \<le> wp (x\<acute>= f & G) \<lceil>\<lambda>s. r\<^sup>2 = (s$1)\<^sup>2 + (s$2)\<^sup>2\<rceil>"
+  by (auto intro!: poly_derivatives diff_invariant_rules)
 
 \<comment> \<open>Verified with the flow. \<close>
 
@@ -44,14 +49,15 @@ lemma local_flow_pend: "local_flow f UNIV UNIV \<phi>"
     apply(simp add: dist_norm norm_vec_def L2_set_def power2_commute UNIV_2)
   by (auto simp: forall_2 intro!: poly_derivatives)
 
-lemma pendulum_flow: "(\<lambda>s. r\<^sup>2 = (s$1)\<^sup>2 + (s$2)\<^sup>2) \<le> |x\<acute>=f & G] (\<lambda>s. r\<^sup>2 = (s$1)\<^sup>2 + (s$2)\<^sup>2)"
-  by (force simp: local_flow.fbox_g_ode_subset[OF local_flow_pend])
+lemma pendulum_flow:
+  "\<lceil>\<lambda>s. r\<^sup>2 = (s$1)\<^sup>2 + (s$2)\<^sup>2\<rceil> \<le> wp (x\<acute>= f & G) \<lceil>\<lambda>s. r\<^sup>2 = (s$1)\<^sup>2 + (s$2)\<^sup>2\<rceil>"
+  by (simp add: local_flow.wp_g_ode_subset[OF local_flow_pend])
 
 no_notation fpend ("f")
         and pend_flow ("\<phi>")
 
 
-subsubsection \<open> Bouncing Ball \<close>
+subsubsection\<open> Bouncing Ball \<close>
 
 text \<open> A ball is dropped from rest at an initial height @{text "h"}. The motion is described with
 the free-fall equations @{text "x' t = v t"} and @{text "v' t = g"} where @{text "g"} is the
@@ -87,22 +93,24 @@ proof-
   thus ?thesis by auto
 qed
 
-lemma bouncing_ball_inv: "g < 0 \<Longrightarrow> h \<ge> 0 \<Longrightarrow>
-  (\<lambda>s. s$1 = h \<and> s$2 = 0) \<le>
-  |LOOP (
-    (x\<acute>=(f g) & (\<lambda> s. s$1 \<ge> 0) DINV (\<lambda>s. 2 * g * s$1 - 2 * g * h - s$2 * s$2 = 0)) ;
-    (IF (\<lambda> s. s$1 = 0) THEN (2 ::= (\<lambda>s. - s$2)) ELSE skip))
-  INV (\<lambda>s. 0 \<le> s$1 \<and>2 * g * s$1 - 2 * g * h - s$2 * s$2 = 0)]
-  (\<lambda>s. 0 \<le> s$1 \<and> s$1 \<le> h)"
-  apply(rule fbox_loopI, simp_all, force, force simp: bb_real_arith)
-  by (rule fbox_g_odei) (auto intro!: poly_derivatives diff_invariant_rules)
+lemma bouncing_ball_inv:
+  fixes h::real
+  shows "g < 0 \<Longrightarrow> h \<ge> 0 \<Longrightarrow> \<lceil>\<lambda>s. s$1 = h \<and> s$2 = 0\<rceil> \<le>
+  wp
+    (LOOP
+      ((x\<acute>= f g & (\<lambda> s. s$1 \<ge> 0) DINV (\<lambda>s. 2 * g * s$1 - 2 * g * h - s$2 * s$2 = 0));
+       (IF (\<lambda> s. s$1 = 0) THEN (2 ::= (\<lambda>s. - s$2)) ELSE skip))
+    INV (\<lambda>s. 0 \<le> s$1 \<and> 2 * g * s$1 - 2 * g * h - s$2 * s$2 = 0)
+  ) \<lceil>\<lambda>s. 0 \<le> s$1 \<and> s$1 \<le> h\<rceil>"
+  apply(rule wp_loopI, simp_all, force simp: bb_real_arith)
+  by (rule wp_g_odei) (auto intro!: poly_derivatives diff_invariant_rules)
 
-\<comment> \<open>Verified with annotated dynamics. \<close>
+\<comment> \<open>Verified by providing dynamics. \<close>
 
 lemma inv_conserv_at_ground[bb_real_arith]:
   assumes invar: "2 * g * x = 2 * g * h + v * v"
     and pos: "g * \<tau>\<^sup>2 / 2 + v * \<tau> + (x::real) = 0"
-  shows "2 * g * h + (g * \<tau> + v) * (g * \<tau> + v) = 0"
+  shows "2 * g * h + (g * \<tau> * (g * \<tau> + v) + v * (g * \<tau> + v)) = 0"
 proof-
   from pos have "g * \<tau>\<^sup>2  + 2 * v * \<tau> + 2 * x = 0" by auto
   then have "g\<^sup>2 * \<tau>\<^sup>2  + 2 * g * v * \<tau> + 2 * g * x = 0"
@@ -113,14 +121,14 @@ proof-
   hence obs: "(g * \<tau> + v)\<^sup>2 + 2 * g * h = 0"
     apply(subst power2_sum) by (metis (no_types, hide_lams) Groups.add_ac(2, 3)
         Groups.mult_ac(2, 3) monoid_mult_class.power2_eq_square nat_distrib(2))
-  thus "2 * g * h + (g * \<tau> + v) * (g * \<tau> + v) = 0"
-    by (simp add: add.commute distrib_right power2_eq_square)
+  thus "2 * g * h + (g * \<tau> * (g * \<tau> + v) + v * (g * \<tau> + v)) = 0"
+    by (simp add: monoid_mult_class.power2_eq_square)
 qed
 
 lemma inv_conserv_at_air[bb_real_arith]:
   assumes invar: "2 * g * x = 2 * g * h + v * v"
   shows "2 * g * (g * \<tau>\<^sup>2 / 2 + v * \<tau> + (x::real)) =
-  2 * g * h + (g * \<tau> + v) * (g * \<tau> + v)" (is "?lhs = ?rhs")
+  2 * g * h + (g * \<tau> * (g * \<tau> + v) + v * (g * \<tau> + v))" (is "?lhs = ?rhs")
 proof-
   have "?lhs = g\<^sup>2 * \<tau>\<^sup>2 + 2 * g * v * \<tau> + 2 * g * x"
     by(auto simp: algebra_simps semiring_normalization_rules(29))
@@ -136,14 +144,17 @@ proof-
   ultimately show ?thesis by auto
 qed
 
-lemma bouncing_ball_dyn: "g < 0 \<Longrightarrow> h \<ge> 0 \<Longrightarrow>
-  (\<lambda>s. s$1 = h \<and> s$2 = 0) \<le>
-  |LOOP (
-    (EVOL (\<phi> g) (\<lambda> s. s$1 \<ge> 0) T) ;
-    (IF (\<lambda> s. s$1 = 0) THEN (2 ::= (\<lambda>s. - s$2)) ELSE skip))
-  INV (\<lambda>s. 0 \<le> s$1 \<and>2 * g * s$1 = 2 * g * h + s$2 * s$2)]
-  (\<lambda>s. 0 \<le> s$1 \<and> s$1 \<le> h)"
-  by (rule fbox_loopI) (auto simp: bb_real_arith)
+lemma bouncing_ball_dyn:
+  fixes h::real
+  assumes "g < 0" and "h \<ge> 0"
+  shows "g < 0 \<Longrightarrow> h \<ge> 0 \<Longrightarrow>
+  \<lceil>\<lambda>s. s$1 = h \<and> s$2 = 0\<rceil> \<le> wp
+    (LOOP
+      ((EVOL (\<phi> g) (\<lambda>s. 0 \<le> s$1) T);
+      (IF (\<lambda> s. s$1 = 0) THEN (2 ::= (\<lambda>s. - s$2)) ELSE skip))
+    INV (\<lambda>s. 0 \<le> s$1 \<and> 2 * g * s$1 = 2 * g * h + s$2 * s$2))
+  \<lceil>\<lambda>s. 0 \<le> s$1 \<and> s$1 \<le> h\<rceil>"
+  by (rule wp_loopI) (auto simp: bb_real_arith)
 
 \<comment> \<open>Verified with the flow. \<close>
 
@@ -153,21 +164,24 @@ lemma local_flow_ball: "local_flow (f g) UNIV UNIV (\<phi> g)"
     apply(simp add: dist_norm norm_vec_def L2_set_def UNIV_2)
   by (auto simp: forall_2 intro!: poly_derivatives)
 
-lemma bouncing_ball_flow: "g < 0 \<Longrightarrow> h \<ge> 0 \<Longrightarrow>
-  (\<lambda>s. s$1 = h \<and> s$2 = 0) \<le>
-  |LOOP (
-    (x\<acute>=(\<lambda>t. f g) & (\<lambda> s. s$1 \<ge> 0) on (\<lambda>s. UNIV) UNIV @ 0) ;
-    (IF (\<lambda> s. s$1 = 0) THEN (2 ::= (\<lambda>s. - s$2)) ELSE skip))
-  INV (\<lambda>s. 0 \<le> s$1 \<and>2 * g * s$1 = 2 * g * h + s$2 * s$2)]
-  (\<lambda>s. 0 \<le> s$1 \<and> s$1 \<le> h)"
-  apply(rule fbox_loopI, simp_all add: local_flow.fbox_g_ode_subset[OF local_flow_ball])
+lemma bouncing_ball_flow:
+  fixes h::real
+  assumes "g < 0" and "h \<ge> 0"
+  shows "g < 0 \<Longrightarrow> h \<ge> 0 \<Longrightarrow>
+  \<lceil>\<lambda>s. s$1 = h \<and> s$2 = 0\<rceil> \<le> wp
+    (LOOP
+      ((x\<acute>= (\<lambda>t. f g) & (\<lambda> s. s$1 \<ge> 0) on (\<lambda>s. UNIV) UNIV @ 0);
+      (IF (\<lambda> s. s$1 = 0) THEN (2 ::= (\<lambda>s. - s$2)) ELSE skip))
+    INV (\<lambda>s. 0 \<le> s$1 \<and> 2 * g * s$1 = 2 * g * h + s$2 * s$2))
+  \<lceil>\<lambda>s. 0 \<le> s$1 \<and> s$1 \<le> h\<rceil>"
+  apply(rule wp_loopI, simp_all add: local_flow.wp_g_ode_subset[OF local_flow_ball])
   by (auto simp: bb_real_arith)
 
 no_notation fball ("f")
         and ball_flow ("\<phi>")
 
 
-subsubsection \<open> Thermostat \<close>
+subsubsection\<open> Thermostat \<close>
 
 text \<open> A thermostat has a chronometer, a thermometer and a switch to turn on and off a heater.
 At most every @{text "t"} minutes, it sets its chronometer to @{term "0::real"}, it registers
@@ -207,7 +221,7 @@ lemma local_lipschitz_temp_dyn:
   apply(unfold local_lipschitz_def lipschitz_on_def dist_norm)
   apply(clarsimp, rule_tac x=1 in exI, clarsimp, rule_tac x=a in exI)
   using assms
-  apply(simp add: norm_diff_temp_dyn)
+  apply(simp_all add: norm_diff_temp_dyn)
   apply(simp add: norm_vec_def L2_set_def, unfold UNIV_4, clarsimp)
   unfolding real_sqrt_abs[symmetric] by (rule real_le_lsqrt) auto
 
@@ -261,12 +275,12 @@ proof-
     using Thyps and obs by auto
 qed
 
-lemmas fbox_temp_dyn = local_flow.fbox_g_ode_ivl[OF local_flow_temp _ UNIV_I]
+lemmas fbox_temp_dyn = local_flow.wp_g_ode_ivl[OF local_flow_temp _ UNIV_I]
 
 lemma thermostat:
   assumes "a > 0" and "0 \<le> t" and "0 < Tmin" and "Tmax < L"
-  shows "(\<lambda>s. Tmin \<le> s$1 \<and> s$1 \<le> Tmax \<and> s$4 = 0) \<le>
-  |LOOP
+  shows "\<lceil>\<lambda>s. Tmin \<le> s$1 \<and> s$1 \<le> Tmax \<and> s$4 = 0\<rceil> \<le> wp
+  (LOOP
     \<comment> \<open>control\<close>
     ((2 ::= (\<lambda>s. 0));(3 ::= (\<lambda>s. s$1));
     (IF (\<lambda>s. s$4 = 0 \<and> s$3 \<le> Tmin + 1) THEN (4 ::= (\<lambda>s.1)) ELSE
@@ -274,9 +288,9 @@ lemma thermostat:
     \<comment> \<open>dynamics\<close>
     (IF (\<lambda>s. s$4 = 0) THEN (x\<acute>=(\<lambda>t. f a 0) & (\<lambda>s. s$2 \<le> - (ln (Tmin/s$3))/a) on (\<lambda>s. {0..t}) UNIV @ 0)
     ELSE (x\<acute>=(\<lambda>t. f a L) & (\<lambda>s. s$2 \<le> - (ln ((L-Tmax)/(L-s$3)))/a) on (\<lambda>s. {0..t}) UNIV @ 0)) )
-  INV (\<lambda>s. Tmin \<le>s$1 \<and> s$1 \<le> Tmax \<and> (s$4 = 0 \<or> s$4 = 1))]
-  (\<lambda>s. Tmin \<le> s$1 \<and> s$1 \<le> Tmax)"
-  apply(rule fbox_loopI, simp_all add: fbox_temp_dyn[OF assms(1,2)] le_fun_def)
+  INV (\<lambda>s. Tmin \<le>s$1 \<and> s$1 \<le> Tmax \<and> (s$4 = 0 \<or> s$4 = 1)))
+  \<lceil>\<lambda>s. Tmin \<le> s$1 \<and> s$1 \<le> Tmax\<rceil>"
+  apply(rule wp_loopI, simp_all add: fbox_temp_dyn[OF assms(1,2)])
   using temp_dyn_up_real_arith[OF assms(1) _ _ assms(4), of Tmin]
     and temp_dyn_down_real_arith[OF assms(1,3), of _ Tmax] by auto
 

@@ -9,8 +9,8 @@ text\<open> The general solution for affine systems of ODEs involves the exponen
 Unfortunately, this operation is only available in Isabelle for the type class ``banach''. 
 Hence, we define a type of square matrices and prove that it is an instance of this class.\<close>
 
-theory mtx_sq
-  imports mtx_norms
+theory SQ_MTX
+  imports MTX_Norms
 
 begin
 
@@ -30,7 +30,8 @@ lift_definition sq_mtx_vec_mult :: "'m sq_mtx \<Rightarrow> (real^'m) \<Rightarr
 
 lift_definition vec_sq_mtx_prod :: "(real^'m) \<Rightarrow> 'm sq_mtx \<Rightarrow> (real^'m)" is "(v*)" .
 
-lift_definition sq_mtx_diag :: "(('m::finite) \<Rightarrow> real) \<Rightarrow> ('m::finite) sq_mtx" (binder "\<d>\<i>\<a>\<g> " 10) is diag_mat .
+lift_definition sq_mtx_diag :: "(('m::finite) \<Rightarrow> real) \<Rightarrow> ('m::finite) sq_mtx" (binder "\<d>\<i>\<a>\<g> " 10) 
+  is diag_mat .
 
 lift_definition sq_mtx_transpose :: "('m::finite) sq_mtx \<Rightarrow> 'm sq_mtx" ("_\<^sup>\<dagger>") is transpose .
 
@@ -54,7 +55,7 @@ lemma to_mtx_vec_lambda_ith[simp]: "to_mtx (\<chi> i j. x i j) $$ i1 $ i2 = x i1
 lemma sq_mtx_eq_iff:
   shows "A = B = (\<forall>i j. A $$ i $ j = B $$ i $ j)"
     and "A = B = (\<forall>i. A $$ i = B $$ i)"
-  by(transfer, simp add: vec_eq_iff)+
+  by (transfer, simp add: vec_eq_iff)+
 
 lemma sq_mtx_diag_simps[simp]:
   "i = j \<Longrightarrow> sq_mtx_diag f $$ i $ j = f i"
@@ -69,10 +70,10 @@ lemma sq_mtx_vec_mult_diag_axis: "(\<d>\<i>\<a>\<g> i. f i) *\<^sub>V (axis i k)
   unfolding sq_mtx_diag_vec_mult axis_def by auto
 
 lemma sq_mtx_vec_mult_eq: "m *\<^sub>V x = (\<chi> i. sum (\<lambda>j. (m $$ i $ j) * (x $ j)) UNIV)"
-  by(transfer, simp add: matrix_vector_mult_def)
+  by (transfer, simp add: matrix_vector_mult_def)
 
 lemma sq_mtx_transpose_transpose[simp]: "(A\<^sup>\<dagger>)\<^sup>\<dagger> = A"
-  by(transfer, simp)
+  by (transfer, simp)
 
 lemma transpose_mult_vec_canon_row[simp]: "(A\<^sup>\<dagger>) *\<^sub>V (\<e> i) = \<r>\<o>\<w> i A"
   by transfer (simp add: row_def transpose_def axis_def matrix_vector_mult_def)
@@ -156,11 +157,13 @@ lemma mtx_vec_mult_0r[simp]: "A *\<^sub>V 0 = 0"
   by (transfer, simp)
 
 lemma mtx_vec_mult_add_rdistr: "(A + B) *\<^sub>V x = A *\<^sub>V x + B *\<^sub>V x"
-  unfolding plus_sq_mtx_def apply(transfer)
+  unfolding plus_sq_mtx_def 
+  apply(transfer)
   by (simp add: matrix_vector_mult_add_rdistrib)
 
 lemma mtx_vec_mult_add_rdistl: "A *\<^sub>V (x + y) = A *\<^sub>V x + A *\<^sub>V y"
-  unfolding plus_sq_mtx_def apply transfer
+  unfolding plus_sq_mtx_def 
+  apply transfer
   by (simp add: matrix_vector_right_distrib)
 
 lemma mtx_vec_mult_minus_rdistrib: "(A - B) *\<^sub>V x = A *\<^sub>V x - B *\<^sub>V x"
@@ -200,9 +203,11 @@ definition open_sq_mtx :: "'a sq_mtx set \<Rightarrow> bool"
 
 instance apply intro_classes 
   unfolding sgn_sq_mtx_def open_sq_mtx_def dist_sq_mtx_def uniformity_sq_mtx_def
-  prefer 10 apply(transfer, simp add: norm_sq_mtx_def op_norm_triangle)
-  prefer 9 apply(simp_all add: norm_sq_mtx_def zero_sq_mtx_def op_norm_eq_0)
-  by(transfer, simp add: norm_sq_mtx_def op_norm_scaleR algebra_simps)+
+            prefer 10 
+            apply(transfer, simp add: norm_sq_mtx_def op_norm_triangle)
+           prefer 9 
+           apply(simp_all add: norm_sq_mtx_def zero_sq_mtx_def op_norm_eq_0)
+  by (transfer, simp add: norm_sq_mtx_def op_norm_scaleR algebra_simps)+
 
 end
 
@@ -227,7 +232,8 @@ lemma mtx_vec_scaleR_commute: "A *\<^sub>V (c *\<^sub>R x) = c *\<^sub>R (A *\<^
   by (simp add: vector_scaleR_commute)
 
 lemma mtx_times_scaleR_commute: "A * (c *\<^sub>R B) = c *\<^sub>R (A * B)" for A::"('n::finite) sq_mtx"
-  unfolding sq_mtx_scaleR_eq sq_mtx_times_eq apply(simp add: to_mtx_inject)
+  unfolding sq_mtx_scaleR_eq sq_mtx_times_eq 
+  apply(simp add: to_mtx_inject)
   apply(simp add: vec_eq_iff fun_eq_iff)
   by (simp add: semiring_normalization_rules(19) vector_space_over_itself.scale_sum_right)
 
@@ -254,7 +260,8 @@ lemma norm_sq_mtx_diag: "\<parallel>sq_mtx_diag f\<parallel> = Max {\<bar>f i\<b
   by (rule op_norm_diag_mat_eq)
 
 lemma sq_mtx_norm_le_sum_col: "\<parallel>A\<parallel> \<le> (\<Sum>i\<in>UNIV. \<parallel>\<c>\<o>\<l> i A\<parallel>)"
-  using op_norm_le_sum_column[of "to_vec A"] apply(simp add: norm_sq_mtx_def)
+  using op_norm_le_sum_column[of "to_vec A"] 
+  apply(simp add: norm_sq_mtx_def)
   by(transfer, simp add: op_norm_le_sum_column)
 
 lemma norm_le_transpose: "\<parallel>A\<parallel> \<le> \<parallel>A\<^sup>\<dagger>\<parallel>"
@@ -278,14 +285,16 @@ lemma sq_mtx_one_idty: "1 * A = A" "A * 1 = A" for A :: "'a sq_mtx"
   by(transfer, transfer, unfold mat_def matrix_matrix_mult_def, simp add: vec_eq_iff)+
 
 lemma sq_mtx_norm_1: "\<parallel>(1::'a sq_mtx)\<parallel> = 1"
-  unfolding one_sq_mtx_def norm_sq_mtx_def apply(simp add: op_norm_def)
+  unfolding one_sq_mtx_def norm_sq_mtx_def 
+  apply(simp add: op_norm_def)
   apply(subst cSup_eq[of _ 1])
   using ex_norm_eq_1 by auto
 
 lemma sq_mtx_norm_times: "\<parallel>A * B\<parallel> \<le> (\<parallel>A\<parallel>) * (\<parallel>B\<parallel>)" for A :: "'a sq_mtx"
   unfolding norm_sq_mtx_def times_sq_mtx_def by(simp add: op_norm_matrix_matrix_mult_le)
 
-instance apply intro_classes 
+instance 
+  apply intro_classes 
   apply(simp_all add: sq_mtx_one_idty sq_mtx_norm_1 sq_mtx_norm_times)
   apply(simp_all add: to_mtx_inject vec_eq_iff one_sq_mtx_def zero_sq_mtx_def mat_def)
   by(transfer, simp add: scalar_matrix_assoc matrix_scalar_ac)+
@@ -350,8 +359,9 @@ definition similar_sq_mtx :: "('n::finite) sq_mtx \<Rightarrow> 'n sq_mtx \<Righ
   where "(A \<sim> B) \<longleftrightarrow> (\<exists> P. mtx_invertible P \<and> A = P\<^sup>-\<^sup>1 * B * P)"
 
 lemma similar_sq_mtx_matrix: "(A \<sim> B) = similar_matrix (to_vec A) (to_vec B)"
-  apply(unfold similar_matrix_def similar_sq_mtx_def)
-  by (smt UNIV_I to_mtx_inverse sq_mtx_inv.abs_eq times_sq_mtx.abs_eq to_vec_inverse)
+  apply(unfold similar_matrix_def similar_sq_mtx_def, safe)
+   apply (metis sq_mtx_inv.rep_eq times_sq_mtx.rep_eq)
+  by (metis UNIV_I sq_mtx_inv.abs_eq times_sq_mtx.abs_eq to_mtx_inverse to_vec_inverse)
 
 lemma similar_sq_mtx_refl[simp]: "A \<sim> A"
   by (unfold similar_sq_mtx_def, rule_tac x="1" in exI, simp)
