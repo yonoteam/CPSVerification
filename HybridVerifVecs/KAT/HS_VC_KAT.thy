@@ -205,6 +205,9 @@ proof -
     by (simp add: Hoare_def join.le_bot)
 qed
 
+lemma R_abort: "0 \<le> Ref p q"
+  using bot_least by force
+
 \<comment> \<open> Sequential composition \<close>
 
 lemma R_seq: "(Ref p r) \<cdot> (Ref r q) \<le> Ref p q"

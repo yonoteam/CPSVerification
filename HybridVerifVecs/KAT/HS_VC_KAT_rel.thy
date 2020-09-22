@@ -23,9 +23,6 @@ no_notation Archimedean_Field.ceiling ("\<lceil>_\<rceil>")
         and tau ("\<tau>")
         and n_op ("n _" [90] 91)
 
-notation Id ("skip")
-     and relcomp (infixl ";" 70)
-
 subsection \<open> Relational model \<close> (* by Victor Gomes, Georg Struth *)
 
 context dioid_one_zero
@@ -105,15 +102,18 @@ interpretation rel_kat: kat "(\<union>)" "(O)" Id "{}" "(\<subseteq>)" "(\<subse
 definition rel_R :: "'a rel \<Rightarrow> 'a rel \<Rightarrow> 'a rel" where 
   "rel_R P Q = \<Union>{X. rel_kat.Hoare P X Q}"
 
-interpretation rel_rkat: rkat "(\<union>)" "(;)" Id "{}" "(\<subseteq>)" "(\<subset>)" rtrancl "(\<lambda>X. Id \<inter> - X)" rel_R
+interpretation rel_rkat: rkat "(\<union>)" "(O)" Id "{}" "(\<subseteq>)" "(\<subset>)" rtrancl "(\<lambda>X. Id \<inter> - X)" rel_R
   by (standard, auto simp: rel_R_def rel_kat.Hoare_def)
 
-lemma RdL_is_rRKAT: "(\<forall>x. {(x,x)}; R1 \<subseteq> {(x,x)}; R2) = (R1 \<subseteq> R2)" (* Refinement in dL is that of rKAT *)
-  by auto
-
-subsection \<open> Store and Hoare triples \<close>
+subsection \<open> Relational Store \<close>
 
 type_synonym 'a pred = "'a \<Rightarrow> bool"
+
+term "{}"
+
+notation Id ("skip")
+     and empty ("abort")
+     and relcomp (infixl ";" 70)
 
 definition p2r :: "'a pred \<Rightarrow> 'a rel" ("\<lceil>_\<rceil>") where
   "\<lceil>P\<rceil> = {(s,s) |s. P s}"
@@ -128,20 +128,34 @@ lemma p2r_simps[simp]:
   "Id \<inter> (- \<lceil>P\<rceil>) = \<lceil>\<lambda>s. \<not> P s\<rceil>"
   unfolding p2r_def by auto
 
-\<comment> \<open> Meaning of the relational hoare triple \<close>
+lemma RdL_is_rRKAT: "(\<forall>x. {(x,x)}; R1 \<subseteq> {(x,x)}; R2) = (R1 \<subseteq> R2)"
+  by auto (* Refinement in dL is that of rKAT *)
 
-lemma rel_kat_H: "rel_kat.Hoare \<lceil>P\<rceil> X \<lceil>Q\<rceil> \<longleftrightarrow> (\<forall>s s'. P s \<longrightarrow> (s,s') \<in> X \<longrightarrow> Q s')"
+\<comment> \<open> Hoare Triples \<close>
+
+abbreviation relHoare ("\<^bold>{_\<^bold>}_\<^bold>{_\<^bold>}") 
+  where "\<^bold>{P\<^bold>}X\<^bold>{Q\<^bold>} \<equiv> rel_kat.Hoare \<lceil>P\<rceil> X \<lceil>Q\<rceil>"
+
+lemma rel_kat_H: "\<^bold>{P\<^bold>} X \<^bold>{Q\<^bold>} \<longleftrightarrow> (\<forall>s s'. P s \<longrightarrow> (s,s') \<in> X \<longrightarrow> Q s')"
   by (simp add: rel_kat.Hoare_def, auto simp add: p2r_def)
 
-\<comment> \<open> Hoare triple for skip and a simp-rule \<close>
+\<comment> \<open> Skip \<close>
 
-lemma H_skip: "rel_kat.Hoare \<lceil>P\<rceil> skip \<lceil>P\<rceil>"
-  using rel_kat.H_skip by blast
-
-lemma sH_skip[simp]: "rel_kat.Hoare \<lceil>P\<rceil> skip \<lceil>Q\<rceil> \<longleftrightarrow> \<lceil>P\<rceil> \<le> \<lceil>Q\<rceil>"
+lemma sH_skip[simp]: "\<^bold>{P\<^bold>} skip \<^bold>{Q\<^bold>} \<longleftrightarrow> \<lceil>P\<rceil> \<le> \<lceil>Q\<rceil>"
   unfolding rel_kat_H by simp
 
-\<comment> \<open> We introduce assignments and compute derive their rule of Hoare logic. \<close>
+lemma H_skip: "\<^bold>{P\<^bold>} skip \<^bold>{P\<^bold>}"
+  by simp
+
+\<comment> \<open> Abort \<close>
+
+lemma sH_abort[simp]: "\<^bold>{P\<^bold>} abort \<^bold>{Q\<^bold>} \<longleftrightarrow> True"
+  unfolding rel_kat_H by simp
+
+lemma H_abort: "\<^bold>{P\<^bold>} abort \<^bold>{Q\<^bold>}"
+  by simp
+
+\<comment> \<open> Assignments \<close>
 
 definition vec_upd :: "('a^'b) \<Rightarrow> 'b \<Rightarrow> 'a \<Rightarrow> 'a^'b"
   where "vec_upd s i a \<equiv> (\<chi> j. ((($) s)(i := a)) j)"
@@ -152,63 +166,80 @@ lemma vec_upd_eq: "vec_upd s i a = (\<chi> j. if j = i then a else s$j)"
 definition assign :: "'b \<Rightarrow> ('a^'b \<Rightarrow> 'a) \<Rightarrow> ('a^'b) rel" ("(2_ ::= _)" [70, 65] 61) 
   where "(x ::= e) \<equiv> {(s, vec_upd s x (e s))| s. True}" 
 
-lemma H_assign: "P = (\<lambda>s. Q (\<chi> j. ((($) s)(x := (e s))) j)) \<Longrightarrow> rel_kat.Hoare \<lceil>P\<rceil> (x ::= e) \<lceil>Q\<rceil>"
-  unfolding rel_kat_H assign_def vec_upd_def by force
-
-lemma sH_assign[simp]: "rel_kat.Hoare \<lceil>P\<rceil> (x ::= e) \<lceil>Q\<rceil> \<longleftrightarrow> (\<forall>s. P s \<longrightarrow> Q (\<chi> j. ((($) s)(x := (e s))) j))"
+lemma sH_assign[simp]: "\<^bold>{P\<^bold>} (x ::= e) \<^bold>{Q\<^bold>} \<longleftrightarrow> (\<forall>s. P s \<longrightarrow> Q (\<chi> j. ((($) s)(x := (e s))) j))"
   unfolding rel_kat_H vec_upd_def assign_def by (auto simp: fun_upd_def)
+
+lemma H_assign: "P = (\<lambda>s. Q (\<chi> j. ((($) s)(x := (e s))) j)) \<Longrightarrow> \<^bold>{P\<^bold>} (x ::= e) \<^bold>{Q\<^bold>}"
+  by simp
+
+\<comment> \<open> Nondeterministic Assignments \<close>
 
 definition nondet_assign :: "'b \<Rightarrow> ('a^'b) rel" ("(2_ ::= ? )" [70] 61)
   where "(x ::= ?) = {(s,vec_upd s x k)|s k. True}"
 
-lemma wp_nondet_assign[simp]: "rel_kat.Hoare \<lceil>\<lambda>s. \<forall>k. P (\<chi> j. ((($) s)(x := k)) j)\<rceil> (x ::= ?) \<lceil>P\<rceil>"
-  unfolding rel_kat_H nondet_assign_def vec_upd_eq apply clarsimp
-  by (erule_tac x=k in allE, auto simp: fun_upd_def)
+lemma sH_nondet_assign[simp]: "\<^bold>{P\<^bold>} (x ::= ?) \<^bold>{Q\<^bold>} \<longleftrightarrow> (\<forall>s. P s \<longrightarrow> (\<forall>k. Q (\<chi> j. ((($) s)(x := k)) j)))"
+  unfolding rel_kat_H vec_upd_def nondet_assign_def by (auto simp: fun_upd_def)
 
-\<comment> \<open> Next, the Hoare rule of the composition \<close>
+lemma H_nondet_assign: "\<^bold>{\<lambda>s. \<forall>k. P (\<chi> j. ((($) s)(x := k)) j)\<^bold>} (x ::= ?) \<^bold>{P\<^bold>}"
+  by simp
 
-lemma H_seq: "rel_kat.Hoare \<lceil>P\<rceil> X \<lceil>R\<rceil> \<Longrightarrow> rel_kat.Hoare \<lceil>R\<rceil> Y \<lceil>Q\<rceil> \<Longrightarrow> rel_kat.Hoare \<lceil>P\<rceil> (X ; Y) \<lceil>Q\<rceil>"
-  by (auto intro: rel_kat.H_seq)
+\<comment> \<open> Sequential Composition \<close>
 
-lemma sH_seq: 
-  "rel_kat.Hoare \<lceil>P\<rceil> (X ; Y) \<lceil>Q\<rceil> = rel_kat.Hoare \<lceil>P\<rceil> (X) \<lceil>\<lambda>s. \<forall>s'. (s, s') \<in> Y \<longrightarrow> Q s'\<rceil>"
+lemma H_seq: "\<^bold>{P\<^bold>} X \<^bold>{R\<^bold>} \<Longrightarrow> \<^bold>{R\<^bold>} Y \<^bold>{Q\<^bold>} \<Longrightarrow> \<^bold>{P\<^bold>} X;Y \<^bold>{Q\<^bold>}"
+  using rel_kat.H_seq .
+
+lemma sH_seq: "\<^bold>{P\<^bold>} X;Y \<^bold>{Q\<^bold>} = \<^bold>{P\<^bold>} X \<^bold>{\<lambda>s. \<forall>s'. (s, s') \<in> Y \<longrightarrow> Q s'\<^bold>}"
   unfolding rel_kat_H by auto
 
-\<comment> \<open> Rewriting the Hoare rule for the conditional statement \<close>
+\<comment> \<open> Nondeterministic Choice \<close>
 
-abbreviation cond_sugar :: "'a pred \<Rightarrow> 'a rel \<Rightarrow> 'a rel \<Rightarrow> 'a rel" ("IF _ THEN _ ELSE _" [64,64] 63) 
+lemma sH_choice: "\<^bold>{P\<^bold>} X \<union> Y \<^bold>{Q\<^bold>} \<longleftrightarrow> (\<^bold>{P\<^bold>} X \<^bold>{Q\<^bold>} \<and> \<^bold>{P\<^bold>} Y \<^bold>{Q\<^bold>})"
+  unfolding rel_kat_H by auto
+
+lemma H_choice: "\<^bold>{P\<^bold>} X \<^bold>{Q\<^bold>} \<Longrightarrow> \<^bold>{P\<^bold>} Y \<^bold>{Q\<^bold>} \<Longrightarrow> \<^bold>{P\<^bold>} X \<union> Y \<^bold>{Q\<^bold>}"
+  using rel_kat.H_choice .
+
+\<comment> \<open> Conditional Statement \<close>
+
+abbreviation cond_sugar :: "'a pred \<Rightarrow> 'a rel \<Rightarrow> 'a rel \<Rightarrow> 'a rel" 
+  ("IF _ THEN _ ELSE _" [64,64] 63) 
   where "IF B THEN X ELSE Y \<equiv> rel_kat.kat_cond \<lceil>B\<rceil> X Y"
 
-lemma H_cond: "rel_kat.Hoare \<lceil>\<lambda>s. P s \<and> B s\<rceil> X \<lceil>Q\<rceil> \<Longrightarrow> rel_kat.Hoare \<lceil>\<lambda>s. P s \<and> \<not> B s\<rceil> Y \<lceil>Q\<rceil> \<Longrightarrow> 
-  rel_kat.Hoare \<lceil>P\<rceil> (IF B THEN X ELSE Y) \<lceil>Q\<rceil>"
-  by (rule rel_kat.H_cond, auto simp: rel_kat_H)
-
-lemma sH_cond[simp]: "rel_kat.Hoare \<lceil>P\<rceil> (IF B THEN X ELSE Y) \<lceil>Q\<rceil> \<longleftrightarrow> 
-  (rel_kat.Hoare \<lceil>\<lambda>s. P s \<and> B s\<rceil> X \<lceil>Q\<rceil> \<and> rel_kat.Hoare \<lceil>\<lambda>s. P s \<and> \<not> B s\<rceil> Y \<lceil>Q\<rceil>)"
+lemma sH_cond[simp]: 
+  "\<^bold>{P\<^bold>} (IF B THEN X ELSE Y) \<^bold>{Q\<^bold>} \<longleftrightarrow> (\<^bold>{\<lambda>s. P s \<and> B s\<^bold>} X \<^bold>{Q\<^bold>} \<and> \<^bold>{\<lambda>s. P s \<and> \<not> B s\<^bold>} Y \<^bold>{Q\<^bold>})"
   by (auto simp: rel_kat.H_cond_iff rel_kat_H)
 
-\<comment> \<open> Rewriting the Hoare rule for the while loop \<close>
+lemma H_cond: 
+  "\<^bold>{\<lambda>s. P s \<and> B s\<^bold>} X \<^bold>{Q\<^bold>} \<Longrightarrow> \<^bold>{\<lambda>s. P s \<and> \<not> B s\<^bold>} Y \<^bold>{Q\<^bold>} \<Longrightarrow> \<^bold>{P\<^bold>} (IF B THEN X ELSE Y) \<^bold>{Q\<^bold>}"
+  by simp
 
-abbreviation while_inv_sugar :: "'a pred \<Rightarrow> 'a pred \<Rightarrow> 'a rel \<Rightarrow> 'a rel" ("WHILE _ INV _ DO _" [64,64,64] 63) 
+\<comment> \<open> While Loop \<close>
+
+abbreviation while_inv_sugar :: "'a pred \<Rightarrow> 'a pred \<Rightarrow> 'a rel \<Rightarrow> 'a rel" 
+  ("WHILE _ INV _ DO _" [64,64,64] 63) 
   where "WHILE B INV I DO X \<equiv> rel_kat.kat_while_inv \<lceil>B\<rceil> \<lceil>I\<rceil> X"
 
-lemma sH_while_inv: "\<forall>s. P s \<longrightarrow> I s \<Longrightarrow> \<forall>s. I s \<and> \<not> B s \<longrightarrow> Q s \<Longrightarrow> rel_kat.Hoare \<lceil>\<lambda>s. I s \<and> B s\<rceil> X \<lceil>I\<rceil> 
-  \<Longrightarrow> rel_kat.Hoare \<lceil>P\<rceil> (WHILE B INV I DO X) \<lceil>Q\<rceil>"
+lemma sH_whileI: "\<forall>s. P s \<longrightarrow> I s \<Longrightarrow> \<forall>s. I s \<and> \<not> B s \<longrightarrow> Q s \<Longrightarrow> \<^bold>{\<lambda>s. I s \<and> B s\<^bold>} X \<^bold>{I\<^bold>} 
+  \<Longrightarrow> \<^bold>{P\<^bold>} (WHILE B INV I DO X) \<^bold>{Q\<^bold>}"
   by (rule rel_kat.H_while_inv, auto simp: p2r_def rel_kat.Hoare_def, fastforce)
 
-\<comment> \<open> Finally, we add a Hoare triple rule for finite iterations. \<close>
+lemma "\<^bold>{\<lambda>s. P s \<and> B s\<^bold>} X \<^bold>{\<lambda>s. P s\<^bold>} \<Longrightarrow> \<^bold>{P\<^bold>} (WHILE B INV I DO X) \<^bold>{\<lambda>s. P s \<and> \<not> B s\<^bold>}"
+  using rel_kat.H_while[of "\<lceil>P\<rceil>" "\<lceil>B\<rceil>" X]
+  unfolding rel_kat.kat_while_inv_def by auto
+
+\<comment> \<open> Finite Iteration \<close>
 
 abbreviation loopi_sugar :: "'a rel \<Rightarrow> 'a pred \<Rightarrow> 'a rel" ("LOOP _ INV _ " [64,64] 63)
   where "LOOP X INV I \<equiv> rel_kat.kat_loop_inv X \<lceil>I\<rceil>"
 
-lemma H_loop: "rel_kat.Hoare \<lceil>P\<rceil> X \<lceil>P\<rceil> \<Longrightarrow> rel_kat.Hoare \<lceil>P\<rceil> (LOOP X INV I) \<lceil>P\<rceil>"
+lemma H_loop: "\<^bold>{P\<^bold>} X \<^bold>{P\<^bold>} \<Longrightarrow> \<^bold>{P\<^bold>} (LOOP X INV I) \<^bold>{P\<^bold>}"
   by (auto intro: rel_kat.H_loop)
 
-lemma H_loopI: "rel_kat.Hoare \<lceil>I\<rceil> X \<lceil>I\<rceil> \<Longrightarrow> \<lceil>P\<rceil> \<subseteq> \<lceil>I\<rceil> \<Longrightarrow> \<lceil>I\<rceil> \<subseteq> \<lceil>Q\<rceil> \<Longrightarrow> rel_kat.Hoare \<lceil>P\<rceil> (LOOP X INV I) \<lceil>Q\<rceil>"
+lemma H_loopI: "\<^bold>{I\<^bold>} X \<^bold>{I\<^bold>} \<Longrightarrow> \<lceil>P\<rceil> \<subseteq> \<lceil>I\<rceil> \<Longrightarrow> \<lceil>I\<rceil> \<subseteq> \<lceil>Q\<rceil> \<Longrightarrow> \<^bold>{P\<^bold>} (LOOP X INV I) \<^bold>{Q\<^bold>}"
   using rel_kat.H_loop_inv[of "\<lceil>P\<rceil>" "\<lceil>I\<rceil>" X "\<lceil>Q\<rceil>"] by auto
 
 
-subsection\<open> Verification of hybrid programs \<close>
+subsection \<open> Verification of hybrid programs \<close>
 
 \<comment> \<open>Verification by providing evolution\<close>
 
@@ -217,13 +248,13 @@ definition g_evol :: "(('a::ord) \<Rightarrow> 'b \<Rightarrow> 'b) \<Rightarrow
 
 lemma sH_g_evol[simp]:  
   fixes \<phi> :: "('a::preorder) \<Rightarrow> 'b \<Rightarrow> 'b"
-  shows "rel_kat.Hoare \<lceil>P\<rceil> (EVOL \<phi> G U) \<lceil>Q\<rceil> = (\<forall>s. P s \<longrightarrow> (\<forall>t\<in>U s. (\<forall>\<tau>\<in>down (U s) t. G (\<phi> \<tau> s)) \<longrightarrow> Q (\<phi> t s)))"
+  shows "\<^bold>{P\<^bold>} (EVOL \<phi> G U) \<^bold>{Q\<^bold>} = (\<forall>s. P s \<longrightarrow> (\<forall>t\<in>U s. (\<forall>\<tau>\<in>down (U s) t. G (\<phi> \<tau> s)) \<longrightarrow> Q (\<phi> t s)))"
   unfolding rel_kat_H g_evol_def g_orbit_eq by auto
 
 lemma H_g_evol: 
   fixes \<phi> :: "('a::preorder) \<Rightarrow> 'b \<Rightarrow> 'b"
   assumes "P = (\<lambda>s. (\<forall>t\<in>U s. (\<forall>\<tau>\<in>down (U s) t. G (\<phi> \<tau> s)) \<longrightarrow> Q (\<phi> t s)))"
-  shows "rel_kat.Hoare \<lceil>P\<rceil> (EVOL \<phi> G U) \<lceil>Q\<rceil>"
+  shows "\<^bold>{P\<^bold>} (EVOL \<phi> G U) \<^bold>{Q\<^bold>}"
   by (simp add: assms)
 
 \<comment> \<open>Verification by providing solutions\<close>
@@ -234,10 +265,10 @@ definition g_ode :: "(real \<Rightarrow> ('a::banach)\<Rightarrow>'a) \<Rightarr
 
 lemma H_g_orbital: 
   "P = (\<lambda>s. (\<forall>X\<in>ivp_sols f U S t\<^sub>0 s. \<forall>t\<in>U s. (\<forall>\<tau>\<in>down (U s) t. G (X \<tau>)) \<longrightarrow> Q (X t))) \<Longrightarrow> 
-  rel_kat.Hoare \<lceil>P\<rceil> (x\<acute>= f & G on U S @ t\<^sub>0) \<lceil>Q\<rceil>"
+  \<^bold>{P\<^bold>} (x\<acute>= f & G on U S @ t\<^sub>0) \<^bold>{Q\<^bold>}"
   unfolding rel_kat_H g_ode_def g_orbital_eq by clarsimp
 
-lemma sH_g_orbital: "rel_kat.Hoare \<lceil>P\<rceil> (x\<acute>= f & G on U S @ t\<^sub>0) \<lceil>Q\<rceil> = 
+lemma sH_g_orbital: "\<^bold>{P\<^bold>} (x\<acute>= f & G on U S @ t\<^sub>0) \<^bold>{Q\<^bold>} = 
   (\<forall>s. P s \<longrightarrow> (\<forall>X\<in>ivp_sols f U S t\<^sub>0 s. \<forall>t\<in>U s. (\<forall>\<tau>\<in>down (U s) t. G (X \<tau>)) \<longrightarrow> Q (X t)))"
   unfolding g_orbital_eq g_ode_def rel_kat_H by auto
 
@@ -246,7 +277,7 @@ begin
 
 lemma sH_g_ode_subset: 
   assumes "\<And>s. s \<in> S \<Longrightarrow> 0 \<in> U s \<and> is_interval (U s) \<and> U s \<subseteq> T"
-  shows "rel_kat.Hoare \<lceil>P\<rceil> (x\<acute>= (\<lambda>t. f) & G on U S @ 0) \<lceil>Q\<rceil> = 
+  shows "\<^bold>{P\<^bold>} (x\<acute>= (\<lambda>t. f) & G on U S @ 0) \<^bold>{Q\<^bold>} = 
   (\<forall>s\<in>S. P s \<longrightarrow> (\<forall>t\<in>U s. (\<forall>\<tau>\<in>down (U s) t. G (\<phi> \<tau> s)) \<longrightarrow> Q (\<phi> t s)))"
 proof(unfold sH_g_orbital, clarsimp, safe)
   fix s t
@@ -271,21 +302,20 @@ qed
 lemma H_g_ode_subset:
   assumes "\<And>s. s \<in> S \<Longrightarrow> 0 \<in> U s \<and> is_interval (U s) \<and> U s \<subseteq> T"
     and "P = (\<lambda>s. s \<in> S \<longrightarrow> (\<forall>t\<in>U s. (\<forall>\<tau>\<in>down (U s) t. G (\<phi> \<tau> s)) \<longrightarrow> Q (\<phi> t s)))" 
-  shows "rel_kat.Hoare \<lceil>P\<rceil> (x\<acute>= (\<lambda>t. f) & G on U S @ 0) \<lceil>Q\<rceil>"
+  shows "\<^bold>{P\<^bold>} (x\<acute>= (\<lambda>t. f) & G on U S @ 0) \<^bold>{Q\<^bold>}"
   using assms apply(subst sH_g_ode_subset[OF assms(1)])
   unfolding assms by auto
 
-lemma sH_g_ode: "rel_kat.Hoare \<lceil>P\<rceil> (x\<acute>= (\<lambda>t. f) & G on (\<lambda>s. T) S @ 0) \<lceil>Q\<rceil> = 
+lemma sH_g_ode: "\<^bold>{P\<^bold>} (x\<acute>= (\<lambda>t. f) & G on (\<lambda>s. T) S @ 0) \<^bold>{Q\<^bold>} = 
   (\<forall>s\<in>S. P s \<longrightarrow> (\<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (\<phi> \<tau> s)) \<longrightarrow> Q (\<phi> t s)))"
   by (subst sH_g_ode_subset, auto simp: init_time interval_time)
 
-lemma sH_g_ode_ivl: "t \<ge> 0 \<Longrightarrow> t \<in> T \<Longrightarrow> rel_kat.Hoare \<lceil>P\<rceil> (x\<acute>= (\<lambda>t. f) & G on (\<lambda>s. {0..t}) S @ 0) \<lceil>Q\<rceil> = 
+lemma sH_g_ode_ivl: "t \<ge> 0 \<Longrightarrow> t \<in> T \<Longrightarrow> \<^bold>{P\<^bold>} (x\<acute>= (\<lambda>t. f) & G on (\<lambda>s. {0..t}) S @ 0) \<^bold>{Q\<^bold>} = 
   (\<forall>s\<in>S. P s \<longrightarrow> (\<forall>t\<in>{0..t}. (\<forall>\<tau>\<in>{0..t}. G (\<phi> \<tau> s)) \<longrightarrow> Q (\<phi> t s)))"
   apply(subst sH_g_ode_subset; clarsimp, (force)?)
   using init_time interval_time mem_is_interval_1_I by blast
 
-lemma sH_orbit: 
-  "rel_kat.Hoare \<lceil>P\<rceil> ({(s,s') | s s'. s' \<in> \<gamma>\<^sup>\<phi> s}) \<lceil>Q\<rceil> = (\<forall>s \<in> S. P s \<longrightarrow> (\<forall> t \<in> T. Q (\<phi> t s)))"
+lemma sH_orbit: "\<^bold>{P\<^bold>} ({(s,s') | s s'. s' \<in> \<gamma>\<^sup>\<phi> s}) \<^bold>{Q\<^bold>} = (\<forall>s \<in> S. P s \<longrightarrow> (\<forall> t \<in> T. Q (\<phi> t s)))"
   using sH_g_ode unfolding orbit_def g_ode_def by auto
 
 end
@@ -298,21 +328,21 @@ definition g_ode_inv :: "(real \<Rightarrow> ('a::banach)\<Rightarrow>'a) \<Righ
 
 lemma sH_g_orbital_guard: 
   assumes "R = (\<lambda>s. G s \<and> Q s)"
-  shows "rel_kat.Hoare \<lceil>P\<rceil> (x\<acute>= f & G on U S @ t\<^sub>0) \<lceil>Q\<rceil> = rel_kat.Hoare \<lceil>P\<rceil> (x\<acute>= f & G on U S @ t\<^sub>0) \<lceil>R\<rceil>" 
+  shows "\<^bold>{P\<^bold>} (x\<acute>= f & G on U S @ t\<^sub>0) \<^bold>{Q\<^bold>} = \<^bold>{P\<^bold>} (x\<acute>= f & G on U S @ t\<^sub>0) \<^bold>{R\<^bold>}" 
   using assms unfolding g_orbital_eq rel_kat_H ivp_sols_def g_ode_def by auto
 
 lemma sH_g_orbital_inv:
-  assumes "\<lceil>P\<rceil> \<le> \<lceil>I\<rceil>" and "rel_kat.Hoare \<lceil>I\<rceil> (x\<acute>= f & G on U S @ t\<^sub>0) \<lceil>I\<rceil>" and "\<lceil>I\<rceil> \<le> \<lceil>Q\<rceil>"
-  shows "rel_kat.Hoare \<lceil>P\<rceil> (x\<acute>= f & G on U S @ t\<^sub>0) \<lceil>Q\<rceil>"
+  assumes "\<lceil>P\<rceil> \<le> \<lceil>I\<rceil>" and "\<^bold>{I\<^bold>} (x\<acute>= f & G on U S @ t\<^sub>0) \<^bold>{I\<^bold>}" and "\<lceil>I\<rceil> \<le> \<lceil>Q\<rceil>"
+  shows " \<^bold>{P\<^bold>} (x\<acute>= f & G on U S @ t\<^sub>0) \<^bold>{Q\<^bold>}"
   using assms(1) apply(rule_tac p'="\<lceil>I\<rceil>" in rel_kat.H_consl, simp)
   using assms(3) apply(rule_tac q'="\<lceil>I\<rceil>" in rel_kat.H_consr, simp)
   using assms(2) by simp
 
-lemma sH_diff_inv[simp]: "rel_kat.Hoare \<lceil>I\<rceil> (x\<acute>= f & G on U S @ t\<^sub>0) \<lceil>I\<rceil> = diff_invariant I f U S t\<^sub>0 G"
+lemma sH_diff_inv[simp]: "\<^bold>{I\<^bold>} (x\<acute>= f & G on U S @ t\<^sub>0) \<^bold>{I\<^bold>} = diff_invariant I f U S t\<^sub>0 G"
   unfolding diff_invariant_eq rel_kat_H g_orbital_eq g_ode_def by auto
 
-lemma H_g_ode_inv: "rel_kat.Hoare \<lceil>I\<rceil> (x\<acute>= f & G on U S @ t\<^sub>0) \<lceil>I\<rceil> \<Longrightarrow> \<lceil>P\<rceil> \<le> \<lceil>I\<rceil> \<Longrightarrow> 
-  \<lceil>\<lambda>s. I s \<and> G s\<rceil> \<le> \<lceil>Q\<rceil> \<Longrightarrow> rel_kat.Hoare \<lceil>P\<rceil> (x\<acute>= f & G on U S @ t\<^sub>0 DINV I) \<lceil>Q\<rceil>"
+lemma H_g_ode_inv: "\<^bold>{I\<^bold>} (x\<acute>= f & G on U S @ t\<^sub>0) \<^bold>{I\<^bold>} \<Longrightarrow> \<lceil>P\<rceil> \<le> \<lceil>I\<rceil> \<Longrightarrow> 
+  \<lceil>\<lambda>s. I s \<and> G s\<rceil> \<le> \<lceil>Q\<rceil> \<Longrightarrow> \<^bold>{P\<^bold>} (x\<acute>= f & G on U S @ t\<^sub>0 DINV I) \<^bold>{Q\<^bold>}"
   unfolding g_ode_inv_def apply(rule_tac q'="\<lceil>\<lambda>s. I s \<and> G s\<rceil>" in rel_kat.H_consr, simp)
   apply(subst sH_g_orbital_guard[symmetric], force)
   by (rule_tac I="I" in sH_g_orbital_inv, simp_all)
@@ -322,10 +352,15 @@ subsection \<open> Refinement Components \<close>
 
 \<comment> \<open> Skip \<close>
 
-lemma R_skip: "(\<forall>s. P s \<longrightarrow> Q s) \<Longrightarrow> Id \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
-  by (simp add: rel_rkat.R2 rel_kat_H)
+lemma R_skip: "(\<forall>s. P s \<longrightarrow> Q s) \<Longrightarrow> skip \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
+  by (rule rel_rkat.R2, simp)
 
-\<comment> \<open> Composition \<close>
+\<comment> \<open> Abort \<close>
+
+lemma R_abort: "abort \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
+  by (rule rel_rkat.R2, simp)
+
+\<comment> \<open> Sequential Composition \<close>
 
 lemma R_seq: "(rel_R \<lceil>P\<rceil> \<lceil>R\<rceil>) ; (rel_R \<lceil>R\<rceil> \<lceil>Q\<rceil>) \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
   using rel_rkat.R_seq by blast
@@ -334,6 +369,17 @@ lemma R_seq_rule: "X \<le> rel_R \<lceil>P\<rceil> \<lceil>R\<rceil> \<Longright
   unfolding rel_rkat.spec_def by (rule H_seq)
 
 lemmas R_seq_mono = relcomp_mono
+
+\<comment> \<open> Nondeterministic Choice \<close>
+
+lemma R_choice: "(rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>) \<union> (rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>) \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
+  using rel_rkat.R_choice[of "\<lceil>P\<rceil>" "\<lceil>Q\<rceil>"] .
+
+lemma R_choice_rule: "X \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil> \<Longrightarrow> Y \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil> \<Longrightarrow> X \<union> Y \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
+  using le_supI .
+
+lemma R_choice_mono: "P' \<subseteq> P \<Longrightarrow> Q' \<subseteq> Q \<Longrightarrow> P' \<union> Q' \<subseteq> P \<union> Q"
+  using Un_mono .
 
 \<comment> \<open> Assignment \<close>
 
@@ -357,7 +403,15 @@ lemma "(x ::= e) ; rel_R \<lceil>Q\<rceil> \<lceil>Q\<rceil> \<le> rel_R \<lceil
 lemma "rel_R \<lceil>Q\<rceil> \<lceil>(\<lambda>s. Q (\<chi> j. ((($) s)(x := e s)) j))\<rceil>; (x ::= e) \<le> rel_R \<lceil>Q\<rceil> \<lceil>Q\<rceil>"
   by (rule R_assignr) simp
 
-\<comment> \<open> Conditional \<close>
+\<comment> \<open> Nondeeterministic Assignment \<close>
+
+lemma R_nondet_assign: "(x ::= ?) \<le> rel_R \<lceil>\<lambda>s. \<forall>k. P (\<chi> j. ((($) s)(x := k)) j)\<rceil> \<lceil>P\<rceil>"
+  unfolding rel_rkat.spec_def by (rule H_nondet_assign)
+
+lemma R_nondet_assign_rule: "(\<forall>s. P s \<longrightarrow> (\<forall>k. Q (\<chi> j. ((($) s)(x := k)) j))) \<Longrightarrow> (x ::= ?) \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
+  unfolding sH_nondet_assign[symmetric] by (rule rel_rkat.R2)
+
+\<comment> \<open> Conditional Statement \<close>
 
 lemma R_cond: "(IF B THEN rel_R \<lceil>\<lambda>s. B s \<and> P s\<rceil> \<lceil>Q\<rceil> ELSE rel_R \<lceil>\<lambda>s. \<not> B s \<and> P s\<rceil> \<lceil>Q\<rceil>) \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
   using rel_rkat.R_cond[of "\<lceil>B\<rceil>" "\<lceil>P\<rceil>" "\<lceil>Q\<rceil>"] by simp
@@ -365,18 +419,25 @@ lemma R_cond: "(IF B THEN rel_R \<lceil>\<lambda>s. B s \<and> P s\<rceil> \<lce
 lemma R_cond_mono: "X \<le> X' \<Longrightarrow> Y \<le> Y' \<Longrightarrow> (IF P THEN X ELSE Y) \<le> IF P THEN X' ELSE Y'"
   by (auto simp: rel_kat.kat_cond_def)
 
-\<comment> \<open> While loop \<close>
+\<comment> \<open> While Loop \<close>
 
-lemma R_while: "WHILE Q INV I DO (rel_R \<lceil>\<lambda>s. P s \<and> Q s\<rceil> \<lceil>P\<rceil>) \<le> rel_R \<lceil>P\<rceil> \<lceil>\<lambda>s. P s \<and> \<not> Q s\<rceil>"
-  unfolding rel_kat.kat_while_inv_def using rel_rkat.R_while[of "\<lceil>Q\<rceil>" "\<lceil>P\<rceil>"] by simp
+lemma R_while: "WHILE B INV I DO (rel_R \<lceil>\<lambda>s. P s \<and> B s\<rceil> \<lceil>P\<rceil>) \<le> rel_R \<lceil>P\<rceil> \<lceil>\<lambda>s. P s \<and> \<not> B s\<rceil>"
+  unfolding rel_kat.kat_while_inv_def using rel_rkat.R_while[of "\<lceil>B\<rceil>" "\<lceil>P\<rceil>"] by simp
+
+lemma R_whileI:
+  "X \<le> rel_R \<lceil>I\<rceil> \<lceil>I\<rceil> \<Longrightarrow> \<lceil>P\<rceil> \<le> \<lceil>I\<rceil> \<Longrightarrow> \<lceil>\<lambda>s. I s \<and> \<not> B s\<rceil> \<le> \<lceil>Q\<rceil> \<Longrightarrow> WHILE B INV I DO X \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
+  by (rule rel_rkat.R2, rule rel_kat.H_while_inv, auto simp: rel_kat_H rel_rkat.spec_def)
 
 lemma R_while_mono: "X \<le> X' \<Longrightarrow> (WHILE P INV I DO X) \<subseteq> WHILE P INV I DO X'"
-  by (simp add: rel_dioid.mult_isol rel_dioid.mult_isor rel_ka.conway.dagger_iso rel_kat.kat_while_def rel_kat.kat_while_inv_def)
+  by (simp add: rel_dioid.mult_isol rel_dioid.mult_isor rel_ka.conway.dagger_iso 
+      rel_kat.kat_while_def rel_kat.kat_while_inv_def)
 
+\<comment> \<open> Finite Iteration \<close>
 
-\<comment> \<open> Finite loop \<close>
+lemma R_loop:"LOOP rel_R \<lceil>P\<rceil> \<lceil>P\<rceil> INV I \<le> rel_R \<lceil>P\<rceil> \<lceil>P\<rceil>"
+  using rel_rkat.R_loop .
 
-lemma R_loop: "X \<le> rel_R \<lceil>I\<rceil> \<lceil>I\<rceil> \<Longrightarrow> \<lceil>P\<rceil> \<le> \<lceil>I\<rceil> \<Longrightarrow> \<lceil>I\<rceil> \<le> \<lceil>Q\<rceil> \<Longrightarrow> LOOP X INV I \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
+lemma R_loopI: "X \<le> rel_R \<lceil>I\<rceil> \<lceil>I\<rceil> \<Longrightarrow> \<lceil>P\<rceil> \<le> \<lceil>I\<rceil> \<Longrightarrow> \<lceil>I\<rceil> \<le> \<lceil>Q\<rceil> \<Longrightarrow> LOOP X INV I \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
   unfolding rel_rkat.spec_def using H_loopI by blast
 
 lemma R_loop_mono: "X \<le> X' \<Longrightarrow> LOOP X INV I \<subseteq> LOOP X' INV I"
@@ -491,25 +552,25 @@ abbreviation g_dl_ode_inv :: "(('a::banach)\<Rightarrow>'a) \<Rightarrow> 'a pre
 lemma diff_solve_rule1:
   assumes "local_flow f UNIV UNIV \<phi>"
     and "\<forall>s. P s \<longrightarrow> (\<forall>t\<ge>0. (\<forall>\<tau>\<in>{0..t}. G (\<phi> \<tau> s)) \<longrightarrow> Q (\<phi> t s))"
-  shows "rel_kat.Hoare \<lceil>P\<rceil> (x\<acute>= f & G) \<lceil>Q\<rceil>"
+  shows "\<^bold>{P\<^bold>} (x\<acute>= f & G) \<^bold>{Q\<^bold>}"
   using assms by(subst local_flow.sH_g_ode_subset, auto)
 
 lemma diff_solve_rule2: 
   fixes c::"'a::{heine_borel, banach}"
   assumes "\<forall>s. P s \<longrightarrow> (\<forall>t\<ge>0. (\<forall>\<tau>\<in>{0..t}. G (s + \<tau> *\<^sub>R c)) \<longrightarrow> Q (s + t *\<^sub>R c))"
-  shows "rel_kat.Hoare \<lceil>P\<rceil> (x\<acute>=(\<lambda>s. c) & G) \<lceil>Q\<rceil>"
+  shows "\<^bold>{P\<^bold>} (x\<acute>=(\<lambda>s. c) & G) \<^bold>{Q\<^bold>}"
   apply(subst local_flow.sH_g_ode_subset[where T=UNIV and \<phi>="(\<lambda> t x. x + t *\<^sub>R c)"])
   using line_is_local_flow assms by auto
 
 lemma diff_weak_rule: 
   assumes "\<lceil>G\<rceil> \<le> \<lceil>Q\<rceil>"
-  shows "rel_kat.Hoare \<lceil>P\<rceil> (x\<acute>= f & G on U S @ t\<^sub>0) \<lceil>Q\<rceil>"
+  shows "\<^bold>{P\<^bold>} (x\<acute>= f & G on U S @ t\<^sub>0) \<^bold>{Q\<^bold>}"
   using assms unfolding g_orbital_eq rel_kat_H ivp_sols_def g_ode_def by auto
 
 lemma diff_cut_rule:
   assumes wp_C:"rel_kat.Hoare \<lceil>P\<rceil> (x\<acute>= f & G on U S @ t\<^sub>0) \<lceil>C\<rceil>"
     and wp_Q:"rel_kat.Hoare \<lceil>P\<rceil> (x\<acute>= f & (\<lambda> s. G s \<and> C s) on U S @ t\<^sub>0) \<lceil>Q\<rceil>"
-  shows "rel_kat.Hoare \<lceil>P\<rceil> (x\<acute>= f & G on U S @ t\<^sub>0) \<lceil>Q\<rceil>"
+  shows "\<^bold>{P\<^bold>} (x\<acute>= f & G on U S @ t\<^sub>0) \<^bold>{Q\<^bold>}"
 proof(subst rel_kat_H, simp add: g_orbital_eq p2r_def g_ode_def, clarsimp)
   fix t::real and X::"real \<Rightarrow> 'a" and s 
   assume "P s" and "t \<in> U s"
@@ -527,7 +588,7 @@ qed
 
 lemma diff_inv_rule:
   assumes "\<lceil>P\<rceil> \<le> \<lceil>I\<rceil>" and "diff_invariant I f U S t\<^sub>0 G" and "\<lceil>I\<rceil> \<le> \<lceil>Q\<rceil>"
-  shows "rel_kat.Hoare \<lceil>P\<rceil> (x\<acute>= f & G on U S @ t\<^sub>0) \<lceil>Q\<rceil>"
+  shows "\<^bold>{P\<^bold>} (x\<acute>= f & G on U S @ t\<^sub>0) \<^bold>{Q\<^bold>}"
   apply(subst g_ode_inv_def[symmetric, where I=I], rule H_g_ode_inv)
   unfolding sH_diff_inv using assms by auto
 

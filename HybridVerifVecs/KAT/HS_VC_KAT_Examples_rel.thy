@@ -201,7 +201,7 @@ lemma R_bouncing_ball_dyn:
     INV (\<lambda>s. 0 \<le> s$1 \<and> 2 \<cdot> g \<cdot> s$1 = 2 \<cdot> g \<cdot> h + s$2 \<cdot> s$2))"
   apply(rule order_trans)
    apply(rule R_loop_mono) defer
-   apply(rule R_loop)
+   apply(rule R_loopI)
      apply(rule R_seq)
   using assms apply(simp_all, force simp: bb_real_arith)
   apply(rule R_seq_mono) defer
@@ -406,7 +406,7 @@ lemma R_therm_loop: "rel_R \<lceil>I Tmin Tmax\<rceil> \<lceil>I Tmin Tmax\<rcei
     rel_R \<lceil>I Tmin Tmax\<rceil> \<lceil>\<lambda>s. I Tmin Tmax s \<and> s$2 = 0 \<and> s$3 = s$1\<rceil>;
     rel_R \<lceil>\<lambda>s. I Tmin Tmax s \<and> s$2 = 0 \<and> s$3 = s$1\<rceil> \<lceil>I Tmin Tmax\<rceil>
   INV I Tmin Tmax)"
-  by (intro R_loop R_seq, simp_all)
+  by (intro R_loopI R_seq, simp_all)
 
 lemma R_thermostat_flow: 
   assumes "a > 0" and "0 \<le> \<tau>" and "0 < Tmin" and "Tmax < L"
