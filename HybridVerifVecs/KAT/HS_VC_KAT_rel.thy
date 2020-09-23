@@ -109,8 +109,6 @@ subsection \<open> Relational Store \<close>
 
 type_synonym 'a pred = "'a \<Rightarrow> bool"
 
-term "{}"
-
 notation Id ("skip")
      and empty ("abort")
      and relcomp (infixl ";" 70)
@@ -403,7 +401,7 @@ lemma "(x ::= e) ; rel_R \<lceil>Q\<rceil> \<lceil>Q\<rceil> \<le> rel_R \<lceil
 lemma "rel_R \<lceil>Q\<rceil> \<lceil>(\<lambda>s. Q (\<chi> j. ((($) s)(x := e s)) j))\<rceil>; (x ::= e) \<le> rel_R \<lceil>Q\<rceil> \<lceil>Q\<rceil>"
   by (rule R_assignr) simp
 
-\<comment> \<open> Nondeeterministic Assignment \<close>
+\<comment> \<open> Nondeterministic Assignment \<close>
 
 lemma R_nondet_assign: "(x ::= ?) \<le> rel_R \<lceil>\<lambda>s. \<forall>k. P (\<chi> j. ((($) s)(x := k)) j)\<rceil> \<lceil>P\<rceil>"
   unfolding rel_rkat.spec_def by (rule H_nondet_assign)
@@ -425,7 +423,7 @@ lemma R_while: "WHILE B INV I DO (rel_R \<lceil>\<lambda>s. P s \<and> B s\<rcei
   unfolding rel_kat.kat_while_inv_def using rel_rkat.R_while[of "\<lceil>B\<rceil>" "\<lceil>P\<rceil>"] by simp
 
 lemma R_whileI:
-  "X \<le> rel_R \<lceil>I\<rceil> \<lceil>I\<rceil> \<Longrightarrow> \<lceil>P\<rceil> \<le> \<lceil>I\<rceil> \<Longrightarrow> \<lceil>\<lambda>s. I s \<and> \<not> B s\<rceil> \<le> \<lceil>Q\<rceil> \<Longrightarrow> WHILE B INV I DO X \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
+  "X \<le> rel_R \<lceil>I\<rceil> \<lceil>I\<rceil> \<Longrightarrow> \<lceil>P\<rceil> \<le> \<lceil>\<lambda>s. I s \<and> B s\<rceil> \<Longrightarrow> \<lceil>\<lambda>s. I s \<and> \<not> B s\<rceil> \<le> \<lceil>Q\<rceil> \<Longrightarrow> WHILE B INV I DO X \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
   by (rule rel_rkat.R2, rule rel_kat.H_while_inv, auto simp: rel_kat_H rel_rkat.spec_def)
 
 lemma R_while_mono: "X \<le> X' \<Longrightarrow> (WHILE P INV I DO X) \<subseteq> WHILE P INV I DO X'"
