@@ -36,6 +36,7 @@ session "CPSVerification" = "Ordinary_Differential_Equations" +
     "HybridVerifVecs/KAT/HS_VC_KAT_Examples_ndfun"
     "HybridVerifVecs/Matrices/MTX_Examples"
     "HybridVerifVecs/MKA/ARCH2020_Examples"
+    "HybridVerifVecs/PID_Examples"
     "HybridVerifLists/VC_diffKAD_examples"
   document_files
     "root.tex"
