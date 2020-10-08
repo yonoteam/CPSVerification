@@ -611,7 +611,7 @@ proof-
   have inv_inv: "rel_R \<lceil>I hmin hmax\<rceil> \<lceil>?Icntrl\<rceil>; (rel_R \<lceil>?Icntrl\<rceil> \<lceil>I hmin hmax\<rceil>) \<le> rel_R \<lceil>I hmin hmax\<rceil> \<lceil>I hmin hmax\<rceil>"
     by (rule R_seq)
   have loopref: "LOOP rel_R \<lceil>I hmin hmax\<rceil> \<lceil>?Icntrl\<rceil>; (rel_R \<lceil>?Icntrl\<rceil> \<lceil>I hmin hmax\<rceil>) INV I hmin hmax \<le> ?ref"
-    apply(rule R_loop)
+    apply(rule R_loopI)
     using pre_inv inv_inv inv_pos by auto
   have obs: "?ctrl;?dyn \<le> rel_R \<lceil>I hmin hmax\<rceil> \<lceil>?Icntrl\<rceil>; (rel_R \<lceil>?Icntrl\<rceil> \<lceil>I hmin hmax\<rceil>)"
     apply(rule R_seq_mono)
