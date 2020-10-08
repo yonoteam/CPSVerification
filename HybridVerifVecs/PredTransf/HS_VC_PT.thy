@@ -33,13 +33,14 @@ subsection \<open>Verification of regular programs\<close>
 
 text \<open>Properties of the forward box operator. \<close>
 
+lemma "fb\<^sub>\<F> F S = (\<Inter> \<circ> \<P> (- op\<^sub>K F)) (- S)"
+  unfolding ffb_def map_dual_def dual_set_def klift_def by simp
+
 lemma "fb\<^sub>\<F> F S = {s. F s \<subseteq> S}"
-  unfolding ffb_def map_dual_def klift_def kop_def dual_set_def
-  by(auto simp: Compl_eq_Diff_UNIV fun_eq_iff f2r_def converse_def r2f_def)
+  by (auto simp: ffb_def kop_def klift_def map_dual_def dual_set_def f2r_def r2f_def)
 
 lemma ffb_eq: "fb\<^sub>\<F> F S = {s. \<forall>s'. s' \<in> F s \<longrightarrow> s' \<in> S}"
-  unfolding ffb_def apply(simp add: kop_def klift_def map_dual_def)
-  unfolding dual_set_def f2r_def r2f_def by auto
+  by (auto simp: ffb_def kop_def klift_def map_dual_def dual_set_def f2r_def r2f_def)
 
 lemma ffb_iso: "P \<le> Q \<Longrightarrow> fb\<^sub>\<F> F P \<le> fb\<^sub>\<F> F Q"
   unfolding ffb_eq by auto
@@ -79,8 +80,7 @@ lemma fbox_nondet_assign[simp]: "fb\<^sub>\<F> (x ::= ?) P = {s. \<forall>k. (\<
 text \<open>The wlp of program composition is just the composition of the wlps.\<close>
 
 lemma ffb_kcomp[simp]: "fb\<^sub>\<F> (G ; F) P = fb\<^sub>\<F> G (fb\<^sub>\<F> F P)"
-  unfolding ffb_def apply(simp add: kop_def klift_def map_dual_def)
-  unfolding dual_set_def f2r_def r2f_def by(auto simp: kcomp_def)
+  unfolding ffb_eq by (auto simp: kcomp_def)
 
 lemma hoare_kcomp:
   assumes "P \<le> fb\<^sub>\<F> F R" "R \<le> fb\<^sub>\<F> G Q"
@@ -137,7 +137,7 @@ definition loopi :: "('a \<Rightarrow> 'a set) \<Rightarrow> 'a pred \<Rightarro
 lemma ffb_loopI: "P \<le> {s. I s}  \<Longrightarrow> {s. I s} \<le> Q \<Longrightarrow> {s. I s} \<le> fb\<^sub>\<F> F {s. I s} \<Longrightarrow> P \<le> fb\<^sub>\<F> (LOOP F INV I) Q"
   unfolding loopi_def using ffb_kstarI[of "P"] by simp
 
-lemma wp_loopI_break: 
+lemma ffb_loopI_break: 
   "P \<le> fb\<^sub>\<F> Y {s. I s} \<Longrightarrow> {s. I s} \<le> fb\<^sub>\<F> X {s. I s} \<Longrightarrow> {s. I s} \<le> Q \<Longrightarrow> P \<le> fb\<^sub>\<F> (Y ; (LOOP X INV I)) Q"
   by (rule hoare_kcomp, force) (rule ffb_loopI, auto)
 

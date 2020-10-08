@@ -482,7 +482,7 @@ lemma tank_flow:
     (IF (\<lambda>s. s$4 = 0 \<and> s$3 \<le> hmin + 1) THEN (4 ::= (\<lambda>s.1)) ELSE 
     (IF (\<lambda>s. s$4 = 1 \<and> s$3 \<ge> hmax - 1) THEN (4 ::= (\<lambda>s.0)) ELSE skip));
     \<comment> \<open>dynamics\<close>
-    (IF (\<lambda>s. s$4 = 0) THEN (x\<acute>= (\<lambda>t. f (c\<^sub>i-c\<^sub>o)) & G hmax (c\<^sub>i-c\<^sub>o) on (\<lambda>s. {0..\<tau>}) UNIV @ 0) 
+    (IF (\<lambda>s. s$4 = 1) THEN (x\<acute>= (\<lambda>t. f (c\<^sub>i-c\<^sub>o)) & G hmax (c\<^sub>i-c\<^sub>o) on (\<lambda>s. {0..\<tau>}) UNIV @ 0) 
      ELSE (x\<acute>= (\<lambda>t. f (-c\<^sub>o)) & G hmin (-c\<^sub>o) on (\<lambda>s. {0..\<tau>}) UNIV @ 0)) )
   INV I hmin hmax) \<lceil>I hmin hmax\<rceil>"
   apply(rule H_loopI)

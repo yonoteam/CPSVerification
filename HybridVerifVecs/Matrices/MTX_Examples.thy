@@ -129,16 +129,15 @@ proof(subst diff_divide_distrib[symmetric], simp)
     using f0 f1 assms(5) by auto
 qed
 
+abbreviation "open_door s \<equiv> {s. s$1 > 0 \<and> s$2 = 0}"
+
 lemma overdamped_door:
-  assumes "b\<^sup>2 + a * 4 > 0" and "a < 0" and "b \<le> 0" and "0 \<le> t"
+  assumes "b\<^sup>2 + a * 4 > 0" and "a < 0" and "b \<le> 0"
   shows "PRE (\<lambda>s. s$1 = 0)
-  HP (LOOP 
-      (\<lambda>s. {s. s$1 > 0 \<and> s$2 = 0});
-      (x\<acute>=(\<lambda>t. (*\<^sub>V) (A a b)) & G on (\<lambda>s. {0..t}) UNIV @ 0) 
-     INV (\<lambda>s. 0 \<le> s$1))
+  HP (LOOP open_door; (x\<acute>=((*\<^sub>V) (A a b)) & G) INV (\<lambda>s. 0 \<le> s$1))
   POST (\<lambda>s. 0 \<le> s $ 1)"
   apply(rule fbox_loopI, simp_all add: le_fun_def)
-  apply(subst local_flow.fbox_g_ode_ivl[OF local_flow_mtx_hOsc[OF assms(1)]])
+  apply(subst local_flow.fbox_g_ode_subset[OF local_flow_mtx_hOsc[OF assms(1)]])
   using assms apply(simp_all add: le_fun_def fbox_def)
   unfolding sq_mtx_scaleR_eq UNIV_2 sq_mtx_vec_mult_eq
   by (clarsimp simp: overdamped_door_arith)

@@ -260,7 +260,8 @@ lemma "0 \<le> t \<Longrightarrow> y > 0 \<Longrightarrow> \<lceil>\<lambda>s::r
   apply(unfold_locales; (simp add: local_lipschitz_def lipschitz_on_def vec_eq_iff)?)
    apply(clarsimp, rule_tac x=1 in exI)
    apply(clarsimp simp: dist_norm norm_vec_def L2_set_def, rule_tac x="y" in exI)
-   apply (metis abs_mult abs_of_pos dist_commute dist_real_def less_eq_real_def vector_space_over_itself.scale_right_diff_distrib)
+   apply (metis abs_mult abs_of_pos dist_commute dist_real_def less_eq_real_def 
+      vector_space_over_itself.scale_right_diff_distrib)
   by (auto intro!: poly_derivatives simp: field_simps)
 
 
@@ -629,21 +630,149 @@ qed
 
 subsubsection \<open> Dynamics: Fractional Darboux equality \<close> (*N 30 *)
 
-(* x+z=0 -> [{x'=(A*y+B()*x)/z^2, z' = (A*x+B())/z & y = x^2 & z^2 > 0}] x+z=0 *)
-(* x' + z' = (A*y+B*x)/z^2 + (A*x+B)/z = (A*y+B*x+A*x*z+B*z)/z^2 = (x*(A*x+B)+z*(A*x+B))/z^2 *)
-lemma "0 \<le> t \<Longrightarrow> \<lceil>\<lambda>s::real^3. s$1 + s$3 = 0\<rceil> \<le> 
-  wp (x\<acute>= (\<lambda>t s. (\<chi> i. if i=1 then (A*(s$2)+B*(s$1))/(s$3)\<^sup>2 else (if i = 3 then (A*(s$1)+B)/s$3 else 0))) & (\<lambda>s. (s$2) = (s$1)^2 \<and> (s$3)^2 > 0) on (\<lambda>s. UNIV) UNIV @ 0) 
-  \<lceil>\<lambda>s. s$1 + s$3 = 0\<rceil>"
-  oops
+lemma fractional_darboux_arith:
+  assumes "x2 \<noteq> 0"
+  shows "(A \<cdot> x1\<^sup>2 + B \<cdot> (x1::real)) / x2\<^sup>2 + (A \<cdot> x1 + B) / x2 
+  = (x1 \<cdot> (A \<cdot> x1 + B) + x2 \<cdot> (A \<cdot> x1 + B)) / x2\<^sup>2" (is "?lhs = ?rhs")
+proof-
+  have "?lhs = (A \<cdot> x1\<^sup>2 + B \<cdot> x1) / x2\<^sup>2 + (A \<cdot> x1 + B) \<cdot> x2 / x2\<^sup>2"
+    by (simp add: mult.commute power2_eq_square)
+  also have "... = (A \<cdot> x1\<^sup>2 + B \<cdot> x1 + (A \<cdot> x1 + B) \<cdot> x2) / x2\<^sup>2"
+    using assms by (simp add: field_simps)
+  also have "... = ?rhs"
+    by (simp add: field_simps power2_eq_square)
+  finally show ?thesis .
+qed
 
+(* x+z=0 -> [{x'=(A*y+B()*x)/z^2, z' = (A*x+B())/z & y = x^2 & z^2 > 0}] x+z=0 *)
+lemma "\<lceil>\<lambda>s::real^2. s$1 + s$2 = 0\<rceil> \<le> 
+  wp (x\<acute>= (\<lambda>s. (\<chi> i. if i=1 then (A*(s$1)^2+B*(s$1))/(s$2)\<^sup>2 else (A*(s$1)+B)/s$2)) & (\<lambda>s. y = (s$1)^2 \<and> (s$2)^2 > 0)) 
+  \<lceil>\<lambda>s. s$1 + s$2 = 0\<rceil>"
+proof-
+  have "diff_invariant (\<lambda>s::real^2. s$1 + s$2 = 0)
+     (\<lambda>t s. (\<chi> i. if i=1 then (A*(s$1)^2+B*(s$1))/(s$2)\<^sup>2 else (A*(s$1)+B)/s$2)) (\<lambda>s. {t. t \<ge> 0})
+     UNIV 0 (\<lambda>s. y = (s$1)^2 \<and> (s$2)^2 > 0)"
+    apply(clarsimp simp: diff_invariant_eq forall_2 ivp_sols_def)
+    subgoal for X t
+      apply(rule unique_on_bounded_closed.unique_solution[of 0 "{0--t}" _ 
+            "\<lambda>t \<tau>. (\<tau> * (A * X t $ 1 + B))/(X t $ 2)^2" 
+            UNIV _ "\<lambda>t. X t $ 1 + X t $ 2" "\<lambda>t. 0"], simp_all add: solves_ode_def)
+        defer
+        apply(rule poly_derivatives)
+          apply(rule has_vderiv_on_subset, assumption, simp add: closed_segment_eq_real_ivl subset_eq)
+         apply(rule has_vderiv_on_subset, assumption, simp add: closed_segment_eq_real_ivl subset_eq)
+        apply(subst fractional_darboux_arith, simp_all add: closed_segment_eq_real_ivl)
+        apply(rule poly_derivatives)
+      apply(unfold_locales, simp_all)
+      sorry
+    done
+  thus ?thesis
+    by simp
+qed
+
+(* x+z=0 -> [{x'=(A*y+B()*x)/z^2, z' = (A*x+B())/z & y = x^2 & z^2 > 0}] x+z=0 *)
+ lemma "\<lceil>\<lambda>s::real^2. s$1 + s$2 = 0\<rceil> \<le> 
+  wp (x\<acute>= (\<lambda>s. (\<chi> i. if i=1 then (A*(s$1)^2+B*(s$1))/(s$2)\<^sup>2 else (A*(s$1)+B)/s$2)) & (\<lambda>s. y = (s$1)^2 \<and> (s$2)^2 > 0)) 
+  \<lceil>\<lambda>s. s$1 + s$2 = 0\<rceil>"
+proof-
+  have "diff_invariant (\<lambda>s::real^2. s$1 + s$2 = 0)
+     (\<lambda>t s. (\<chi> i. if i=1 then (A*(s$1)^2+B*(s$1))/(s$2)\<^sup>2 else (A*(s$1)+B)/s$2)) (\<lambda>s. {t. t \<ge> 0})
+     UNIV 0 (\<lambda>s. y = (s$1)^2 \<and> (s$2)^2 > 0)"
+    apply(clarsimp simp: diff_invariant_eq forall_2 ivp_sols_def)
+    subgoal for X t
+      apply(rule picard_lindeloef.ivp_unique_solution[of "\<lambda>t \<tau>. (\<tau> * (A * X t $ 1 + B))/(X t $ 2)^2" "{0--t}" UNIV 0 0 "\<lambda>s. {0--t}", 
+            where Y\<^sub>1="\<lambda>t. X t $ 1 + X t $ 2" and Y\<^sub>2="\<lambda>t. 0"], simp_all add: ivp_sols_def)
+      subgoal 
+        apply(unfold_locales, simp_all)
+        prefer 2
+          apply(clarify, rule vderiv_on_continuous_on)
+        apply(auto intro!: poly_derivatives simp: closed_segment_eq_real_ivl)[1]
+        apply(rule has_vderiv_on_subset, force, force)
+        apply(rule has_vderiv_on_subset, force, force)
+        subgoal sorry
+        subgoal sorry
+        done
+      apply(auto intro!: poly_derivatives simp: closed_segment_eq_real_ivl)
+        apply(rule has_vderiv_on_subset, force, force)
+        apply(rule has_vderiv_on_subset, force, force)
+      by (subst fractional_darboux_arith, simp_all add: closed_segment_eq_real_ivl)
+    done
+  thus ?thesis
+    by simp
+qed
+
+value "2 + k" (* interval of existence or invariant rule for \<le> *)
 
 subsubsection \<open> Dynamics: Darboux inequality \<close> (*N 31 *)
 
+abbreviation darboux_ineq_f :: "real^2 \<Rightarrow> real^2" ("f")
+  where "f s \<equiv> (\<chi> i. if i=1 then (s$1)^2 else (s$2)*(s$1)+(s$1)^2)"
+
+abbreviation darboux_ineq_flow2 :: "real \<Rightarrow> real^2 \<Rightarrow> real^2" ("\<phi>")
+  where "\<phi> t s \<equiv> (\<chi> i. if i=1 then (s$1/(1 - t * s$1)) else
+      (s$2 - s$1 * ln(1 - t * s$1))/(1 - t * s$1))"
+
+lemma darboux_flow_ivp: "(\<lambda>t. \<phi> t s) \<in> Sols (\<lambda>t. f) (\<lambda>s. {t. 0 \<le> t \<and> t * s $ 1 < 1}) UNIV 0 s"
+  by (rule ivp_solsI) (auto intro!: poly_derivatives 
+      simp: forall_2 power2_eq_square add_divide_distrib power_divide vec_eq_iff)
+
+lemma darboux_picard: "picard_lindeloef (\<lambda>t. f) UNIV UNIV 0"
+  apply unfold_locales
+  apply (simp_all add: local_lipschitz_def lipschitz_on_def)
+  apply (clarsimp simp: dist_norm norm_vec_def L2_set_def)
+  unfolding UNIV_2
+  sorry
+
+lemma darboux_ineq_arith:
+  assumes "0 \<le> s\<^sub>1 + s\<^sub>2" and "0 \<le> (t::real)" and "t * s\<^sub>1 < 1"
+  shows "0 \<le> s\<^sub>1 / (1 - t * s\<^sub>1) + (s\<^sub>2 - s\<^sub>1 * ln (1 - t * s\<^sub>1)) / (1 - t * s\<^sub>1)"
+proof-
+  have "s\<^sub>1 * ln (1 - t * s\<^sub>1) \<le> 0"
+  proof(cases "s\<^sub>1 \<le> 0")
+    case True
+    hence "1 - t * s\<^sub>1 \<ge> 1"
+      using \<open>0 \<le> t\<close> by (simp add: mult_le_0_iff)
+    thus ?thesis
+      using True ln_ge_zero mult_nonneg_nonpos2 by blast
+  next
+    case False
+    hence "1 - t * s\<^sub>1 \<le> 1"
+      using \<open>0 \<le> t\<close> by auto
+    thus ?thesis
+      by (metis (mono_tags, hide_lams) False add.left_neutral antisym_conv assms(3) 
+          diff_le_eq ln_ge_zero_iff ln_one mult_zero_right not_le order_refl zero_le_mult_iff)
+  qed
+  hence "s\<^sub>1 + s\<^sub>2 - s\<^sub>1 * ln (1 - t * s\<^sub>1) \<ge> s\<^sub>1 + s\<^sub>2"
+    by linarith
+  hence "(s\<^sub>1 + s\<^sub>2 - s\<^sub>1 * ln (1 - t * s\<^sub>1))/(1 - t * s\<^sub>1) \<ge> (s\<^sub>1 + s\<^sub>2)/(1 - t * s\<^sub>1)"
+    using \<open>t * s\<^sub>1 < 1\<close> by (simp add: \<open>0 \<le> s\<^sub>1 + s\<^sub>2\<close> frac_le)
+  also have "(s\<^sub>1 + s\<^sub>2)/(1 - t * s\<^sub>1) \<ge> 0"
+    using \<open>t * s\<^sub>1 < 1\<close> by (simp add: \<open>0 \<le> s\<^sub>1 + s\<^sub>2\<close>)
+  ultimately show ?thesis
+    by (metis (full_types) add_diff_eq add_divide_distrib order_trans)
+qed
+
 (* x+z>=0 -> [{x'=x^2, z' = z*x+y & y = x^2}] x+z>=0 *)
-lemma "\<lceil>\<lambda>s::real^3. s$1 + s$3 \<ge> 0\<rceil> \<le> 
-  wp (x\<acute>= (\<lambda>t s. \<chi> i. if i=1 then (s$1)^2 else (if i=3 then (s$3)*(s$1)+(s$2) else 0)) & (\<lambda>s. s$2 = (s$1)^2) on (\<lambda>s. {0..}) UNIV @ 0) 
-  \<lceil>\<lambda>s. s$1 + s$3 \<ge> 0\<rceil>"
-  oops
+lemma "\<lceil>\<lambda>s::real^2. s$1 + s$2 \<ge> 0\<rceil> \<le> 
+  wp (x\<acute>= (\<lambda>t. f) & (\<lambda>s. y = (s$1)^2) on (\<lambda>s. {t. 0 \<le> t \<and> t * s $ 1 < 1}) UNIV @ 0) 
+  \<lceil>\<lambda>s. s$1 + s$2 \<ge> 0\<rceil>"
+  unfolding g_ode_def
+  apply(subst picard_lindeloef.g_orbital_orbit[OF darboux_picard _ _ _ darboux_flow_ivp])
+  unfolding g_evol_def[symmetric] wp_g_dyn apply(simp_all add: is_interval_def)
+  apply (smt mult_less_cancel_right)
+  using darboux_ineq_arith by smt
+
+(* x+z>=0 -> [{x'=x^2, z' = z*x+y & y = x^2}] x+z>=0 *)
+lemma "\<lceil>\<lambda>s::real^2. s$1 + s$2 \<ge> 0\<rceil> \<le> 
+  wp (EVOL \<phi> (\<lambda>s. y = (s$1)^2) (\<lambda>s. {t. 0 \<le> t \<and> t * s $ 1 < 1})) 
+  \<lceil>\<lambda>s. s$1 + s$2 \<ge> 0\<rceil>"
+  apply(subst wp_g_dyn, simp_all)
+  using darboux_ineq_arith by smt
+
+no_notation darboux_ineq_flow2 ("\<phi>")
+        and darboux_ineq_f ("f")
+
+value "2 + k" (* interval of existence or invariant rule for \<le> *)
 
 
 subsubsection \<open> Dynamics: Bifurcation \<close>
@@ -775,7 +904,9 @@ lemma "- 2 \<le> a  \<Longrightarrow> a \<le> 2 \<Longrightarrow> b^2 \<ge> 1/3 
 
 declare wp_diff_inv [simp]
 
-no_notation switch_two_osc_f ("f")
+no_notation switch_two_osc_f ("f") 
+
+value "2 + k" (* correct interval of existence or think about it more time *)
 
 
 subsubsection \<open> Dynamics: Nonlinear 1 \<close>
@@ -1234,6 +1365,49 @@ lemma "c > 0 \<Longrightarrow> Kp = 2 \<Longrightarrow> Kd = 3 \<Longrightarrow>
 
 subsubsection \<open> STTT Tutorial: Example 9b \<close> (*N 50 *)
 
+value "2 + k" (* rule for wp (X wp (DINV) P) or differentiable \<Longrightarrow> lipschitz *)
+
+lemma wp_assign_wp: "wp (x ::= e) (wp R \<lceil>Q\<rceil>) = \<lceil>\<lambda>s. \<exists>y. (vec_upd s x (e s), y) \<in> (wp R \<lceil>Q\<rceil>)\<rceil>"
+  by (clarsimp simp: vec_upd_def assign_def wp_rel)
+
+lemma wp_test_wp: "wp \<lceil>P\<rceil> (wp R \<lceil>Q\<rceil>) = \<lceil>\<lambda>s. P s \<longrightarrow> (s,s) \<in> wp R \<lceil>Q\<rceil>\<rceil>"
+  unfolding wp_rel by (clarsimp simp: p2r_def)
+
+lemma in_wp_g_odeI: 
+  assumes "(x,x) \<in> \<lceil>I\<rceil>" "\<lceil>I\<rceil> \<subseteq> wp (x\<acute>=f & G on (\<lambda>s. T) S @ t\<^sub>0) \<lceil>I\<rceil>" 
+    and "\<lceil>\<lambda>s. I s \<and> G s\<rceil> \<subseteq> \<lceil>Q\<rceil>" "y = x"
+  shows "(x,y) \<in> wp (x\<acute>=f & G on (\<lambda>s. T) S @ t\<^sub>0 DINV I) \<lceil>Q\<rceil>"
+  using wp_g_odei[OF _ assms(2,3), of I] assms(1,4) by (clarsimp simp: subset_eq p2r_def)
+
+lemma in_wp_g_odeE:
+  "(x,y) \<in> (x\<acute>=f & G on (\<lambda>s. T) S @ t\<^sub>0 DINV I) \<Longrightarrow> I x \<Longrightarrow> \<lceil>I\<rceil> \<subseteq> wp (x\<acute>=f & G on (\<lambda>s. T) S @ t\<^sub>0) \<lceil>I\<rceil> \<Longrightarrow> I y"
+  apply(simp add: g_ode_inv_def diff_invariant_eq)
+  by (clarsimp simp: g_ode_def g_orbital_def g_orbit_def ivp_sols_def)
+
+lemma local_flow_STTT_Ex9b:
+  "local_flow (\<lambda>s::real^4. \<chi> i. if i=1 then s$2 else (if i=2 then -2*(s$1-s$3) - 3*(s$2) else 0))
+  UNIV UNIV (\<lambda>t s. \<chi> i. if i=1 then exp ((-2)*t) * (s$3 - 2 * (exp t) * s$3 + (exp (2 * t)) * s$3 - s$2 + (exp t) * (s$2) - s$1 + 2 * (exp t) * (s$1)) 
+  else (if i=2 then (exp (-2 * t)) * (-2 * s$3 + 2 * (exp t) * s$3 + 2 * s$2 - (exp t) * s$2 + 2* s$1 - 2 * (exp t) * s$1) else s$i))"
+  apply(unfold_locales, simp_all add: forall_4 vec_eq_iff, safe; (rule has_vderiv_on_const)?)
+   apply(simp add: local_lipschitz_def lipschitz_on_def dist_norm norm_vec_def L2_set_def)
+  unfolding UNIV_4 apply clarsimp
+  subgoal sorry
+   apply(intro poly_derivatives, rule poly_derivatives, rule poly_derivatives, force, force, force)
+                      apply(rule poly_derivatives, rule poly_derivatives, rule poly_derivatives, force, force)
+                      apply(rule poly_derivatives, force, force, rule poly_derivatives, rule poly_derivatives, force, force)
+                      apply(rule poly_derivatives, force, force, rule poly_derivatives, force)
+                 apply(rule poly_derivatives, force, rule poly_derivatives, force, force, rule poly_derivatives)
+           apply(force, rule poly_derivatives, rule poly_derivatives, force, force, rule poly_derivatives)
+     apply(force, force, force simp: field_simps)
+  apply(intro poly_derivatives, rule poly_derivatives, rule poly_derivatives, force, force, force)
+                      apply(rule poly_derivatives, rule poly_derivatives, force, force)
+                      apply(rule poly_derivatives, force, rule poly_derivatives, rule poly_derivatives)
+                      apply(force, force, rule poly_derivatives, rule poly_derivatives, force, force)
+                  apply(rule poly_derivatives, force, rule poly_derivatives, force, force)
+             apply(rule poly_derivatives, rule poly_derivatives, force, force)+
+                      apply(rule poly_derivatives, force, force)
+  by (auto simp: field_simps exp_minus_inverse)
+
 (* v >= 0 & xm <= x & x <= S & xr = (xm + S)/2 & Kp = 2 & Kd = 3
            & 5/4*(x-xr)^2 + (x-xr)*v/2 + v^2/4 < ((S - xm)/2)^2
  -> [ { {  xm := x;
@@ -1249,18 +1423,23 @@ subsubsection \<open> STTT Tutorial: Example 9b \<close> (*N 50 *)
         }
       }*@invariant(v >= 0 & xm <= x & xr = (xm + S)/2 & 5/4*(x-xr)^2 + (x-xr)*v/2 + v^2/4 < ((S - xm)/2)^2)
     ] x <= S *)
-lemma "c > 0 \<Longrightarrow> Kp = 2 \<Longrightarrow> Kd = 3 \<Longrightarrow> 
-  \<lceil>\<lambda>s::real^4. s$2 \<ge> 0 \<and> s$3 \<le> s$1 \<and> s$1 \<le> S \<and> s$4 = (s$3 + S)/2 
+lemma 
+  assumes "Kp = 2" "Kd = 3 "
+  shows "\<lceil>\<lambda>s::real^4. s$2 \<ge> 0 \<and> s$3 \<le> s$1 \<and> s$1 \<le> S \<and> s$4 = (s$3 + S)/2 
   \<and> (5/4)*(s$1-s$4)^2 + (s$1-s$4)*(s$2)/2 + (s$2)^2/4 < ((S - s$3)/2)^2\<rceil> \<le> wp 
   (LOOP ((3 ::= (\<lambda>s. s$1));(4 ::= (\<lambda>s. (s$3 + S)/2));
     \<lceil>\<lambda>s. (5/4)*(s$1-s$4)^2 + (s$1-s$4)*(s$2)/2 + (s$2)^2/4 < ((S - s$3)/2)^2\<rceil> \<union> \<lceil>\<lambda>s. True\<rceil>);
-    (x\<acute>= (\<lambda>s. \<chi> i. if i=1 then s$2 else (if i=2 then -Kp*(s$1-s$3) - Kd*(s$2) else 0)) & 
-      (\<lambda>s. s$2 \<ge> 0) DINV (\<lambda>s. s$3 \<le> s$1 \<and> 
+    (x\<acute>= (\<lambda>t s. \<chi> i. if i=1 then s$2 else (if i=2 then -Kp*(s$1-s$3) - Kd*(s$2) else 0)) & 
+      (\<lambda>s. s$2 \<ge> 0) on (\<lambda>s. {0..}) UNIV @ 0 DINV (\<lambda>s. s$3 \<le> s$1 \<and> 
         (5/4)*(s$1-(s$3+S)/2)^2 + (s$1-(s$3+S)/2)*(s$2)/2 + s$2^2/4 < ((S - s$3)/2)^2))
   INV (\<lambda>s. s$2 \<ge> 0 \<and> s$3 \<le> s$1 \<and> s$4 = (s$3 + S)/2 \<and> 
     (5/4)*(s$1-s$4)^2 + (s$1-s$4)*(s$2)/2 + (s$2)^2/4 < ((S - s$3)/2)^2))
   \<lceil>\<lambda>s. s$1 \<le> S\<rceil>"
+  unfolding assms
+  apply(rule wp_loopI, simp_all add: rel_aka.fbox_add2 local_flow.wp_g_ode_subset[OF local_flow_STTT_Ex9b] 
+      g_ode_inv_def wp_assign_wp wp_test_wp)
   oops
+
 
 subsubsection \<open> STTT Tutorial: Example 10 \<close> (*N 51 *)
 
@@ -1287,6 +1466,7 @@ subsubsection \<open> STTT Tutorial: Example 10 \<close> (*N 51 *)
         }
       }*@invariant(v >= 0 & dx^2+dy^2 = 1 & r != 0 & abs(y-ly) + v^2/(2*b) < lw)
     ] abs(y-ly) < lw *)
+value "2 + k" (* rule for wp (X wp (DINV) P) *)
 
 subsubsection \<open> LICS: Example 1 Continuous car accelerates forward \<close>
 
@@ -1417,6 +1597,8 @@ lemma "\<epsilon> > (0::real) \<Longrightarrow> A > 0 \<Longrightarrow> b > 0 \<
   apply(intro exI conjI allI)
   apply clarsimp
   oops
+
+value "2 + k"
 
 
 subsubsection \<open> LICS: Example 4c relative safety of time-triggered car \<close>
@@ -1614,10 +1796,13 @@ proof-
     by argo
 qed
 
+value "2 + k"
+
 lemma LICSexample6_arith2:
   assumes "0 \<le> v" "0 < b" "0 \<le> A" "0 \<le> t" "0 \<le> \<tau>" "t \<le> \<epsilon>"
     and "v\<^sup>2 + (A \<cdot> (A \<cdot> \<epsilon>\<^sup>2 + 2 \<cdot> \<epsilon> \<cdot> v) + b \<cdot> (A \<cdot> \<epsilon>\<^sup>2 + 2 \<cdot> \<epsilon> \<cdot> v)) \<le> 2 \<cdot> b \<cdot> (m - x)"
   shows "A \<cdot> \<epsilon> \<cdot> \<tau> + s $ 2 \<cdot> \<tau> - b \<cdot> \<tau>\<^sup>2 / 2 + (A \<cdot> \<epsilon>\<^sup>2 / 2 + s $ 2 \<cdot> \<epsilon> + s $ 1) \<le> m"
+  (* Need to show that function (\<lambda>\<tau>. A \<cdot> \<epsilon> \<cdot> \<tau> + s $ 2 \<cdot> \<tau> - b \<cdot> \<tau>\<^sup>2 / 2) attains maximum at \<tau> = (A*\<epsilon> + v)/b *)
   sorry
 
 lemma local_flow_LICS_Ex6:
@@ -1674,7 +1859,17 @@ lemma "s$2 \<ge> 0 \<Longrightarrow> b>0 \<Longrightarrow> A \<ge> 0 \<Longright
     (wp (x\<acute>= (f 0 (-b)) & (\<lambda>s. True)) \<lceil>\<lambda>s. s$1 \<le> m\<rceil>)\<rceil>;(3 ::= (\<lambda>s. A))) \<union> (3 ::= (\<lambda>s. -b)));
   (4 ::= (\<lambda>s. 0)); (x\<acute>= (\<lambda>s. f 1 (s$3) s) & (\<lambda>s. s$2 \<ge> 0 \<and> s$4 \<le> \<epsilon>))
   INV (\<lambda>s. (s,s) \<in> wp (x\<acute>=(f 0 (-b)) & (\<lambda>s. True)) \<lceil>\<lambda>s. s$1 \<le> m\<rceil>)) \<lceil>\<lambda>s. s$1 \<le> m\<rceil>"
-  oops
+  apply(rule in_wp_loopI, simp_all add: local_flow.wp_g_ode_subset[OF local_flow_LICS_Ex4c_1]
+      local_flow.wp_g_ode_subset[OF local_flow_LICS_Ex4c_2] le_wp_choice_iff, safe)
+      apply(erule_tac x=0 in allE, erule_tac x=0 in allE, simp)
+   apply(thin_tac "\<forall>t\<ge>0. s $ 2 \<cdot> t - b \<cdot> t\<^sup>2 / 2 + s $ 1 \<le> m") defer
+  apply(thin_tac "\<forall>t\<ge>0. s $ 2 \<cdot> t - b \<cdot> t\<^sup>2 / 2 + s $ 1 \<le> m")
+  apply(rename_tac x t \<tau>)
+  subgoal sorry (* solve arithmetic *)
+  subgoal sorry
+  done
+
+value "2 + k"
 
 no_notation LICS_Ex4c_f ("f")
 
@@ -1760,6 +1955,78 @@ lemma "b > 0 \<Longrightarrow> A \<ge> 0 \<Longrightarrow> \<epsilon> \<ge> 0 \<
     apply (smt divide_le_cancel divide_minus_left not_sum_power2_lt_zero)
    apply(auto simp: field_simps power2_eq_square)[1]
   using ETCS_arith1 by force
+
+subsection \<open> ETCS: Proposition 1 (Controllability) \<close> (*N 62 *)
+
+value "2 + k"
+
+(* Bool Assumptions(Real v, Real d) <-> ( v>=0 & d>=0 & b>0 ) *)
+abbreviation "assumptions v \<delta> \<equiv> (v \<ge> 0 \<and> \<delta> \<ge> 0 \<and> b > 0)" 
+
+lemma ETCS_Prop1_arith1:
+  assumes "0 \<le> v" "0 \<le> \<delta>" "0 < b" "x \<le> m"
+    and "\<forall>t\<in>{0..}. (\<forall>\<tau>\<in>{0--t}. b \<cdot> \<tau> \<le> v) \<longrightarrow>
+       m \<le> v \<cdot> t - b \<cdot> t\<^sup>2 / 2 + x \<longrightarrow> v - b \<cdot> t \<le> \<delta>"
+  shows "v\<^sup>2 - \<delta>\<^sup>2 \<le> 2 \<cdot> b \<cdot> (m - x)"
+    (* solve arithmetic *)
+  sorry
+
+lemma ETCS_Prop1_arith2:
+  assumes "0 \<le> v" "0 \<le> \<delta>" "0 < b" "x \<le> m" "0 \<le> t"
+      and key: "v\<^sup>2 - \<delta>\<^sup>2 \<le> 2 \<cdot> b \<cdot> (m - x)" "m \<le> v \<cdot> t - b \<cdot> t\<^sup>2 / 2 + x"
+      and guard: "\<forall>\<tau>\<in>{0--t}. b \<cdot> \<tau> \<le> v"
+    shows "v - b \<cdot> t \<le> \<delta>"
+proof-
+  have "2 \<cdot> b \<cdot> (m - x) \<le> 2 \<cdot> b \<cdot> (v \<cdot> t - b \<cdot> t\<^sup>2 / 2) - v\<^sup>2 + v\<^sup>2"
+    using key(2) \<open>0 < b\<close> by simp
+  also have "... = v\<^sup>2 - (v - b \<cdot> t)\<^sup>2"
+    using \<open>0 < b\<close> by (simp add: power2_diff field_simps power2_eq_square)
+  finally have "(v - b \<cdot> t)\<^sup>2 \<le> \<delta>\<^sup>2"
+    using key(1) by simp
+  thus "v - b \<cdot> t \<le> \<delta>"
+    using guard \<open>0 \<le> t\<close> \<open>0 \<le> \<delta>\<close> by auto
+qed
+
+(* Assumptions(v, d) & z<=m
+  ->
+  ( [ {z'=v, v'=-b & v>=0 } ](z>=m -> v<=d)
+    <->
+    v^2-d^2 <= 2*b*(m-z)
+  ) *)
+lemma "assumptions (s$2) \<delta> \<and> (s$1) \<le> m \<Longrightarrow> 
+(s,s) \<in> wp (x\<acute>= (\<lambda>t s::real^2. \<chi> i. if i=1 then (s$2) else -b) & (\<lambda>s. s$2 \<ge> 0) on (\<lambda>s. {0..}) UNIV @ 0) 
+\<lceil>\<lambda>s. s$1 \<ge> m \<longrightarrow> s$2 \<le> \<delta>\<rceil>
+\<longleftrightarrow> (s,s) \<in> \<lceil>\<lambda>s. s$2^2 - \<delta>^2 \<le> 2*b*(m-s$1)\<rceil>"
+  apply(subst local_flow.wp_g_ode_subset[where T="UNIV" 
+        and \<phi>="\<lambda>t s. \<chi> i::2. if i=1 then -b * t^2/2 + s$2 * t + s$1 else -b * t + s$2"])
+      apply(unfold_locales, simp_all add: local_lipschitz_def forall_2 lipschitz_on_def)
+     apply(clarsimp simp: dist_norm norm_vec_def L2_set_def, rule_tac x=1 in exI)+
+  unfolding UNIV_2 using exhaust_2 
+  by (auto intro!: poly_derivatives simp: vec_eq_iff 
+      ETCS_Prop1_arith1 closed_segment_eq_real_ivl ETCS_Prop1_arith2)
+
+
+subsection \<open> ETCS: Proposition 4 (Reactivity) \<close> (*N 63 *)
+
+(* Bool Assumptions(Real v, Real d) <-> ( v>=0 & d>=0 & b>0 ) *)
+term "assumptions v \<delta>"
+
+(* Bool Controllable(Real m, Real z, Real v, Real d) <-> (v^2-d^2 <= 2*b*(m-z) & Assumptions(v, d)) *)
+abbreviation "controllable m' z v \<delta> \<equiv> v^2 - \<delta>^2 \<le> 2 * b * (m' - z) \<and> assumptions v \<delta>"
+
+(* HP drive ::= {t := 0;{z'=v, v'=a, t'=1  & v >= 0 & t <= ep}} *)
+term "drive"
+
+(* em = 0 & d >= 0 & b > 0 & ep > 0 & A > 0 & v>=0
+  -> ((\forall m \forall z (m-z>= sb & Controllable(m,z,v,d) -> [ a:=A; drive; ]Controllable(m,z,v,d)) )
+      <->
+      sb >= (v^2 - d^2) /(2*b) + (A/b + 1) * (A/2 * ep^2 + ep*v)) *)
+lemma "\<delta> \<ge> 0 \<and> b > 0 \<and> \<epsilon> > 0 \<and> A > 0 \<and> s$2 \<ge> 0 \<Longrightarrow> 
+  (s,s) \<in> \<lceil>\<lambda>s. \<forall>m. \<lceil>\<lambda>s. m-s$1 \<ge> sb \<and> controllable m (s$1) (s$2) \<delta>\<rceil> \<le> wp ((3 ::= (\<lambda>s. A));drive) \<lceil>\<lambda>s. controllable m (s$1) (s$2) \<delta>\<rceil>\<rceil> 
+  \<longleftrightarrow> sb \<ge> (s$2^2 - \<delta>^2)/(2*b) + (A/b + 1) * (A/2 * \<epsilon>^2 + \<epsilon> * (s$2))"
+  apply (simp_all add: local_flow.wp_g_ode_subset[OF local_flow_STTT_Ex5], clarsimp simp: p2r_def)
+  apply(rule iffI, safe) (* falsifiable *) value "2 + k"
+  oops
 
 end
 

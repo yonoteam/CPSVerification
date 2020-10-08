@@ -22,9 +22,6 @@ no_notation Transitive_Closure.rtrancl ("(_\<^sup>*)" [1000] 999)
 notation Union ("\<mu>")
      and g_orbital ("(1x\<acute>=_ & _ on _ _ @ _)")
 
-abbreviation "skip \<equiv> (\<lambda>s. {s})"
-
-
 subsection \<open>Verification of regular programs\<close>
 
 text \<open>First we add lemmas for computation of weakest liberal preconditions (wlps).\<close>
@@ -46,8 +43,16 @@ lemma fbox_invariants:
 
 text \<open>Now, we compute wlps for specific programs starting with @{text "skip"}.\<close>
 
+abbreviation "skip \<equiv> (\<lambda>s. {s})"
+
 lemma fbox_eta[simp]: "fbox skip P = P"
   unfolding fbox_def by simp
+
+definition test :: "'a pred \<Rightarrow> 'a \<Rightarrow> 'a set" ("(1\<questiondown>_?)")
+  where "\<questiondown>P? = (\<lambda>s. {x. x = s \<and> P x})"
+
+lemma fbox_test: "( |\<questiondown>P?] Q) s = (P s \<longrightarrow> Q s)"
+  unfolding fbox_def test_def by simp
 
 text \<open>Next, we introduce assignments and their wlps.\<close>
 
