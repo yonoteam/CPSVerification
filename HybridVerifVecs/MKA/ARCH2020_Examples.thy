@@ -701,7 +701,7 @@ proof-
     by simp
 qed
 
-value "2 + k" (* interval of existence or invariant rule for \<le> *)
+ (* interval of existence or invariant rule for \<le> *)
 
 subsubsection \<open> Dynamics: Darboux inequality \<close> (*N 31 *)
 
@@ -772,7 +772,7 @@ lemma "\<lceil>\<lambda>s::real^2. s$1 + s$2 \<ge> 0\<rceil> \<le>
 no_notation darboux_ineq_flow2 ("\<phi>")
         and darboux_ineq_f ("f")
 
-value "2 + k" (* interval of existence or invariant rule for \<le> *)
+(* interval of existence or invariant rule for \<le> *)
 
 
 subsubsection \<open> Dynamics: Bifurcation \<close>
@@ -906,7 +906,7 @@ declare wp_diff_inv [simp]
 
 no_notation switch_two_osc_f ("f") 
 
-value "2 + k" (* correct interval of existence or think about it more time *)
+(* correct interval of existence or think about it more time *)
 
 
 subsubsection \<open> Dynamics: Nonlinear 1 \<close>
@@ -1365,7 +1365,7 @@ lemma "c > 0 \<Longrightarrow> Kp = 2 \<Longrightarrow> Kd = 3 \<Longrightarrow>
 
 subsubsection \<open> STTT Tutorial: Example 9b \<close> (*N 50 *)
 
-value "2 + k" (* rule for wp (X wp (DINV) P) or differentiable \<Longrightarrow> lipschitz *)
+ (* rule for wp (X wp (DINV) P) or differentiable \<Longrightarrow> lipschitz *)
 
 lemma wp_assign_wp: "wp (x ::= e) (wp R \<lceil>Q\<rceil>) = \<lceil>\<lambda>s. \<exists>y. (vec_upd s x (e s), y) \<in> (wp R \<lceil>Q\<rceil>)\<rceil>"
   by (clarsimp simp: vec_upd_def assign_def wp_rel)
@@ -1438,6 +1438,7 @@ lemma
   unfolding assms
   apply(rule wp_loopI, simp_all add: rel_aka.fbox_add2 local_flow.wp_g_ode_subset[OF local_flow_STTT_Ex9b] 
       g_ode_inv_def wp_assign_wp wp_test_wp)
+  apply(auto simp: field_simps)
   oops
 
 
@@ -1466,7 +1467,7 @@ subsubsection \<open> STTT Tutorial: Example 10 \<close> (*N 51 *)
         }
       }*@invariant(v >= 0 & dx^2+dy^2 = 1 & r != 0 & abs(y-ly) + v^2/(2*b) < lw)
     ] abs(y-ly) < lw *)
-value "2 + k" (* rule for wp (X wp (DINV) P) *)
+ (* rule for wp (X wp (DINV) P) *)
 
 subsubsection \<open> LICS: Example 1 Continuous car accelerates forward \<close>
 
@@ -1597,8 +1598,6 @@ lemma "\<epsilon> > (0::real) \<Longrightarrow> A > 0 \<Longrightarrow> b > 0 \<
   apply(intro exI conjI allI)
   apply clarsimp
   oops
-
-value "2 + k"
 
 
 subsubsection \<open> LICS: Example 4c relative safety of time-triggered car \<close>
@@ -1796,7 +1795,6 @@ proof-
     by argo
 qed
 
-value "2 + k"
 
 lemma LICSexample6_arith2:
   assumes "0 \<le> v" "0 < b" "0 \<le> A" "0 \<le> t" "0 \<le> \<tau>" "t \<le> \<epsilon>"
@@ -1869,7 +1867,6 @@ lemma "s$2 \<ge> 0 \<Longrightarrow> b>0 \<Longrightarrow> A \<ge> 0 \<Longright
   subgoal sorry
   done
 
-value "2 + k"
 
 no_notation LICS_Ex4c_f ("f")
 
@@ -1958,8 +1955,6 @@ lemma "b > 0 \<Longrightarrow> A \<ge> 0 \<Longrightarrow> \<epsilon> \<ge> 0 \<
 
 subsection \<open> ETCS: Proposition 1 (Controllability) \<close> (*N 62 *)
 
-value "2 + k"
-
 (* Bool Assumptions(Real v, Real d) <-> ( v>=0 & d>=0 & b>0 ) *)
 abbreviation "assumptions v \<delta> \<equiv> (v \<ge> 0 \<and> \<delta> \<ge> 0 \<and> b > 0)" 
 
@@ -2018,16 +2013,27 @@ abbreviation "controllable m' z v \<delta> \<equiv> v^2 - \<delta>^2 \<le> 2 * b
 term "drive"
 
 (* em = 0 & d >= 0 & b > 0 & ep > 0 & A > 0 & v>=0
-  -> ((\forall m \forall z (m-z>= sb & Controllable(m,z,v,d) -> [ a:=A; drive; ]Controllable(m,z,v,d)) )
+  -> ((\<forall> m \<forall> z (m-z>= sb & Controllable(m,z,v,d) -> [ a:=A; drive; ]Controllable(m,z,v,d)) )
       <->
       sb >= (v^2 - d^2) /(2*b) + (A/b + 1) * (A/2 * ep^2 + ep*v)) *)
 lemma "\<delta> \<ge> 0 \<and> b > 0 \<and> \<epsilon> > 0 \<and> A > 0 \<and> s$2 \<ge> 0 \<Longrightarrow> 
   (s,s) \<in> \<lceil>\<lambda>s. \<forall>m. \<lceil>\<lambda>s. m-s$1 \<ge> sb \<and> controllable m (s$1) (s$2) \<delta>\<rceil> \<le> wp ((3 ::= (\<lambda>s. A));drive) \<lceil>\<lambda>s. controllable m (s$1) (s$2) \<delta>\<rceil>\<rceil> 
   \<longleftrightarrow> sb \<ge> (s$2^2 - \<delta>^2)/(2*b) + (A/b + 1) * (A/2 * \<epsilon>^2 + \<epsilon> * (s$2))"
   apply (simp_all add: local_flow.wp_g_ode_subset[OF local_flow_STTT_Ex5], clarsimp simp: p2r_def)
-  apply(rule iffI, safe) (* falsifiable *) value "2 + k"
+  apply(rule iffI, safe) (* falsifiable *)
   oops
 
 end
+
+(*
+% 10 unsolved problems
+% 3 basic need sorry in arithmetic
+% 1 advanced need sorry in arithmetic
+% 1 basic has been solved with evol
+% 1 advanced does not match Isabelle syntax
+% 2 basic did not even try
+% 1 basic is diamond
+% 1 basic requires change of interval
+*)
 
 end
