@@ -8,8 +8,8 @@ section \<open>PID Examples \<close>
 text \<open> We prove partial correctness specifications of some hybrid systems with our 
 verification components.\<close>
 
-theory pid_examples
-  imports "../HS_VC_Spartan"
+theory PID_Examples
+  imports "HS_VC_Spartan"
 
 begin
 
