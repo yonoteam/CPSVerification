@@ -217,6 +217,7 @@ proof-
     using not0_implies_Suc by fastforce
 qed
 
+
 lemma PI_controller_invariants:
   shows "(\<lambda>s. s\<restriction>\<^sub>V''t''=0 \<and> s\<restriction>\<^sub>V''r''=0 \<and> s\<restriction>\<^sub>V''v''=0 \<and> s\<restriction>\<^sub>V''T''=1 \<and> s\<restriction>\<^sub>V''roll'' = 0 \<and> s\<restriction>\<^sub>V''roll_rate''=0 \<and> 
   s\<restriction>\<^sub>V''error'' = 0 \<and> s\<restriction>\<^sub>V''error_sum''=0 \<and> s\<restriction>\<^sub>V''veri_test''=0 \<and> s\<restriction>\<^sub>V''counter''=0) \<le> 
@@ -235,8 +236,8 @@ lemma PI_controller_invariants:
       \<comment> \<open>DYNAMICS\<close>
         (x\<acute>= f & (\<lambda>s. s\<restriction>\<^sub>V''t'' \<le> dt)))
    INV (\<lambda>s. (s\<restriction>\<^sub>V''counter'' \<ge> 1 \<longrightarrow> s\<restriction>\<^sub>V''T'' = Prop * s\<restriction>\<^sub>V''error'' + Integr * dt * s\<restriction>\<^sub>V''error_sum'') \<and>
-    s\<restriction>\<^sub>V''counter'' \<in> \<nat> \<and> s\<restriction>\<^sub>V''v'' = s\<restriction>\<^sub>V''T'' * s\<restriction>\<^sub>V''t'' + s\<restriction>\<^sub>V''roll_rate'' \<and>
-    s\<restriction>\<^sub>V''r'' = s\<restriction>\<^sub>V''T'' * s\<restriction>\<^sub>V''t''^2/2 + s\<restriction>\<^sub>V''roll_rate'' * s\<restriction>\<^sub>V''t'' + s\<restriction>\<^sub>V''roll'')] 
+  s\<restriction>\<^sub>V''counter'' \<in> \<nat> \<and> s\<restriction>\<^sub>V''v'' = s\<restriction>\<^sub>V''T'' * s\<restriction>\<^sub>V''t'' + s\<restriction>\<^sub>V''roll_rate'' \<and>
+  s\<restriction>\<^sub>V''r'' = s\<restriction>\<^sub>V''T'' * s\<restriction>\<^sub>V''t''^2/2 + s\<restriction>\<^sub>V''roll_rate'' * s\<restriction>\<^sub>V''t'' + s\<restriction>\<^sub>V''roll'')] 
   (\<lambda>s. (s\<restriction>\<^sub>V''counter'' \<ge> 1 \<longrightarrow> s\<restriction>\<^sub>V''T'' = Prop * s\<restriction>\<^sub>V''error'' + Integr * dt * s\<restriction>\<^sub>V''error_sum'') \<and> 
     s\<restriction>\<^sub>V''counter'' \<in> \<nat> \<and> s\<restriction>\<^sub>V''v'' = s\<restriction>\<^sub>V''T'' * s\<restriction>\<^sub>V''t'' + s\<restriction>\<^sub>V''roll_rate'' \<and>
     s\<restriction>\<^sub>V''r'' = s\<restriction>\<^sub>V''T'' * s\<restriction>\<^sub>V''t''^2/2 + s\<restriction>\<^sub>V''roll_rate'' * s\<restriction>\<^sub>V''t'' + s\<restriction>\<^sub>V''roll'')"
@@ -270,7 +271,8 @@ lemma PI_controller_invariants2:
       \<comment> \<open>DYNAMICS\<close>
         (x\<acute>= f & (\<lambda>s. 0 \<le> s\<restriction>\<^sub>V''t'' \<and> s\<restriction>\<^sub>V''t'' \<le> dt)))
    INV (\<lambda>s. s\<restriction>\<^sub>V''T'' = Prop * s\<restriction>\<^sub>V''error'' + Integr * dt * s\<restriction>\<^sub>V''error_sum'' \<and>
-    s\<restriction>\<^sub>V''roll_rate'' = Prop * dt * (s\<restriction>\<^sub>V''error_sum'' - s\<restriction>\<^sub>V''error'') + Integr * dt^2 * (s\<restriction>\<^sub>V''veri_test'' - s\<restriction>\<^sub>V''error_sum'') \<and>
+    s\<restriction>\<^sub>V''roll_rate'' = Prop * dt * (s\<restriction>\<^sub>V''error_sum'' - s\<restriction>\<^sub>V''error'') 
+      + Integr * dt^2 * (s\<restriction>\<^sub>V''veri_test'' - s\<restriction>\<^sub>V''error_sum'') \<and>
     s\<restriction>\<^sub>V''counter'' \<in> \<nat> \<and> s\<restriction>\<^sub>V''v'' = s\<restriction>\<^sub>V''T'' * s\<restriction>\<^sub>V''t'' + s\<restriction>\<^sub>V''roll_rate'' \<and>
     s\<restriction>\<^sub>V''r'' = s\<restriction>\<^sub>V''T'' * s\<restriction>\<^sub>V''t''^2/2 + s\<restriction>\<^sub>V''roll_rate'' * s\<restriction>\<^sub>V''t'' + s\<restriction>\<^sub>V''roll'')] 
   (\<lambda>s. s\<restriction>\<^sub>V''T'' = Prop * s\<restriction>\<^sub>V''error'' + Integr * dt * s\<restriction>\<^sub>V''error_sum'' \<and> 
@@ -301,5 +303,10 @@ loop:
   wait(dt)
   goto loop
 *)
+
+(* idea: if \<real>\<^sup>{\<^sup>x\<^sup>,\<^sup>y\<^sup>} is our state space, why can't we make x and y functions instead of tokens? 
+Then, we could use something like x' t = y t and y' t = - x t, and use a generic vector 
+field (f t s x, f t s y) = (y t, - x t). Does this modification allow us to use an indirect
+description of the dynamics in proofs? like in EVOL \<phi> U s? *)
 
 end

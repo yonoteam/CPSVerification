@@ -55,10 +55,10 @@ subsubsection \<open> Bouncing Ball \<close>
 
 text \<open> A ball is dropped from rest at an initial height @{text "h"}. The motion is described with
 the free-fall equations @{text "x' t = v t"} and @{text "v' t = g"} where @{text "g"} is the
-constant acceleration due to gravity. The bounce is modelled with a variable assigntment that
-flips the velocity, thus it is a completely elastic collision with the ground. We use @{text "s$1"}
-to ball's height and @{text "s$2"} for its velocity. We prove that the ball remains above ground
-and below its initial resting position. \<close>
+constant acceleration due to gravity. The bounce is modelled with a variable assignment that
+flips the velocity. That is, we model it as a completely elastic collision with the ground. We use 
+@{text "s$1"} to represent the ball's height and @{text "s$2"} for its velocity. We prove that the 
+ball remains above ground and below its initial resting position. \<close>
 
 abbreviation fball :: "real \<Rightarrow> real^2 \<Rightarrow> real^2" ("f")
   where "f g s \<equiv> (\<chi> i. if i = 1 then s$2 else g)"
@@ -264,10 +264,10 @@ proof-
     using Thyps and obs by auto
 qed
 
-lemmas fbox_temp_dyn = local_flow.fbox_g_ode_ivl[OF local_flow_temp _ UNIV_I]
+lemmas fbox_temp_dyn = local_flow.fbox_g_ode_subset[OF local_flow_temp]
 
 lemma thermostat:
-  assumes "a > 0" and "0 \<le> t" and "0 < Tmin" and "Tmax < L"
+  assumes "a > 0" and "0 < Tmin" and "Tmax < L"
   shows "(\<lambda>s. Tmin \<le> s$1 \<and> s$1 \<le> Tmax \<and> s$4 = 0) \<le>
   |LOOP
     \<comment> \<open>control\<close>
@@ -275,18 +275,29 @@ lemma thermostat:
     (IF (\<lambda>s. s$4 = 0 \<and> s$3 \<le> Tmin + 1) THEN (4 ::= (\<lambda>s.1)) ELSE
     (IF (\<lambda>s. s$4 = 1 \<and> s$3 \<ge> Tmax - 1) THEN (4 ::= (\<lambda>s.0)) ELSE skip));
     \<comment> \<open>dynamics\<close>
-    (IF (\<lambda>s. s$4 = 0) THEN (x\<acute>=(\<lambda>t. f a 0) & (\<lambda>s. s$2 \<le> - (ln (Tmin/s$3))/a) on (\<lambda>s. {0..t}) UNIV @ 0)
-    ELSE (x\<acute>=(\<lambda>t. f a L) & (\<lambda>s. s$2 \<le> - (ln ((L-Tmax)/(L-s$3)))/a) on (\<lambda>s. {0..t}) UNIV @ 0)) )
+    (IF (\<lambda>s. s$4 = 0) THEN (x\<acute>= f a 0 & (\<lambda>s. s$2 \<le> - (ln (Tmin/s$3))/a))
+    ELSE (x\<acute>= f a L & (\<lambda>s. s$2 \<le> - (ln ((L-Tmax)/(L-s$3)))/a))) )
   INV (\<lambda>s. Tmin \<le>s$1 \<and> s$1 \<le> Tmax \<and> (s$4 = 0 \<or> s$4 = 1))]
   (\<lambda>s. Tmin \<le> s$1 \<and> s$1 \<le> Tmax)"
-  apply(rule fbox_loopI, simp_all add: fbox_temp_dyn[OF assms(1,2)] le_fun_def)
-  using temp_dyn_up_real_arith[OF assms(1) _ _ assms(4), of Tmin]
-    and temp_dyn_down_real_arith[OF assms(1,3), of _ Tmax] by auto
+  apply(rule fbox_loopI, simp_all add: fbox_temp_dyn[OF assms(1)] le_fun_def)
+  using temp_dyn_up_real_arith[OF assms(1) _ _ assms(3), of Tmin]
+    and temp_dyn_down_real_arith[OF assms(1,2), of _ Tmax] by auto
 
 no_notation temp_vec_field ("f")
         and temp_flow ("\<phi>")
 
-subsubsection\<open> Tank \<close>
+subsubsection \<open> Tank \<close>
+
+text \<open> A controller turns a water pump on and off to keep the level of water @{text "h"} in a tank
+within an acceptable range @{text "hmin \<le> h \<le> hmax"}. Just like in the previous example, after 
+each intervention, the controller registers the current level of water and resets its chronometer,
+then it changes the status of the water pump accordingly. The level of water grows linearly 
+@{text "h' = k"} at a rate of @{text "k = c\<^sub>i-c\<^sub>o"} if the pump is on, and at a rate of 
+@{text "k = -c\<^sub>o"} if the pump is off. We use @{term "1::4"} to denote the tank's level of water,
+@{term "2::4"} is time as measured by the controller's chronometer, @{term "3::4"} is the
+level of water measured by the chronometer, and @{term "4::4"} states whether the pump is on
+(@{text "s$4 = 1"}) or off (@{text "s$4 = 0"}). We prove that the controller keeps the level of
+water between @{text "hmin"} and @{text "hmax"}. \<close>
 
 abbreviation tank_vec_field :: "real \<Rightarrow> real^4 \<Rightarrow> real^4" ("f")
   where "f k s \<equiv> (\<chi> i. if i = 2 then 1 else (if i = 1 then k else 0))"
@@ -322,7 +333,7 @@ lemma tank_arith:
   using assms by (meson add_increasing2 less_eq_real_def mult_nonneg_nonneg) 
 
 lemma tank_flow:
-  assumes "0 \<le> \<tau>" and "0 < c\<^sub>o" and "c\<^sub>o < c\<^sub>i"
+  assumes "0 < c\<^sub>o" and "c\<^sub>o < c\<^sub>i"
   shows "I hmin hmax \<le>
   |LOOP 
     \<comment> \<open>control\<close>
@@ -330,18 +341,17 @@ lemma tank_flow:
     (IF (\<lambda>s. s$4 = 0 \<and> s$3 \<le> hmin + 1) THEN (4 ::= (\<lambda>s.1)) ELSE 
     (IF (\<lambda>s. s$4 = 1 \<and> s$3 \<ge> hmax - 1) THEN (4 ::= (\<lambda>s.0)) ELSE skip));
     \<comment> \<open>dynamics\<close>
-    (IF (\<lambda>s. s$4 = 0) THEN (x\<acute>= (\<lambda>t. f (c\<^sub>i-c\<^sub>o)) & G hmax (c\<^sub>i-c\<^sub>o) on (\<lambda>s. {0..\<tau>}) UNIV @ 0) 
-     ELSE (x\<acute>= (\<lambda>t. f (-c\<^sub>o)) & G hmin (-c\<^sub>o) on (\<lambda>s. {0..\<tau>}) UNIV @ 0)) ) INV I hmin hmax]  
+    (IF (\<lambda>s. s$4 = 0) THEN (x\<acute>= f (c\<^sub>i-c\<^sub>o) & (G hmax (c\<^sub>i-c\<^sub>o))) 
+     ELSE (x\<acute>= f (-c\<^sub>o) & (G hmin (-c\<^sub>o)))) ) INV I hmin hmax]  
   I hmin hmax"
   apply(rule fbox_loopI, simp_all add: le_fun_def)
-  apply(clarsimp simp: le_fun_def local_flow.fbox_g_ode_ivl[OF local_flow_tank assms(1) UNIV_I])
-  using assms tank_arith[OF _ assms(2,3)] by auto
+  apply(clarsimp simp: le_fun_def local_flow.fbox_g_ode_subset[OF local_flow_tank])
+  using assms tank_arith[OF _ assms] by auto
 
 no_notation tank_vec_field ("f")
         and tank_flow ("\<phi>")
         and tank_loop_inv ("I")
         and tank_diff_inv ("dI")
         and tank_guard ("G")
-
 
 end

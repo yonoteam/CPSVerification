@@ -24,7 +24,7 @@ notation Union ("\<mu>")
 
 subsection \<open>Verification of regular programs\<close>
 
-text \<open>First we add lemmas for computation of weakest liberal preconditions (wlps).\<close>
+text \<open> Lemmas for verification condition generation \<close>
 
 definition fbox :: "('a \<Rightarrow> 'b set) \<Rightarrow> 'b pred \<Rightarrow> 'a pred" ("|_] _" [61,81] 82)
   where "|F] P = (\<lambda>s. (\<forall>s'. s' \<in> F s \<longrightarrow> P s'))"
@@ -41,12 +41,14 @@ lemma fbox_invariants:
     and "(\<lambda>s. I s \<or> J s) \<le> |F] (\<lambda>s. I s \<or> J s)"
   using assms unfolding fbox_def by auto
 
-text \<open>Now, we compute wlps for specific programs starting with @{text "skip"}.\<close>
+\<comment> \<open> Skip \<close>
 
 abbreviation "skip \<equiv> (\<lambda>s. {s})"
 
 lemma fbox_eta[simp]: "fbox skip P = P"
   unfolding fbox_def by simp
+
+\<comment> \<open> Tests \<close>
 
 definition test :: "'a pred \<Rightarrow> 'a \<Rightarrow> 'a set" ("(1\<questiondown>_?)")
   where "\<questiondown>P? = (\<lambda>s. {x. x = s \<and> P x})"
@@ -54,7 +56,7 @@ definition test :: "'a pred \<Rightarrow> 'a \<Rightarrow> 'a set" ("(1\<questio
 lemma fbox_test: "( |\<questiondown>P?] Q) s = (P s \<longrightarrow> Q s)"
   unfolding fbox_def test_def by simp
 
-text \<open>Next, we introduce assignments and their wlps.\<close>
+\<comment> \<open> Assignments \<close>
 
 definition vec_upd :: "'a^'n \<Rightarrow> 'n \<Rightarrow> 'a \<Rightarrow> 'a^'n"
   where "vec_upd s i a = (\<chi> j. ((($) s)(i := a)) j)"
@@ -75,7 +77,7 @@ lemma fbox_nondet_assign[simp]: "|x ::= ?] P = (\<lambda>s. \<forall>k. P (\<chi
   unfolding fbox_def nondet_assign_def vec_upd_eq apply(simp add: fun_eq_iff, safe)
   by (erule_tac x="(\<chi> j. if j = x then k else _ $ j)" in allE, auto)
 
-text \<open>The wlp of a (kleisli) composition is just the composition of the wlps.\<close>
+\<comment> \<open> Sequential composition \<close>
 
 definition kcomp :: "('a \<Rightarrow> 'b set) \<Rightarrow> ('b \<Rightarrow> 'c set) \<Rightarrow> ('a  \<Rightarrow> 'c set)" (infixl ";" 75) where
   "F ; G = \<mu> \<circ> \<P> G \<circ> F"
@@ -92,7 +94,7 @@ lemma hoare_kcomp:
   apply(subst fbox_kcomp) 
   by (rule order.trans[OF assms(1)]) (rule fbox_iso[OF assms(2)])
 
-text \<open>We also have an implementation of the conditional operator and its wlp.\<close>
+\<comment> \<open> Conditional statement \<close>
 
 definition ifthenelse :: "'a pred \<Rightarrow> ('a \<Rightarrow> 'b set) \<Rightarrow> ('a \<Rightarrow> 'b set) \<Rightarrow> ('a \<Rightarrow> 'b set)"
   ("IF _ THEN _ ELSE _" [64,64,64] 63) where 
@@ -108,7 +110,7 @@ lemma hoare_if_then_else:
   shows "P \<le> |IF T THEN X ELSE Y] Q"
   using assms unfolding fbox_def ifthenelse_def by auto
 
-text \<open>The final wlp we add is that of the finite iteration.\<close>
+\<comment> \<open> Finite iteration \<close>
 
 definition kpower :: "('a \<Rightarrow> 'a set) \<Rightarrow> nat \<Rightarrow> ('a \<Rightarrow> 'a set)" 
   where "kpower f n = (\<lambda>s. ((;) f ^^ n) skip s)"
@@ -167,9 +169,9 @@ lemma wp_loopI_break:
   by (rule hoare_kcomp, force) (rule fbox_loopI, auto)
 
 
-subsection \<open>Verification of hybrid programs\<close>
+subsection \<open> Verification of hybrid programs \<close>
 
-text \<open>Verification by providing evolution\<close>
+text \<open> Verification by providing evolution \<close>
 
 definition g_evol :: "(('a::ord) \<Rightarrow> 'b \<Rightarrow> 'b) \<Rightarrow> 'b pred \<Rightarrow> ('b \<Rightarrow> 'a set) \<Rightarrow> ('b \<Rightarrow> 'b set)" ("EVOL")
   where "EVOL \<phi> G U = (\<lambda>s. g_orbit (\<lambda>t. \<phi> t s) G (U s))"
@@ -179,7 +181,7 @@ lemma fbox_g_evol[simp]:
   shows "|EVOL \<phi> G U] Q = (\<lambda>s. (\<forall>t\<in>U s. (\<forall>\<tau>\<in>down (U s) t. G (\<phi> \<tau> s)) \<longrightarrow> Q (\<phi> t s)))"
   unfolding g_evol_def g_orbit_eq fbox_def by auto
 
-text \<open>Verification by providing solutions\<close>
+text \<open> Verification by providing solutions \<close>
 
 lemma fbox_g_orbital: "|x\<acute>=f & G on U S @ t\<^sub>0] Q = 
   (\<lambda>s. \<forall>X\<in>Sols f U S t\<^sub>0 s. \<forall>t\<in>U s. (\<forall>\<tau>\<in>down (U s) t. G (X \<tau>)) \<longrightarrow> Q (X t))"
@@ -229,8 +231,10 @@ lemma fbox_g_orbital_guard:
 lemma fbox_g_orbital_inv:
   assumes "P \<le> I" and "I \<le> |x\<acute>=f & G on U S @ t\<^sub>0] I" and "I \<le> Q"
   shows "P \<le> |x\<acute>=f & G on U S @ t\<^sub>0] Q"
-  using assms(1) apply(rule order.trans)
-  using assms(2) apply(rule order.trans)
+  using assms(1) 
+  apply(rule order.trans)
+  using assms(2) 
+  apply(rule order.trans)
   by (rule fbox_iso[OF assms(3)])
 
 lemma fbox_diff_inv[simp]: 
@@ -277,7 +281,7 @@ subsection \<open> Derivation of the rules of dL \<close>
 text \<open> We derive domain specific rules of differential dynamic logic (dL). First we present a 
 generalised version, then we show the rules as instances of the general ones.\<close>
 
-abbreviation g_dl_orbit ::"(('a::banach)\<Rightarrow>'a) \<Rightarrow> 'a pred \<Rightarrow> 'a \<Rightarrow> 'a set" 
+abbreviation g_dl_ode ::"(('a::banach)\<Rightarrow>'a) \<Rightarrow> 'a pred \<Rightarrow> 'a \<Rightarrow> 'a set" 
   ("(1x\<acute>=_ & _)") where "(x\<acute>=f & G) \<equiv> (x\<acute>=(\<lambda>t. f) & G on (\<lambda>s. {t. t \<ge> 0}) UNIV @ 0)"
 
 abbreviation g_dl_ode_inv ::"(('a::banach)\<Rightarrow>'a) \<Rightarrow> 'a pred \<Rightarrow> 'a pred \<Rightarrow> 'a \<Rightarrow> 'a set" ("(1x\<acute>=_ & _ DINV _)") 

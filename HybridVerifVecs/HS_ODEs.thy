@@ -45,7 +45,8 @@ lemma ivp_solsD:
 lemma in_ivp_sols_subset:
   "t\<^sub>0 \<in> (U s) \<Longrightarrow> (U s) \<subseteq> (T s) \<Longrightarrow> X \<in> Sols f T S t\<^sub>0 s \<Longrightarrow> X \<in> Sols f U S t\<^sub>0 s "
   apply(rule ivp_solsI)
-  using ivp_solsD(1,2) has_vderiv_on_subset apply blast+
+  using ivp_solsD(1,2) has_vderiv_on_subset 
+     apply blast+
   by (drule ivp_solsD(3)) auto
 
 abbreviation "down U t \<equiv> {\<tau> \<in> U. \<tau> \<le> t}"
@@ -106,7 +107,6 @@ lemma diff_inv_eq_inv_set:
 
 lemma "diff_invariant I f U S t\<^sub>0 (\<lambda>s. True) \<Longrightarrow> diff_invariant I f U S t\<^sub>0 G"
   unfolding diff_invariant_eq by auto
-
 
 named_theorems diff_invariant_rules "rules for certifying differential invariants."
 
@@ -286,7 +286,7 @@ lemma diff_invariant_disj_rule [diff_invariant_rules]:
 
 subsection \<open> Picard-Lindeloef \<close>
 
-text\<open> A locale with the assumptions of Picard-Lindeloef theorem. It extends 
+text\<open> A locale with the assumptions of Picard-Lindeloef's theorem. It extends 
 @{term "ll_on_open_it"} by providing an initial time @{term "t\<^sub>0 \<in> T"}.\<close>
 
 locale picard_lindeloef =

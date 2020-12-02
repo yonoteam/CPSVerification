@@ -124,12 +124,13 @@ lemma local_flow_exp_flow: "local_flow f UNIV UNIV \<phi>"
   by (auto intro!: poly_derivatives simp: forall_2 vec_eq_iff)
 
 (* x>0 & y>0 -> [{x'=-x}][{x:=x+3;}*@invariant(x>0) ++ y:=x;](x>0&y>0) *)
-lemma "0 \<le> t \<Longrightarrow> \<lceil>\<lambda>s::real^2. s$1 > 0 \<and> s$2 > 0\<rceil> \<le> wp (x\<acute>= (\<lambda>t. f) & G on (\<lambda>s. {0..t}) UNIV @ 0) 
+lemma "\<lceil>\<lambda>s::real^2. s$1 > 0 \<and> s$2 > 0\<rceil> \<le> wp (x\<acute>= f & G) 
   (wp ((LOOP (1 ::= (\<lambda>s. s$1 + 3)) INV (\<lambda>s. 0 < s$1)) \<union> (2 ::= (\<lambda>s. s$1))) 
   \<lceil>\<lambda>s. s$1 > 0 \<and> s$2 > 0\<rceil>)"
- apply(subst rel_aka.fbox_mult[symmetric])+
-  apply(rule rel_aka.fbox_seq_var)+
-   apply(subst local_flow.wp_g_ode_ivl[OF local_flow_exp_flow, where Q="\<lambda>s. s$1 > 0 \<and> s$2 > 0"]; simp)
+ apply(subst rel_aka.fbox_mult[symmetric])
+  apply(rule rel_aka.fbox_seq_var)
+   apply(subst local_flow.wp_g_ode_subset[OF 
+        local_flow_exp_flow, where Q="\<lambda>s. s$1 > 0 \<and> s$2 > 0"]; simp)
   apply(subst le_wp_choice_iff, rule conjI)
    apply(subst change_loopI[where I="\<lambda>s. s$1 > 0 \<and> s$2 > 0"])
   by (rule wp_loopI, auto)
@@ -280,13 +281,12 @@ subsubsection \<open> Dynamics: Exponential growth (2) \<close>
 
 (* x>=0 & y>=0 -> [{x'=y, y'=y\<^sup>2}]x>=0 *)
 lemma "\<lceil>\<lambda>s::real^2. s$1 \<ge> 0 \<and> s$2 \<ge> 0\<rceil> \<le> 
-  wp (x\<acute>=(\<lambda>t s. (\<chi> i. if i=1 then s$2 else (s$2)\<^sup>2)) & G on (\<lambda>s. {0..}) {s. s$2 < 0} @ 0) \<lceil>\<lambda>s. s$1 \<ge> 0\<rceil>"
+  wp (x\<acute>=(\<lambda> s. (\<chi> i. if i=1 then s$2 else (s$2)\<^sup>2)) & G) \<lceil>\<lambda>s. s$1 \<ge> 0\<rceil>"
   apply(rule_tac C="\<lambda>s. s$2 \<ge> 0" in diff_cut_rule)
   apply(subst g_ode_inv_def[symmetric, where I="\<lambda>s. s$2 \<ge> 0"], rule wp_g_odei; simp?)
    apply(rule_tac \<nu>'="\<lambda>s. 0" and \<mu>'="\<lambda>s. (s$2)^2" in diff_invariant_rules(2); (simp add: forall_2)?)
   apply(rule_tac C="\<lambda>s. s$1 \<ge> 0" in diff_cut_rule, simp_all)
-  apply(subst g_ode_inv_def[symmetric, where I="\<lambda>s. s$1 \<ge> 0"])
-   apply(rule wp_g_odei; simp?)
+  apply(subst g_ode_inv_def[symmetric, where I="\<lambda>s. s$1 \<ge> 0"], rule wp_g_odei; simp?)
    apply(rule_tac \<nu>'="\<lambda>s. 0" and \<mu>'="\<lambda>s. (s$2)" in diff_invariant_rules(2); (simp add: forall_2)?)
   by (rule diff_weak_rule, simp)
 
