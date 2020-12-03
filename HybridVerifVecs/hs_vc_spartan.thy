@@ -53,7 +53,7 @@ lemma fbox_eta[simp]: "fbox skip P = P"
 definition test :: "'a pred \<Rightarrow> 'a \<Rightarrow> 'a set" ("(1\<questiondown>_?)")
   where "\<questiondown>P? = (\<lambda>s. {x. x = s \<and> P x})"
 
-lemma fbox_test: "( |\<questiondown>P?] Q) s = (P s \<longrightarrow> Q s)"
+lemma fbox_test[simp]: "(\<lambda>s. ( |\<questiondown>P?] Q) s) = (\<lambda>s. P s \<longrightarrow> Q s)"
   unfolding fbox_def test_def by simp
 
 \<comment> \<open> Assignments \<close>
@@ -76,6 +76,15 @@ definition nondet_assign :: "'n \<Rightarrow> 'a^'n \<Rightarrow> ('a^'n) set" (
 lemma fbox_nondet_assign[simp]: "|x ::= ?] P = (\<lambda>s. \<forall>k. P (\<chi> j. if j = x then k else s$j))"
   unfolding fbox_def nondet_assign_def vec_upd_eq apply(simp add: fun_eq_iff, safe)
   by (erule_tac x="(\<chi> j. if j = x then k else _ $ j)" in allE, auto)
+
+\<comment> \<open> Nondeterministic choice \<close>
+
+lemma fbox_choice: "|(\<lambda>s. F s \<union> G s)] P = (\<lambda>s. ( |F] P) s \<and> ( |G] P) s)"
+  unfolding fbox_def by auto
+
+lemma le_fbox_choice_iff: "P \<le> |(\<lambda>s. F s \<union> G s)] Q \<longleftrightarrow> P \<le> |F] Q \<and> P \<le> |G] Q"
+  unfolding fbox_def by auto
+
 
 \<comment> \<open> Sequential composition \<close>
 
@@ -160,6 +169,9 @@ qed
 
 definition loopi :: "('a \<Rightarrow> 'a set) \<Rightarrow> 'a pred \<Rightarrow> ('a \<Rightarrow> 'a set)" ("LOOP _ INV _ " [64,64] 63)
   where "LOOP F INV I \<equiv> (F\<^sup>*)"
+
+lemma change_loopI: "LOOP X INV G = LOOP X INV I"
+  unfolding loopi_def by simp
 
 lemma fbox_loopI: "P \<le> I \<Longrightarrow> I \<le> Q \<Longrightarrow> I \<le> |F] I \<Longrightarrow> P \<le> |LOOP F INV I] Q"
   unfolding loopi_def using fbox_kstarI[of "P"] by simp
