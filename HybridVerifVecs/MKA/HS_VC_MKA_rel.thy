@@ -13,7 +13,7 @@ setting. \<close>
 theory HS_VC_MKA_rel
   imports 
     "../HS_ODEs" 
-    "../HS_VC_MKA"
+    "HS_VC_MKA"
     "../HS_VC_KA_rel"
 
 begin

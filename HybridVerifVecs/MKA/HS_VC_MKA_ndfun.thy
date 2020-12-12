@@ -13,7 +13,7 @@ correctness specifications for the continuous dynamics of HS. \<close>
 theory HS_VC_MKA_ndfun
   imports 
     "../HS_ODEs"
-    "../HS_VC_MKA"
+    "HS_VC_MKA"
     "../HS_VC_KA_ndfun"
 
 begin

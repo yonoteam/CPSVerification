@@ -12,7 +12,7 @@ continuous dynamics: providing flows, solutions or invariants. \<close>
 theory HS_VC_KAT_ndfun
   imports 
     "../HS_ODEs"
-    "../HS_VC_KAT"
+    "HS_VC_KAT"
     "../HS_VC_KA_ndfun"
 
 begin
