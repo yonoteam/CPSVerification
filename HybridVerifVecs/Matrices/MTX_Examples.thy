@@ -1,13 +1,15 @@
 (*  Title:       Verification Examples
     Author:      Jonathan Julián Huerta y Munive, 2020
-    Maintainer:  Jonathan Julián Huerta y Munive <jjhuertaymunive1@sheffield.ac.uk>
+    Maintainer:  Jonathan Julián Huerta y Munive <jonjulian23@gmail.com>
 *)
 
 section \<open> Verification examples \<close>
 
 
 theory MTX_Examples
-  imports MTX_Flows "../HS_VC_Spartan"
+  imports 
+    MTX_Flows 
+    "../HS_VC_Spartan"
 
 begin
 

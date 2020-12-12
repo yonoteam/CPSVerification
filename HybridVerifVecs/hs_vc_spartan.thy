@@ -1,6 +1,6 @@
 (*  Title:       Verification components for hybrid systems 
-    Author:      Jonathan Julián Huerta y Munive, 2019
-    Maintainer:  Jonathan Julián Huerta y Munive <jjhuertaymunive1@sheffield.ac.uk>
+    Author:      Jonathan Julián Huerta y Munive, 2020
+    Maintainer:  Jonathan Julián Huerta y Munive <jonjulian23@gmail.com>
 *)
 
 section \<open> Verification components for hybrid systems \<close>
@@ -21,6 +21,7 @@ no_notation Transitive_Closure.rtrancl ("(_\<^sup>*)" [1000] 999)
 
 notation Union ("\<mu>")
      and g_orbital ("(1x\<acute>=_ & _ on _ _ @ _)")
+
 
 subsection \<open>Verification of regular programs\<close>
 
@@ -70,6 +71,8 @@ definition assign :: "'n \<Rightarrow> ('a^'n \<Rightarrow> 'a) \<Rightarrow> 'a
 lemma fbox_assign[simp]: "|x ::= e] Q = (\<lambda>s. Q (\<chi> j. ((($) s)(x := (e s))) j))"
   unfolding vec_upd_def assign_def by (subst fbox_def) simp
 
+\<comment> \<open> Nondeterministic assignments \<close>
+
 definition nondet_assign :: "'n \<Rightarrow> 'a^'n \<Rightarrow> ('a^'n) set" ("(2_ ::= ? )" [70] 61)
   where "(x ::= ?) = (\<lambda>s. {(vec_upd s x k)|k. True})"
 
@@ -84,7 +87,6 @@ lemma fbox_choice: "|(\<lambda>s. F s \<union> G s)] P = (\<lambda>s. ( |F] P) s
 
 lemma le_fbox_choice_iff: "P \<le> |(\<lambda>s. F s \<union> G s)] Q \<longleftrightarrow> P \<le> |F] Q \<and> P \<le> |G] Q"
   unfolding fbox_def by auto
-
 
 \<comment> \<open> Sequential composition \<close>
 
@@ -290,8 +292,8 @@ lemma fbox_g_odei: "P \<le> I \<Longrightarrow> I \<le> |x\<acute>= f & G on U S
 
 subsection \<open> Derivation of the rules of dL \<close>
 
-text \<open> We derive domain specific rules of differential dynamic logic (dL). First we present a 
-generalised version, then we show the rules as instances of the general ones.\<close>
+text \<open> We derive rules of differential dynamic logic (dL). This allows the components to reason 
+in the style of that logic. \<close>
 
 abbreviation g_dl_ode ::"(('a::banach)\<Rightarrow>'a) \<Rightarrow> 'a pred \<Rightarrow> 'a \<Rightarrow> 'a set" 
   ("(1x\<acute>=_ & _)") where "(x\<acute>=f & G) \<equiv> (x\<acute>=(\<lambda>t. f) & G on (\<lambda>s. {t. t \<ge> 0}) UNIV @ 0)"

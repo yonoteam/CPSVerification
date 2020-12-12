@@ -9,7 +9,7 @@ text \<open> We prove partial correctness specifications of some hybrid systems 
 verification components.\<close>
 
 theory PID_Examples
-  imports "HS_VC_Spartan"
+  imports "../HS_VC_Spartan"
 
 begin
 
@@ -288,25 +288,6 @@ lemma PI_controller_invariants2:
    apply(force simp: field_simps)
   done
 
-(*
-https://www.mathworks.com/help/aeroblks/quadcopter-project.html
-PID controller:
 
-previous_error = 0
-integral = 0
-loop:
-  prop_error = setpoint - measured_value
-  integral = integral + prop_error * dt
-  derivative = (prop_error - previous_error) / dt
-  output = Kp * prop_error + Ki * integral + Kd * derivative
-  previous_error = prop_error
-  wait(dt)
-  goto loop
-*)
-
-(* idea: if \<real>\<^sup>{\<^sup>x\<^sup>,\<^sup>y\<^sup>} is our state space, why can't we make x and y functions instead of tokens? 
-Then, we could use something like x' t = y t and y' t = - x t, and use a generic vector 
-field (f t s x, f t s y) = (y t, - x t). Does this modification allow us to use an indirect
-description of the dynamics in proofs? like in EVOL \<phi> U s? *)
 
 end

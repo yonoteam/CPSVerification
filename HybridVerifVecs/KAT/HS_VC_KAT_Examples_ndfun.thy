@@ -1,6 +1,6 @@
 (*  Title:       Examples of hybrid systems verifications
-    Author:      Jonathan Julián Huerta y Munive, 2019
-    Maintainer:  Jonathan Julián Huerta y Munive <jjhuertaymunive1@sheffield.ac.uk>
+    Author:      Jonathan Julián Huerta y Munive, 2020
+    Maintainer:  Jonathan Julián Huerta y Munive <jonjulian23@gmail.com>
 *)
 
 subsection \<open> Examples \<close>
@@ -9,10 +9,45 @@ text \<open> We prove partial correctness specifications of some hybrid systems 
 refinement and verification components.\<close>
 
 theory HS_VC_KAT_Examples_ndfun
-  imports HS_VC_KAT_ndfun
+  imports 
+    HS_VC_KAT_ndfun
+    "HOL-Eisbach.Eisbach"
 
 begin
 
+\<comment> \<open>A tactic for verification of hybrid programs \<close>
+
+named_theorems hoare_intros
+
+declare H_assignl [hoare_intros]
+    and H_cond [hoare_intros]
+    and local_flow.H_g_ode_subset [hoare_intros]
+    and H_g_ode_inv [hoare_intros]
+
+method body_hoare 
+  = (rule hoare_intros,(simp)?; body_hoare?)
+
+method hyb_hoare for P::"'a pred" 
+  = (rule H_loopI, rule H_seq[where R=P]; body_hoare?)
+
+\<comment> \<open>A tactic for refinement of hybrid programs \<close>
+
+named_theorems refine_intros "selected refinement lemmas"
+
+declare R_loopI [refine_intros]
+    and R_loop_mono [refine_intros]
+    and R_cond_law [refine_intros]
+    and R_cond_mono [refine_intros]
+    and R_while_law [refine_intros]
+    and R_assignl [refine_intros]
+    and R_seq_law [refine_intros]
+    and R_seq_mono [refine_intros]
+    and R_g_evol_law [refine_intros]
+    and R_skip [refine_intros]
+    and R_g_ode_inv [refine_intros]
+
+method refinement
+  = (rule refine_intros; (refinement)?)
 
 subsubsection \<open>Pendulum\<close>
 
@@ -29,12 +64,12 @@ abbreviation pend_flow :: "real \<Rightarrow> real^2 \<Rightarrow> real^2" ("\<p
 
 \<comment> \<open>Verified with annotated dynamics \<close>
 
-lemma pendulum_dyn: "Hoare \<lceil>\<lambda>s. r\<^sup>2 = (s$1)\<^sup>2 + (s$2)\<^sup>2\<rceil> (EVOL \<phi> G T) \<lceil>\<lambda>s. r\<^sup>2 = (s$1)\<^sup>2 + (s$2)\<^sup>2\<rceil>"
+lemma pendulum_dyn: "\<^bold>{\<lambda>s. r\<^sup>2 = (s $ 1)\<^sup>2 + (s $ 2)\<^sup>2\<^bold>} EVOL \<phi> G T \<^bold>{\<lambda>s. r\<^sup>2 = (s $ 1)\<^sup>2 + (s $ 2)\<^sup>2\<^bold>}"
   by simp
 
 \<comment> \<open>Verified with differential invariants \<close>
 
-lemma pendulum_inv: "Hoare \<lceil>\<lambda>s. r\<^sup>2 = (s$1)\<^sup>2 + (s$2)\<^sup>2\<rceil> (x\<acute>=f & G) \<lceil>\<lambda>s. r\<^sup>2 = (s$1)\<^sup>2 + (s$2)\<^sup>2\<rceil>"
+lemma pendulum_inv: "\<^bold>{\<lambda>s. r\<^sup>2 = (s $ 1)\<^sup>2 + (s $ 2)\<^sup>2\<^bold>} (x\<acute>=f & G) \<^bold>{\<lambda>s. r\<^sup>2 = (s $ 1)\<^sup>2 + (s $ 2)\<^sup>2\<^bold>}"
   by (auto intro!: diff_invariant_rules poly_derivatives)
 
 \<comment> \<open>Verified with the flow \<close>
@@ -45,7 +80,7 @@ lemma local_flow_pend: "local_flow f UNIV UNIV \<phi>"
     apply(simp add: dist_norm norm_vec_def L2_set_def power2_commute UNIV_2)
   by (auto simp: forall_2 intro!: poly_derivatives)
 
-lemma pendulum_flow: "Hoare \<lceil>\<lambda>s. r\<^sup>2 = (s$1)\<^sup>2 + (s$2)\<^sup>2\<rceil> (x\<acute>=f & G) \<lceil>\<lambda>s. r\<^sup>2 = (s$1)\<^sup>2 + (s$2)\<^sup>2\<rceil>"
+lemma pendulum_flow: "\<^bold>{\<lambda>s. r\<^sup>2 = (s $ 1)\<^sup>2 + (s $ 2)\<^sup>2\<^bold>} (x\<acute>=f & G) \<^bold>{\<lambda>s. r\<^sup>2 = (s $ 1)\<^sup>2 + (s $ 2)\<^sup>2\<^bold>}"
   by (subst local_flow.sH_g_ode_subset[OF local_flow_pend], simp_all)
 
 no_notation fpend ("f")
@@ -54,12 +89,12 @@ no_notation fpend ("f")
 
 subsubsection \<open> Bouncing Ball \<close>
 
-text \<open> A ball is dropped from rest at an initial height @{text "h"}. The motion is described with 
-the free-fall equations @{text "x' t = v t"} and @{text "v' t = g"} where @{text "g"} is the 
-constant acceleration due to gravity. The bounce is modelled with a variable assigntment that 
-flips the velocity, thus it is a completely elastic collision with the ground. We use @{text "s$1"} 
-to ball's height and @{text "s$2"} for its velocity. We prove that the ball remains above ground
-and below its initial resting position. \<close>
+text \<open> A ball is dropped from rest at an initial height @{text "h"}. The motion is described with
+the free-fall equations @{text "x' t = v t"} and @{text "v' t = g"} where @{text "g"} is the
+constant acceleration due to gravity. The bounce is modelled with a variable assignment that
+flips the velocity. That is, we model it as a completely elastic collision with the ground. We use 
+@{text "s$1"} to represent the ball's height and @{text "s$2"} for its velocity. We prove that the 
+ball remains above ground and below its initial resting position. \<close>
 
 abbreviation fball :: "real \<Rightarrow> real^2 \<Rightarrow> real^2" ("f") 
   where "f g s \<equiv> (\<chi> i. if i=1 then s$2 else g)"
@@ -95,17 +130,15 @@ lemma fball_invariant:
   unfolding dinv apply(rule diff_invariant_rules, simp)
   by(auto intro!: poly_derivatives)
 
-lemma bouncing_ball_inv: "g < 0 \<Longrightarrow> h \<ge> 0 \<Longrightarrow> Hoare
-  \<lceil>\<lambda>s. s$1 = h \<and> s$2 = 0\<rceil>
+lemma bouncing_ball_inv: "g < 0 \<Longrightarrow> h \<ge> 0 \<Longrightarrow> 
+  \<^bold>{\<lambda>s. s$1 = h \<and> s$2 = 0\<^bold>}
   (LOOP 
       ((x\<acute>= f g & (\<lambda> s. s$1 \<ge> 0) DINV (\<lambda>s. 2 \<cdot> g \<cdot> s$1 - 2 \<cdot> g \<cdot> h - s$2 \<cdot> s$2 = 0));
        (IF (\<lambda> s. s$1 = 0) THEN (2 ::= (\<lambda>s. - s$2)) ELSE skip)) 
     INV (\<lambda>s. 0 \<le> s$1 \<and> 2 \<cdot> g \<cdot> s$1 = 2 \<cdot> g \<cdot> h + s$2 \<cdot> s$2)
-  ) \<lceil>\<lambda>s. 0 \<le> s$1 \<and> s$1 \<le> h\<rceil>"
-  apply(rule H_loopI)
-    apply(rule H_seq[where R="\<lambda>s. 0 \<le> s$1 \<and> 2 \<cdot> g \<cdot> s$1 = 2 \<cdot> g \<cdot> h + s$2 \<cdot> s$2"])
-     apply(rule H_g_ode_inv)
-  by (auto simp: bb_real_arith intro!: poly_derivatives diff_invariant_rules)
+  ) \<^bold>{\<lambda>s. 0 \<le> s$1 \<and> s$1 \<le> h\<^bold>}"
+  apply(hyb_hoare "\<lambda>s::real^2. 0 \<le> s$1 \<and> 2 \<cdot> g \<cdot> s$1 = 2 \<cdot> g \<cdot> h + s$2 \<cdot> s$2")
+  using fball_invariant by (auto simp: bb_real_arith intro!: poly_derivatives diff_invariant_rules)
 
 \<comment> \<open>Verified with annotated dynamics \<close>
 
@@ -151,14 +184,14 @@ proof-
   ultimately show ?thesis by auto
 qed
 
-lemma bouncing_ball_dyn: "g < 0 \<Longrightarrow> h \<ge> 0 \<Longrightarrow> Hoare
-  \<lceil>\<lambda>s. s$1 = h \<and> s$2 = 0\<rceil>
+lemma bouncing_ball_dyn: "g < 0 \<Longrightarrow> h \<ge> 0 \<Longrightarrow>
+  \<^bold>{\<lambda>s. s$1 = h \<and> s$2 = 0\<^bold>}
   (LOOP 
       ((EVOL (\<phi> g) (\<lambda> s. s$1 \<ge> 0) T);
        (IF (\<lambda> s. s$1 = 0) THEN (2 ::= (\<lambda>s. - s$2)) ELSE skip)) 
     INV (\<lambda>s. 0 \<le> s$1 \<and> 2 \<cdot> g \<cdot> s$1 = 2 \<cdot> g \<cdot> h + s$2 \<cdot> s$2)
-  ) \<lceil>\<lambda>s. 0 \<le> s$1 \<and> s$1 \<le> h\<rceil>"
-  apply(rule H_loopI, rule H_seq[where R="\<lambda>s. 0 \<le> s$1 \<and> 2 \<cdot> g \<cdot> s$1 = 2 \<cdot> g \<cdot> h + s$2 \<cdot> s$2"])
+  ) \<^bold>{\<lambda>s. 0 \<le> s$1 \<and> s$1 \<le> h\<^bold>}"
+  apply(hyb_hoare "\<lambda>s::real^2. 0 \<le> s$1 \<and> 2 \<cdot> g \<cdot> s$1 = 2 \<cdot> g \<cdot> h + s$2 \<cdot> s$2")
   by (auto simp: bb_real_arith)
 
 \<comment> \<open>Verified with the flow \<close>
@@ -169,18 +202,16 @@ lemma local_flow_ball: "local_flow (f g) UNIV UNIV (\<phi> g)"
     apply(simp add: dist_norm norm_vec_def L2_set_def UNIV_2)
   by (auto simp: forall_2 intro!: poly_derivatives)
 
-lemma bouncing_ball_flow: "g < 0 \<Longrightarrow> h \<ge> 0 \<Longrightarrow> Hoare
-  \<lceil>\<lambda>s. s$1 = h \<and> s$2 = 0\<rceil>
+lemma bouncing_ball_flow: "g < 0 \<Longrightarrow> h \<ge> 0 \<Longrightarrow>
+  \<^bold>{\<lambda>s. s$1 = h \<and> s$2 = 0\<^bold>}
   (LOOP 
       ((x\<acute>= f g & (\<lambda> s. s$1 \<ge> 0));
        (IF (\<lambda> s. s$1 = 0) THEN (2 ::= (\<lambda>s. - s$2)) ELSE skip)) 
     INV (\<lambda>s. 0 \<le> s$1 \<and> 2 \<cdot> g \<cdot> s$1 = 2 \<cdot> g \<cdot> h + s$2 \<cdot> s$2)
-  ) \<lceil>\<lambda>s. 0 \<le> s$1 \<and> s$1 \<le> h\<rceil>"
-  apply(rule H_loopI)
-    apply(rule H_seq[where R="\<lambda>s. 0 \<le> s$1 \<and> 2 \<cdot> g \<cdot> s$1 = 2 \<cdot> g \<cdot> h + s$2 \<cdot> s$2"])
-     apply(subst local_flow.sH_g_ode_subset[OF local_flow_ball], simp)
-     apply(force simp: bb_real_arith)
-  by (rule H_cond) (auto simp: bb_real_arith)
+  ) \<^bold>{\<lambda>s. 0 \<le> s$1 \<and> s$1 \<le> h\<^bold>}"
+  apply(rule H_loopI; (rule H_seq[where R="\<lambda>s. 0 \<le> s$1 \<and> 2 \<cdot> g \<cdot> s$1 = 2 \<cdot> g \<cdot> h + s$2 \<cdot> s$2"])?)
+     apply(subst local_flow.sH_g_ode_subset[OF local_flow_ball])
+  by (auto simp: bb_real_arith)
 
 \<comment> \<open>Refined with annotated dynamics \<close>
 
@@ -188,7 +219,7 @@ lemma R_bb_assign: "g < (0::real) \<Longrightarrow> 0 \<le> h \<Longrightarrow>
   2 ::= (\<lambda>s. - s$2) \<le> Ref 
     \<lceil>\<lambda>s. s$1 = 0 \<and> 0 \<le> s$1 \<and> 2 \<cdot> g \<cdot> s$1 = 2 \<cdot> g \<cdot> h + s$2 \<cdot> s$2\<rceil> 
     \<lceil>\<lambda>s. 0 \<le> s$1 \<and> 2 \<cdot> g \<cdot> s$1 = 2 \<cdot> g \<cdot> h + s$2 \<cdot> s$2\<rceil>"
-  by (rule R_assign_rule, auto)
+  by (rule R_assign_law, auto)
 
 lemma R_bouncing_ball_dyn:
   assumes "g < 0" and "h \<ge> 0"
@@ -197,18 +228,8 @@ lemma R_bouncing_ball_dyn:
       ((EVOL (\<phi> g) (\<lambda> s. s$1 \<ge> 0) T);
        (IF (\<lambda> s. s$1 = 0) THEN (2 ::= (\<lambda>s. - s$2)) ELSE skip)) 
     INV (\<lambda>s. 0 \<le> s$1 \<and> 2 \<cdot> g \<cdot> s$1 = 2 \<cdot> g \<cdot> h + s$2 \<cdot> s$2))"
-  apply(rule order_trans)
-   apply(rule R_loop_mono) defer
-   apply(rule R_loop)
-     apply(rule R_seq)
-  using assms apply(simp_all, force simp: bb_real_arith)
-  apply(rule R_seq_mono) defer
-  apply(rule order_trans)
-    apply(rule R_cond_mono) defer defer
-     apply(rule R_cond) defer
-  using R_bb_assign apply force
-   apply(rule R_skip, clarsimp)
-  by (rule R_g_evol_rule, force simp: bb_real_arith)
+  apply(refinement; (rule R_bb_assign[OF assms])?)
+  using assms by (auto simp: bb_real_arith)
 
 no_notation fball ("f")
         and ball_flow ("\<phi>")
@@ -216,14 +237,14 @@ no_notation fball ("f")
 
 subsubsection \<open> Thermostat \<close>
 
-text \<open> A thermostat has a chronometer, a thermometer and a switch to turn on and off a heater. 
-At most every @{text "\<tau>"} minutes, it sets its chronometer to @{term "0::real"}, it registers 
-the room temperature, and it turns the heater on (or off) based on this reading. The temperature 
-follows the ODE @{text "T' = - a * (T - U)"} where @{text "U = L \<ge> 0"} when the heater 
-is on, and @{text "U = 0"} when it is off. We use @{term "1::4"} to denote the room's temperature, 
-@{term "2::4"} is time as measured by the thermostat's chronometer, and @{term "3::4"} is a variable
-to save temperature measurements. Finally, @{term "4::5"} states whether the heater is on 
-(@{text "s$4 = 1"}) or off (@{text "s$4 = 0"}). We prove that the thermostat keeps the room's 
+text \<open> A thermostat has a chronometer, a thermometer and a switch to turn on and off a heater.
+At most every @{text "t"} minutes, it sets its chronometer to @{term "0::real"}, it registers
+the room temperature, and it turns the heater on (or off) based on this reading. The temperature
+follows the ODE @{text "T' = - a * (T - U)"} where @{text "U"} is @{text "L \<ge> 0"} when the heater
+is on, and @{text "0"} when it is off. We use @{term "1::4"} to denote the room's temperature,
+@{term "2::4"} is time as measured by the thermostat's chronometer, @{term "3::4"} is the
+temperature detected by the thermometer, and @{term "4::4"} states whether the heater is on
+(@{text "s$4 = 1"}) or off (@{text "s$4 = 0"}). We prove that the thermostat keeps the room's
 temperature between @{text "Tmin"} and @{text "Tmax"}. \<close>
 
 abbreviation therm_vec_field :: "real \<Rightarrow> real \<Rightarrow> real^4 \<Rightarrow> real^4" ("f")
@@ -318,7 +339,7 @@ lemmas H_g_ode_therm = local_flow.sH_g_ode_ivl[OF local_flow_therm _ UNIV_I]
 
 lemma thermostat_flow: 
   assumes "0 < a" and "0 \<le> \<tau>" and "0 < Tmin" and "Tmax < L"
-  shows "Hoare \<lceil>I Tmin Tmax\<rceil>
+  shows "\<^bold>{I Tmin Tmax\<^bold>}
   (LOOP (
     \<comment> \<open>control\<close>
     (2 ::= (\<lambda>s. 0));
@@ -334,7 +355,7 @@ lemma thermostat_flow:
     ELSE 
       (x\<acute>= (\<lambda>t. f a L) & G Tmin Tmax a L on (\<lambda>s. {0..\<tau>}) UNIV @ 0))
   ) INV I Tmin Tmax)
-  \<lceil>I Tmin Tmax\<rceil>"
+   \<^bold>{I Tmin Tmax\<^bold>}"
   apply(rule H_loopI)
     apply(rule_tac R="\<lambda>s. I Tmin Tmax s \<and> s$2=0 \<and> s$3 = s$1" in H_seq)
      apply(rule_tac R="\<lambda>s. I Tmin Tmax s\<and> s$2=0 \<and> s$3 = s$1" in H_seq)
@@ -370,11 +391,11 @@ lemma R_therm_dyn:
   using R_therm_dyn_down[OF assms] R_therm_dyn_up[OF assms] by (auto intro!: R_cond)
 
 lemma R_therm_assign1: "Ref \<lceil>I Tmin Tmax\<rceil> \<lceil>\<lambda>s. I Tmin Tmax s \<and> s$2 = 0\<rceil> \<ge> (2 ::= (\<lambda>s. 0))"
-  by (auto simp: R_assign_rule)
+  by (auto simp: R_assign_law)
 
 lemma R_therm_assign2: 
   "Ref \<lceil>\<lambda>s. I Tmin Tmax s \<and> s$2 = 0\<rceil> \<lceil>\<lambda>s. I Tmin Tmax s \<and> s$2 = 0 \<and> s$3 = s$1\<rceil> \<ge> (3 ::= (\<lambda>s. s$1))"
-  by (auto simp: R_assign_rule)
+  by (auto simp: R_assign_law)
 
 lemma R_therm_ctrl:
   "Ref \<lceil>I Tmin Tmax\<rceil> \<lceil>\<lambda>s. I Tmin Tmax s \<and> s$2 = 0 \<and> s$3 = s$1\<rceil> \<ge>
@@ -385,19 +406,8 @@ lemma R_therm_ctrl:
    ELSE IF (\<lambda>s. s$4 = 1 \<and> s$3 \<ge> Tmax - 1) THEN 
     (4 ::= (\<lambda>s.0)) 
    ELSE skip)"
-  apply(rule R_seq_rule)+
-    apply(rule R_therm_assign1)
-   apply(rule R_therm_assign2)
-  apply(rule order_trans)
-   apply(rule R_cond_mono)
-    apply(rule R_assign_rule) defer
-    apply(rule R_cond_mono)
-     apply(rule R_assign_rule) defer
-     apply(rule R_skip) defer
-     apply(rule order_trans)
-      apply(rule R_cond_mono)
-       apply force
-  by (rule R_cond)+ auto
+  apply(refinement, rule R_therm_assign1, rule R_therm_assign2)
+  by (rule R_assign_law, simp)+ auto
 
 lemma R_therm_loop: "Ref \<lceil>I Tmin Tmax\<rceil> \<lceil>I Tmin Tmax\<rceil> \<ge> 
   (LOOP 
@@ -431,7 +441,21 @@ no_notation therm_vec_field ("f")
         and therm_guard ("G")
         and therm_loop_inv ("I")
 
-subsubsection \<open> Water tank \<close>  \<comment> \<open>Variation of Hespanha and \cite{AlurCHHHNOSY95}\<close>
+
+subsubsection \<open> Water tank \<close> \<comment> \<open> Variation of Hespanha and Alur's tank \<close>
+
+subsubsection \<open> Tank \<close>
+
+text \<open> A controller turns a water pump on and off to keep the level of water @{text "h"} in a tank
+within an acceptable range @{text "hmin \<le> h \<le> hmax"}. Just like in the previous example, after 
+each intervention, the controller registers the current level of water and resets its chronometer,
+then it changes the status of the water pump accordingly. The level of water grows linearly 
+@{text "h' = k"} at a rate of @{text "k = c\<^sub>i-c\<^sub>o"} if the pump is on, and at a rate of 
+@{text "k = -c\<^sub>o"} if the pump is off. We use @{term "1::4"} to denote the tank's level of water,
+@{term "2::4"} is time as measured by the controller's chronometer, @{term "3::4"} is the
+level of water measured by the chronometer, and @{term "4::4"} states whether the pump is on
+(@{text "s$4 = 1"}) or off (@{text "s$4 = 0"}). We prove that the controller keeps the level of
+water between @{text "hmin"} and @{text "hmax"}. \<close>
 
 abbreviation tank_vec_field :: "real \<Rightarrow> real^4 \<Rightarrow> real^4" ("f")
   where "f k s \<equiv> (\<chi> i. if i = 2 then 1 else (if i = 1 then k else 0))"
@@ -472,7 +496,7 @@ lemmas H_g_ode_tank = local_flow.sH_g_ode_ivl[OF local_flow_tank _ UNIV_I]
 
 lemma tank_flow:
   assumes "0 \<le> \<tau>" and "0 < c\<^sub>o" and "c\<^sub>o < c\<^sub>i"
-  shows "Hoare \<lceil>I hmin hmax\<rceil>
+  shows "\<^bold>{I hmin hmax\<^bold>}
   (LOOP 
     \<comment> \<open>control\<close>
     ((2 ::=(\<lambda>s.0));(3 ::=(\<lambda>s. s$1));
@@ -481,7 +505,8 @@ lemma tank_flow:
     \<comment> \<open>dynamics\<close>
     (IF (\<lambda>s. s$4 = 0) THEN (x\<acute>= (\<lambda>t. f (c\<^sub>i-c\<^sub>o)) & G hmax (c\<^sub>i-c\<^sub>o) on (\<lambda>s. {0..\<tau>}) UNIV @ 0) 
      ELSE (x\<acute>= (\<lambda>t. f (-c\<^sub>o)) & G hmin (-c\<^sub>o) on (\<lambda>s. {0..\<tau>}) UNIV @ 0)) )
-  INV I hmin hmax) \<lceil>I hmin hmax\<rceil>"
+  INV I hmin hmax) 
+  \<^bold>{I hmin hmax\<^bold>}"
   apply(rule H_loopI)
     apply(rule_tac R="\<lambda>s. I hmin hmax s \<and> s$2=0 \<and> s$3 = s$1" in H_seq)
      apply(rule_tac R="\<lambda>s. I hmin hmax s \<and> s$2=0 \<and> s$3 = s$1" in H_seq)
@@ -527,7 +552,7 @@ qed
 
 lemma tank_inv:
   assumes "0 \<le> \<tau>" and "0 < c\<^sub>o" and "c\<^sub>o < c\<^sub>i"
-  shows "Hoare \<lceil>I hmin hmax\<rceil>
+  shows "\<^bold>{I hmin hmax\<^bold>}
   (LOOP 
     \<comment> \<open>control\<close>
     ((2 ::=(\<lambda>s.0));(3 ::=(\<lambda>s. s$1));
@@ -538,7 +563,8 @@ lemma tank_inv:
       (x\<acute>= (\<lambda>t. f (c\<^sub>i-c\<^sub>o)) & G hmax (c\<^sub>i-c\<^sub>o) on (\<lambda>s. {0..\<tau>}) UNIV @ 0 DINV (dI hmin hmax (c\<^sub>i-c\<^sub>o))) 
      ELSE 
       (x\<acute>= (\<lambda>t. f (-c\<^sub>o)) & G hmin (-c\<^sub>o) on (\<lambda>s. {0..\<tau>}) UNIV @ 0 DINV (dI hmin hmax (-c\<^sub>o)))) )
-  INV I hmin hmax) \<lceil>I hmin hmax\<rceil>"
+  INV I hmin hmax)
+  \<^bold>{I hmin hmax\<^bold>}"
   apply(rule H_loopI)
     apply(rule_tac R="\<lambda>s. I hmin hmax s \<and> s$2=0 \<and> s$3 = s$1" in H_seq)
      apply(rule_tac R="\<lambda>s. I hmin hmax s \<and> s$2=0 \<and> s$3 = s$1" in H_seq)
@@ -551,9 +577,22 @@ lemma tank_inv:
 
 \<comment> \<open>Refined with differential invariants \<close>
 
+abbreviation tank_ctrl :: "real \<Rightarrow> real \<Rightarrow> (real^4) nd_fun" ("ctrl")
+  where "ctrl hmin hmax \<equiv> ((2 ::=(\<lambda>s.0));(3 ::=(\<lambda>s. s$1));
+    (IF (\<lambda>s. s$4 = 0 \<and> s$3 \<le> hmin + 1) THEN (4 ::= (\<lambda>s.1)) ELSE 
+    (IF (\<lambda>s. s$4 = 1 \<and> s$3 \<ge> hmax - 1) THEN (4 ::= (\<lambda>s.0)) ELSE skip)))"
+
+abbreviation tank_dyn_dinv :: "real \<Rightarrow> real \<Rightarrow> real \<Rightarrow> real \<Rightarrow> real \<Rightarrow> (real^4) nd_fun" ("dyn")
+  where "dyn c\<^sub>i c\<^sub>o hmin hmax \<tau> \<equiv> (IF (\<lambda>s. s$4 = 0) THEN 
+      (x\<acute>= (\<lambda>t. f (c\<^sub>i-c\<^sub>o)) & G hmax (c\<^sub>i-c\<^sub>o) on (\<lambda>s. {0..\<tau>}) UNIV @ 0 DINV (dI hmin hmax (c\<^sub>i-c\<^sub>o))) 
+     ELSE 
+      (x\<acute>= (\<lambda>t. f (-c\<^sub>o)) & G hmin (-c\<^sub>o) on (\<lambda>s. {0..\<tau>}) UNIV @ 0 DINV (dI hmin hmax (-c\<^sub>o))))"
+
+abbreviation "tank_dinv c\<^sub>i c\<^sub>o hmin hmax \<tau> \<equiv> LOOP (ctrl hmin hmax ; dyn c\<^sub>i c\<^sub>o hmin hmax \<tau>) INV (I hmin hmax)"
+
 lemma R_tank_inv:
   assumes "0 \<le> \<tau>" and "0 < c\<^sub>o" and "c\<^sub>o < c\<^sub>i"
-  shows "Ref \<lceil>I hmin hmax\<rceil> \<lceil>I hmin hmax\<rceil> \<ge>
+  shows "Ref \<lceil>I hmin hmax\<rceil> \<lceil>I hmin hmax\<rceil> \<ge> 
   (LOOP 
     \<comment> \<open>control\<close>
     ((2 ::=(\<lambda>s.0));(3 ::=(\<lambda>s. s$1));
@@ -564,53 +603,31 @@ lemma R_tank_inv:
       (x\<acute>= (\<lambda>t. f (c\<^sub>i-c\<^sub>o)) & G hmax (c\<^sub>i-c\<^sub>o) on (\<lambda>s. {0..\<tau>}) UNIV @ 0 DINV (dI hmin hmax (c\<^sub>i-c\<^sub>o))) 
      ELSE 
       (x\<acute>= (\<lambda>t. f (-c\<^sub>o)) & G hmin (-c\<^sub>o) on (\<lambda>s. {0..\<tau>}) UNIV @ 0 DINV (dI hmin hmax (-c\<^sub>o)))) )
-  INV I hmin hmax)" (is "LOOP (?ctrl;?dyn) INV _ \<le> ?ref")
+  INV I hmin hmax)"
 proof-
-  \<comment> \<open>First we refine the control. \<close>
-  let ?Icntrl = "\<lambda>s. I hmin hmax s \<and> s$2 = 0 \<and> s$3 = s$1"
-  and ?cond = "\<lambda>s. s$4 = 0 \<and> s$3 \<le> hmin + 1"
-  have ifbranch1: "4 ::= (\<lambda>s.1) \<le> Ref \<lceil>\<lambda>s. ?cond s \<and> ?Icntrl s\<rceil> \<lceil>?Icntrl\<rceil>" (is "_ \<le> ?branch1")
-    by (rule R_assign_rule, simp)
-  have ifbranch2: "(IF (\<lambda>s. s$4 = 1 \<and> s$3 \<ge> hmax - 1) THEN (4 ::= (\<lambda>s.0)) ELSE skip) \<le> 
-    Ref \<lceil>\<lambda>s. \<not> ?cond s \<and> ?Icntrl s\<rceil> \<lceil>?Icntrl\<rceil>" (is "_ \<le> ?branch2")
-    apply(rule order_trans, rule R_cond_mono) defer defer
-    by (rule R_cond) (auto intro!: R_assign_rule R_skip)
-  have ifthenelse: "(IF ?cond THEN ?branch1 ELSE ?branch2) \<le> Ref \<lceil>?Icntrl\<rceil> \<lceil>?Icntrl\<rceil>" (is "?ifthenelse \<le> _") 
-    by (rule R_cond)
-  have "(IF ?cond THEN (4 ::= (\<lambda>s.1)) ELSE (IF (\<lambda>s. s$4 = 1 \<and> s$3 \<ge> hmax - 1) THEN (4 ::= (\<lambda>s.0)) ELSE skip)) \<le>
-   Ref \<lceil>?Icntrl\<rceil> \<lceil>?Icntrl\<rceil>"
-    apply(rule_tac y="?ifthenelse" in order_trans, rule R_cond_mono)
-    using ifbranch1 ifbranch2 ifthenelse by auto
-  hence ctrl: "?ctrl \<le> Ref \<lceil>I hmin hmax\<rceil> \<lceil>?Icntrl\<rceil>"
-    apply(rule_tac R="?Icntrl" in R_seq_rule)
-     apply(rule_tac R="\<lambda>s. I hmin hmax s \<and> s$2 = 0" in R_seq_rule)
-    by (auto intro!: R_assign_rule)
-  \<comment> \<open>Then we refine the dynamics. \<close>
-   have dynup: "(x\<acute>= (\<lambda>t. f (c\<^sub>i-c\<^sub>o)) & G hmax (c\<^sub>i-c\<^sub>o) on (\<lambda>s. {0..\<tau>}) UNIV @ 0 DINV (dI hmin hmax (c\<^sub>i-c\<^sub>o))) \<le> 
-    Ref \<lceil>\<lambda>s. s$4 = 0 \<and> ?Icntrl s\<rceil> \<lceil>I hmin hmax\<rceil>"
-    apply(rule R_g_ode_inv[OF tank_diff_inv[OF assms(1)]])
-    using assms by (auto simp: tank_inv_arith1)
-  have dyndown: "(x\<acute>= (\<lambda>t. f (-c\<^sub>o)) & G hmin (-c\<^sub>o) on (\<lambda>s. {0..\<tau>}) UNIV @ 0 DINV (dI hmin hmax (-c\<^sub>o))) \<le> 
-    Ref \<lceil>\<lambda>s. s$4 \<noteq> 0 \<and> ?Icntrl s\<rceil> \<lceil>I hmin hmax\<rceil>"
-    apply(rule R_g_ode_inv)
-    using tank_diff_inv[OF assms(1), of "-c\<^sub>o"] assms
-    by (auto simp: tank_inv_arith2)
-  have dyn: "?dyn \<le> Ref \<lceil>?Icntrl\<rceil> \<lceil>I hmin hmax\<rceil>"
-    apply(rule order_trans, rule R_cond_mono)
-    using dynup dyndown by (auto intro!: R_cond)
-  \<comment> \<open>Finally we put everything together. \<close>
-  have pre_pos: "\<lceil>I hmin hmax\<rceil> \<le> \<lceil>I hmin hmax\<rceil>"
-    by simp
-  have inv_inv: "Ref \<lceil>I hmin hmax\<rceil> \<lceil>?Icntrl\<rceil>; (Ref \<lceil>?Icntrl\<rceil> \<lceil>I hmin hmax\<rceil>) \<le> Ref \<lceil>I hmin hmax\<rceil> \<lceil>I hmin hmax\<rceil>"
-    by (rule R_seq)
-  have loopref: "LOOP Ref \<lceil>I hmin hmax\<rceil> \<lceil>?Icntrl\<rceil>; (Ref \<lceil>?Icntrl\<rceil> \<lceil>I hmin hmax\<rceil>) INV I hmin hmax \<le> ?ref"
-    apply(rule R_loop)
-    using pre_pos inv_inv by auto
-  have obs: "?ctrl;?dyn \<le> Ref \<lceil>I hmin hmax\<rceil> \<lceil>?Icntrl\<rceil>; (Ref \<lceil>?Icntrl\<rceil> \<lceil>I hmin hmax\<rceil>)"
-    apply(rule R_seq_mono)
-    using ctrl dyn by auto
-  show "LOOP (?ctrl;?dyn) INV I hmin hmax \<le> ?ref"
-    by (rule order_trans[OF _ loopref], rule R_loop_mono[OF obs])
+  have "Ref \<lceil>I hmin hmax\<rceil> \<lceil>I hmin hmax\<rceil> \<ge> 
+    LOOP (
+      (2 ::= (\<lambda>s. 0)); (Ref \<lceil>\<lambda>s. I hmin hmax s \<and> s$2 = 0\<rceil> \<lceil>I hmin hmax\<rceil>)
+    ) INV I hmin hmax" (is "_ \<ge> ?R")
+    by (refinement, auto)
+  moreover have 
+    "?R \<ge> LOOP (
+      (2 ::= (\<lambda>s. 0));(3 ::=(\<lambda>s. s$1));
+      (Ref \<lceil>\<lambda>s. I hmin hmax s \<and> s$2 = 0 \<and> s$3=s$1\<rceil> \<lceil>I hmin hmax\<rceil>)
+    ) INV I hmin hmax" (is "_ \<ge> ?R")
+    by (simp only: mult.assoc, refinement, auto)
+  moreover have 
+    "?R \<ge> LOOP (
+      ctrl hmin hmax;
+      (Ref \<lceil>\<lambda>s. I hmin hmax s \<and> s$2 = 0 \<and> s$3=s$1\<rceil> \<lceil>I hmin hmax\<rceil>)
+    ) INV I hmin hmax" (is "_ \<ge> ?R")
+    by (simp only: mult.assoc, refinement; (force)?, (rule R_assign_law)?) auto
+  moreover have 
+    "?R \<ge> LOOP (ctrl hmin hmax; dyn c\<^sub>i c\<^sub>o hmin hmax \<tau>) INV I hmin hmax"
+    apply(simp only: mult.assoc, refinement; ((rule tank_diff_inv[OF assms(1)])? | (simp)?))
+    using tank_inv_arith1 tank_inv_arith2 assms by auto
+  ultimately show ?thesis
+    by auto
 qed
 
 no_notation tank_vec_field ("f")

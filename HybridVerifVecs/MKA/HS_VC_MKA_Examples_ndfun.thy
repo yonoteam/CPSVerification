@@ -1,6 +1,6 @@
 (*  Title:       Examples of hybrid systems verifications
-    Author:      Jonathan Julián Huerta y Munive, 2019
-    Maintainer:  Jonathan Julián Huerta y Munive <jjhuertaymunive1@sheffield.ac.uk>
+    Author:      Jonathan Julián Huerta y Munive, 2020
+    Maintainer:  Jonathan Julián Huerta y Munive <jonjulian23@gmail.com>
 *)
 
 subsection \<open> Examples \<close>
@@ -14,6 +14,8 @@ theory HS_VC_MKA_Examples_ndfun
   imports HS_VC_MKA_ndfun
 
 begin
+
+
 subsubsection\<open>Pendulum\<close>
 
 text \<open> The ODEs @{text "x' t = y t"} and {text "y' t = - x t"} describe the circular motion of

@@ -1,11 +1,12 @@
 (*  Title:       Verification components with Kleene Algebras
     Author:      Jonathan Julián Huerta y Munive, 2020
-    Maintainer:  Jonathan Julián Huerta y Munive <jjhuertaymunive1@sheffield.ac.uk>
+    Maintainer:  Jonathan Julián Huerta y Munive <jonjulian23@gmail.com>
 *)
 
 section \<open> Verification components with KAT  \<close>
 
-text \<open> We create verification rules based on various Kleene Algebras. \<close>
+text \<open> We use Kleene algebras with tests to derive rules for verification condition generation and 
+refinement laws. \<close>
 
 theory HS_VC_KAT
   imports KAT_and_DRA.PHL_KAT
@@ -15,8 +16,7 @@ begin
 
 subsection \<open> Hoare logic in KAT \<close> 
 
-text \<open> Here we derive the rules of Hoare Logic and a refinement calculus in 
-Kleene algebra with tests. \<close>
+text \<open> Here we derive the rules of Hoare Logic. \<close>
 
 notation t ("\<tt>\<tt>")
 
@@ -109,8 +109,6 @@ qed
 lemma H_while_inv: "\<tt>\<tt> p \<le> \<tt>\<tt> i \<Longrightarrow> \<tt>\<tt> i \<cdot> n r \<le> \<tt>\<tt> q \<Longrightarrow> H (\<tt>\<tt> i \<cdot> \<tt>\<tt> r) x i \<Longrightarrow> H p (while r inv i do x) q"
   by (metis H_cons H_while test_mult kat_while_inv_def)
 
-
-
 \<comment> \<open> Finite iteration \<close>
 
 lemma H_star: "H i x i \<Longrightarrow> H i (x\<^sup>\<star>) i"
@@ -153,6 +151,8 @@ end
 
 
 subsection \<open> refinement KAT \<close> 
+
+text \<open> Here we derive the laws of the refinement calculus. \<close>
 
 class rkat = kat +
   fixes Ref :: "'a \<Rightarrow> 'a \<Rightarrow> 'a"

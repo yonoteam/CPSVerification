@@ -1,20 +1,20 @@
 (*  Title:       Verification components with predicate transformers
-    Author:      Jonathan Julián Huerta y Munive, 2019
-    Maintainer:  Jonathan Julián Huerta y Munive <jjhuertaymunive1@sheffield.ac.uk>
+    Author:      Jonathan Julián Huerta y Munive, 2020
+    Maintainer:  Jonathan Julián Huerta y Munive <jonjulian23@gmail.com>
 *)
 
-section \<open> Verification components with predicate transformers \<close>
+section \<open> Verification components with Predicate Transformers \<close>
 
 text \<open> We use the categorical forward box operator @{text fb\<^sub>\<F>} to compute weakest liberal 
 preconditions (wlps) of hybrid programs. Then we repeat the three methods for verifying 
 correctness specifications of the continuous dynamics of a HS. \<close>
 
 theory HS_VC_PT
-  imports "../HS_ODEs" "Transformer_Semantics.Kleisli_Quantale"
+  imports 
+    "Transformer_Semantics.Kleisli_Quantaloid"
+    "../HS_ODEs" 
                         
 begin
-
-\<comment> \<open>We start by deleting some notation and introducing some new.\<close>
 
 no_notation bres (infixr "\<rightarrow>" 60)
         and dagger ("_\<^sup>\<dagger>" [101] 100)
@@ -51,24 +51,28 @@ lemma ffb_invariants:
     and "{s. I s \<or> J s} \<le> fb\<^sub>\<F> F {s. I s \<or> J s}"
   using assms unfolding ffb_eq by auto
 
-text \<open>The weakest liberal precondition (wlp) of the ``skip'' program is the identity. \<close>
+\<comment> \<open> Skip \<close>
 
 lemma ffb_skip[simp]: "fb\<^sub>\<F> skip S = S"
   unfolding ffb_def by(simp add: kop_def klift_def map_dual_def)
 
-text \<open>Next, we introduce assignments and their wlps.\<close>
+\<comment> \<open> Tests \<close>
 
-definition vec_upd :: "('a^'n) \<Rightarrow> 'n \<Rightarrow> 'a \<Rightarrow> 'a^'n"
-  where "vec_upd s i a = (\<chi> j. ((($) s)(i := a)) j)"
+definition test :: "'a pred \<Rightarrow> 'a \<Rightarrow> 'a set" ("(1\<questiondown>_?)")
+  where "\<questiondown>P? = (\<lambda>s. {x. x = s \<and> P x})"
 
-lemma vec_upd_eq: "vec_upd s i a = (\<chi> j. if j = i then a else s$j)"
-  by (simp add: vec_upd_def)
+lemma ffb_test[simp]: "fb\<^sub>\<F> \<questiondown>P? Q = {s. P s \<longrightarrow> s \<in> Q}"
+  unfolding ffb_eq test_def by simp
+
+\<comment> \<open> Assignments \<close>
 
 definition assign :: "'n \<Rightarrow> ('a^'n \<Rightarrow> 'a) \<Rightarrow> ('a^'n) \<Rightarrow> ('a^'n) set" ("(2_ ::= _)" [70, 65] 61) 
   where "(x ::= e) = (\<lambda>s. {vec_upd s x (e s)})" 
 
 lemma ffb_assign[simp]: "fb\<^sub>\<F> (x ::= e) Q = {s. (\<chi> j. ((($) s)(x := (e s))) j) \<in> Q}"
   unfolding vec_upd_def assign_def by (subst ffb_eq) simp
+
+\<comment> \<open> Nondeterministic assignments \<close>
 
 definition nondet_assign :: "'n \<Rightarrow> 'a^'n \<Rightarrow> ('a^'n) set" ("(2_ ::= ? )" [70] 61)
   where "(x ::= ?) = (\<lambda>s. {(vec_upd s x k)|k. True})"
@@ -77,7 +81,15 @@ lemma fbox_nondet_assign[simp]: "fb\<^sub>\<F> (x ::= ?) P = {s. \<forall>k. (\<
   unfolding ffb_eq nondet_assign_def vec_upd_eq apply(simp add: fun_eq_iff, safe)
   by (erule_tac x="(\<chi> j. if j = x then k else _ $ j)" in allE, auto)
 
-text \<open>The wlp of program composition is just the composition of the wlps.\<close>
+\<comment> \<open> Nondeterministic choice \<close>
+
+lemma ffb_choice: "fb\<^sub>\<F> (\<lambda>s. F s \<union> G s) P = fb\<^sub>\<F> F P \<inter> fb\<^sub>\<F> G P"
+  unfolding ffb_eq by auto
+
+lemma le_ffb_choice_iff: "P \<subseteq> fb\<^sub>\<F> (\<lambda>s. F s \<union> G s) Q \<longleftrightarrow> P \<subseteq> fb\<^sub>\<F> F Q \<and> P \<subseteq> fb\<^sub>\<F> G Q"
+  unfolding ffb_eq by auto
+
+\<comment> \<open> Sequential composition \<close>
 
 lemma ffb_kcomp[simp]: "fb\<^sub>\<F> (G ; F) P = fb\<^sub>\<F> G (fb\<^sub>\<F> F P)"
   unfolding ffb_eq by (auto simp: kcomp_def)
@@ -88,7 +100,7 @@ lemma hoare_kcomp:
   apply(subst ffb_kcomp) 
   by (rule order.trans[OF assms(1)]) (rule ffb_iso[OF assms(2)])
 
-text \<open>We also have an implementation of the conditional operator and its wlp.\<close>
+\<comment> \<open> Conditional statement \<close>
 
 definition ifthenelse :: "'a pred \<Rightarrow> ('a \<Rightarrow> 'b set) \<Rightarrow> ('a \<Rightarrow> 'b set) \<Rightarrow> ('a \<Rightarrow> 'b set)"
   ("IF _ THEN _ ELSE _" [64,64,64] 63) where 
@@ -107,7 +119,7 @@ lemma hoare_if_then_else:
   apply(subst (asm) ffb_eq)+
   unfolding ifthenelse_def by auto
 
-text\<open> We also deal with finite iteration. \<close>
+\<comment> \<open> Finite iteration \<close>
 
 lemma kpower_inv: "I \<le> {s. \<forall>y. y \<in> F s \<longrightarrow> y \<in> I} \<Longrightarrow> I \<le> {s. \<forall>y. y \<in> (kpower F n s) \<longrightarrow> y \<in> I}"
   apply(induct n, simp)
@@ -133,6 +145,9 @@ qed
 
 definition loopi :: "('a \<Rightarrow> 'a set) \<Rightarrow> 'a pred \<Rightarrow> ('a \<Rightarrow> 'a set)" ("LOOP _ INV _ " [64,64] 63)
   where "LOOP F INV I \<equiv> (kstar F)"
+
+lemma change_loopI: "LOOP X INV G = LOOP X INV I"
+  unfolding loopi_def by simp
 
 lemma ffb_loopI: "P \<le> {s. I s}  \<Longrightarrow> {s. I s} \<le> Q \<Longrightarrow> {s. I s} \<le> fb\<^sub>\<F> F {s. I s} \<Longrightarrow> P \<le> fb\<^sub>\<F> (LOOP F INV I) Q"
   unfolding loopi_def using ffb_kstarI[of "P"] by simp

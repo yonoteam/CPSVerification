@@ -1,9 +1,9 @@
 (*  Title:       Verification and refinement of hybrid systems in the relational KAT
-    Author:      Jonathan Julián Huerta y Munive, 2019
-    Maintainer:  Jonathan Julián Huerta y Munive <jjhuertaymunive1@sheffield.ac.uk>
+    Author:      Jonathan Julián Huerta y Munive, 2020
+    Maintainer:  Jonathan Julián Huerta y Munive <jonjulian23@gmail.com>
 *)
 
-section \<open> Verification and refinement of HS in the relational KAT \<close>
+subsection \<open>Verification of hybrid programs\<close>
 
 text \<open> We use our relational model to obtain verification and refinement components for hybrid 
 programs. We devise three methods for reasoning with evolution commands and their continuous 
@@ -11,87 +11,11 @@ dynamics: providing flows, solutions or invariants. \<close>
 
 theory HS_VC_KAT_rel
   imports 
-    "HS_VC_KAT"
     "../HS_ODEs"
+    "../HS_VC_KAT"
+    "../HS_VC_KA_rel"
 
 begin
-
-\<comment> \<open>We start by deleting some conflicting notation.\<close>
-
-no_notation Archimedean_Field.ceiling ("\<lceil>_\<rceil>")
-        and Archimedean_Field.floor_ceiling_class.floor ("\<lfloor>_\<rfloor>")
-        and tau ("\<tau>")
-        and n_op ("n _" [90] 91)
-
-subsection \<open> Relational model \<close> (* by Victor Gomes, Georg Struth *)
-
-context dioid_one_zero
-begin
-
-lemma power_inductl: "z + x \<cdot> y \<le> y \<Longrightarrow> (x ^ n) \<cdot> z \<le> y"
-  by(induct n, auto, metis mult.assoc mult_isol order_trans)
-
-lemma power_inductr: "z + y \<cdot> x \<le> y \<Longrightarrow> z \<cdot> (x ^ n) \<le> y"
-proof (induct n)
-  case 0 show ?case
-    using "0.prems" by auto
-  case Suc
-  {fix n
-    assume "z + y \<cdot> x \<le> y \<Longrightarrow> z \<cdot> x ^ n \<le> y"
-      and "z + y \<cdot> x \<le> y"
-    hence "z \<cdot> x ^ n \<le> y"
-      by auto
-    also have "z \<cdot> x ^ Suc n = z \<cdot> x \<cdot> x ^ n"
-      by (metis mult.assoc power_Suc)
-    moreover have "... = (z \<cdot> x ^ n) \<cdot> x"
-      by (metis mult.assoc power_commutes)
-    moreover have "... \<le> y \<cdot> x"
-      by (metis calculation(1) mult_isor)
-    moreover have "... \<le> y"
-      using \<open>z + y \<cdot> x \<le> y\<close> by auto
-    ultimately have "z \<cdot> x ^ Suc n \<le> y" by auto}
-  thus ?case
-    by (metis Suc)
-qed
-
-end
-
-interpretation rel_dioid: dioid_one_zero "(\<union>)" "(O)" Id "{}" "(\<subseteq>)" "(\<subset>)"
-  by (unfold_locales, auto)
-
-lemma power_is_relpow: "rel_dioid.power X n = X ^^ n"
-proof (induct n)
-  case 0 show ?case
-    by (metis rel_dioid.power_0 relpow.simps(1))
-  case Suc thus ?case
-    by (metis rel_dioid.power_Suc2 relpow.simps(2))
-qed
-
-lemma rel_star_def: "X^* = (\<Union>n. rel_dioid.power X n)"
-  by (simp add: power_is_relpow rtrancl_is_UN_relpow)
-
-lemma rel_star_contl: "X O Y^* = (\<Union>n. X O rel_dioid.power Y n)"
-  by (metis rel_star_def relcomp_UNION_distrib)
-
-lemma rel_star_contr: "X^* O Y = (\<Union>n. (rel_dioid.power X n) O Y)"
-  by (metis rel_star_def relcomp_UNION_distrib2)
-
-interpretation rel_ka: kleene_algebra "(\<union>)" "(O)" Id "{}" "(\<subseteq>)" "(\<subset>)" rtrancl
-proof
-  fix x y z :: "'a rel"
-  show "Id \<union> x O x\<^sup>* \<subseteq> x\<^sup>*"
-    by (metis order_refl r_comp_rtrancl_eq rtrancl_unfold)
-next
-  fix x y z :: "'a rel"
-  assume "z \<union> x O y \<subseteq> y"
-  thus "x\<^sup>* O z \<subseteq> y"
-    by (simp only: rel_star_contr, metis (lifting) SUP_le_iff rel_dioid.power_inductl)
-next
-  fix x y z :: "'a rel"
-  assume "z \<union> y O x \<subseteq> y"
-  thus "z O x\<^sup>* \<subseteq> y"
-    by (simp only: rel_star_contl, metis (lifting) SUP_le_iff rel_dioid.power_inductr)
-qed
 
 interpretation rel_tests: test_semiring "(\<union>)" "(O)" Id "{}" "(\<subseteq>)" "(\<subset>)" "\<lambda>x. Id \<inter> ( - x)"
   by (standard, auto)
@@ -105,13 +29,21 @@ definition rel_R :: "'a rel \<Rightarrow> 'a rel \<Rightarrow> 'a rel" where
 interpretation rel_rkat: rkat "(\<union>)" "(O)" Id "{}" "(\<subseteq>)" "(\<subset>)" rtrancl "(\<lambda>X. Id \<inter> - X)" rel_R
   by (standard, auto simp: rel_R_def rel_kat.Hoare_def)
 
-subsection \<open> Relational Store \<close>
+
+subsubsection \<open> Regular programs\<close>
+
+text \<open> Lemmas for manipulation of predicates in the relational model \<close>
 
 type_synonym 'a pred = "'a \<Rightarrow> bool"
 
 notation Id ("skip")
      and empty ("abort")
-     and relcomp (infixl ";" 70)
+     and relcomp (infixr ";" 75)
+
+no_notation Archimedean_Field.ceiling ("\<lceil>_\<rceil>")
+        and Archimedean_Field.floor_ceiling_class.floor ("\<lfloor>_\<rfloor>")
+        and tau ("\<tau>")
+        and n_op ("n _" [90] 91)
 
 definition p2r :: "'a pred \<Rightarrow> 'a rel" ("\<lceil>_\<rceil>") where
   "\<lceil>P\<rceil> = {(s,s) |s. P s}"
@@ -125,6 +57,8 @@ lemma p2r_simps[simp]:
   "(- Id) \<union> \<lceil>P\<rceil> = - \<lceil>\<lambda>s. \<not> P s\<rceil>"
   "Id \<inter> (- \<lceil>P\<rceil>) = \<lceil>\<lambda>s. \<not> P s\<rceil>"
   unfolding p2r_def by auto
+
+text \<open> Lemmas for verification condition generation \<close>
 
 lemma RdL_is_rRKAT: "(\<forall>x. {(x,x)}; R1 \<subseteq> {(x,x)}; R2) = (R1 \<subseteq> R2)"
   by auto (* Refinement in dL is that of rKAT *)
@@ -145,6 +79,11 @@ lemma sH_skip[simp]: "\<^bold>{P\<^bold>} skip \<^bold>{Q\<^bold>} \<longleftrig
 lemma H_skip: "\<^bold>{P\<^bold>} skip \<^bold>{P\<^bold>}"
   by simp
 
+\<comment> \<open> Tests \<close>
+
+lemma sH_test[simp]: "\<^bold>{P\<^bold>} \<lceil>R\<rceil> \<^bold>{Q\<^bold>} = (\<forall>s. P s \<longrightarrow> R s \<longrightarrow> Q s)"
+  by (subst rel_kat_H, simp add: p2r_def)
+
 \<comment> \<open> Abort \<close>
 
 lemma sH_abort[simp]: "\<^bold>{P\<^bold>} abort \<^bold>{Q\<^bold>} \<longleftrightarrow> True"
@@ -155,12 +94,6 @@ lemma H_abort: "\<^bold>{P\<^bold>} abort \<^bold>{Q\<^bold>}"
 
 \<comment> \<open> Assignments \<close>
 
-definition vec_upd :: "('a^'b) \<Rightarrow> 'b \<Rightarrow> 'a \<Rightarrow> 'a^'b"
-  where "vec_upd s i a \<equiv> (\<chi> j. ((($) s)(i := a)) j)"
-
-lemma vec_upd_eq: "vec_upd s i a = (\<chi> j. if j = i then a else s$j)"
-  by (simp add: vec_upd_def)
-
 definition assign :: "'b \<Rightarrow> ('a^'b \<Rightarrow> 'a) \<Rightarrow> ('a^'b) rel" ("(2_ ::= _)" [70, 65] 61) 
   where "(x ::= e) \<equiv> {(s, vec_upd s x (e s))| s. True}" 
 
@@ -170,12 +103,13 @@ lemma sH_assign[simp]: "\<^bold>{P\<^bold>} (x ::= e) \<^bold>{Q\<^bold>} \<long
 lemma H_assign: "P = (\<lambda>s. Q (\<chi> j. ((($) s)(x := (e s))) j)) \<Longrightarrow> \<^bold>{P\<^bold>} (x ::= e) \<^bold>{Q\<^bold>}"
   by simp
 
-\<comment> \<open> Nondeterministic Assignments \<close>
+\<comment> \<open> Nondeterministic assignments \<close>
 
 definition nondet_assign :: "'b \<Rightarrow> ('a^'b) rel" ("(2_ ::= ? )" [70] 61)
   where "(x ::= ?) = {(s,vec_upd s x k)|s k. True}"
 
-lemma sH_nondet_assign[simp]: "\<^bold>{P\<^bold>} (x ::= ?) \<^bold>{Q\<^bold>} \<longleftrightarrow> (\<forall>s. P s \<longrightarrow> (\<forall>k. Q (\<chi> j. ((($) s)(x := k)) j)))"
+lemma sH_nondet_assign[simp]: 
+  "\<^bold>{P\<^bold>} (x ::= ?) \<^bold>{Q\<^bold>} \<longleftrightarrow> (\<forall>s. P s \<longrightarrow> (\<forall>k. Q (\<chi> j. ((($) s)(x := k)) j)))"
   unfolding rel_kat_H vec_upd_def nondet_assign_def by (auto simp: fun_upd_def)
 
 lemma H_nondet_assign: "\<^bold>{\<lambda>s. \<forall>k. P (\<chi> j. ((($) s)(x := k)) j)\<^bold>} (x ::= ?) \<^bold>{P\<^bold>}"
@@ -188,6 +122,13 @@ lemma H_seq: "\<^bold>{P\<^bold>} X \<^bold>{R\<^bold>} \<Longrightarrow> \<^bol
 
 lemma sH_seq: "\<^bold>{P\<^bold>} X;Y \<^bold>{Q\<^bold>} = \<^bold>{P\<^bold>} X \<^bold>{\<lambda>s. \<forall>s'. (s, s') \<in> Y \<longrightarrow> Q s'\<^bold>}"
   unfolding rel_kat_H by auto
+
+lemma H_assignl: 
+  assumes "\<^bold>{K\<^bold>} X \<^bold>{Q\<^bold>}" 
+    and "\<forall>s. P s \<longrightarrow> K (vec_lambda ((($) s)(x := e s)))"
+  shows "\<^bold>{P\<^bold>} (x ::= e);X \<^bold>{Q\<^bold>}"
+  apply(rule H_seq, subst sH_assign)
+  using assms by auto
 
 \<comment> \<open> Nondeterministic Choice \<close>
 
@@ -237,7 +178,7 @@ lemma H_loopI: "\<^bold>{I\<^bold>} X \<^bold>{I\<^bold>} \<Longrightarrow> \<lc
   using rel_kat.H_loop_inv[of "\<lceil>P\<rceil>" "\<lceil>I\<rceil>" X "\<lceil>Q\<rceil>"] by auto
 
 
-subsection \<open> Verification of hybrid programs \<close>
+subsubsection \<open> Evolution commands \<close>
 
 \<comment> \<open>Verification by providing evolution\<close>
 
@@ -363,7 +304,7 @@ lemma R_abort: "abort \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
 lemma R_seq: "(rel_R \<lceil>P\<rceil> \<lceil>R\<rceil>) ; (rel_R \<lceil>R\<rceil> \<lceil>Q\<rceil>) \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
   using rel_rkat.R_seq by blast
 
-lemma R_seq_rule: "X \<le> rel_R \<lceil>P\<rceil> \<lceil>R\<rceil> \<Longrightarrow> Y \<le> rel_R \<lceil>R\<rceil> \<lceil>Q\<rceil> \<Longrightarrow> X; Y \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
+lemma R_seq_law: "X \<le> rel_R \<lceil>P\<rceil> \<lceil>R\<rceil> \<Longrightarrow> Y \<le> rel_R \<lceil>R\<rceil> \<lceil>Q\<rceil> \<Longrightarrow> X; Y \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
   unfolding rel_rkat.spec_def by (rule H_seq)
 
 lemmas R_seq_mono = relcomp_mono
@@ -373,7 +314,7 @@ lemmas R_seq_mono = relcomp_mono
 lemma R_choice: "(rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>) \<union> (rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>) \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
   using rel_rkat.R_choice[of "\<lceil>P\<rceil>" "\<lceil>Q\<rceil>"] .
 
-lemma R_choice_rule: "X \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil> \<Longrightarrow> Y \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil> \<Longrightarrow> X \<union> Y \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
+lemma R_choice_law: "X \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil> \<Longrightarrow> Y \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil> \<Longrightarrow> X \<union> Y \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
   using le_supI .
 
 lemma R_choice_mono: "P' \<subseteq> P \<Longrightarrow> Q' \<subseteq> Q \<Longrightarrow> P' \<union> Q' \<subseteq> P \<union> Q"
@@ -384,16 +325,19 @@ lemma R_choice_mono: "P' \<subseteq> P \<Longrightarrow> Q' \<subseteq> Q \<Long
 lemma R_assign: "(x ::= e) \<le> rel_R \<lceil>\<lambda>s. P (\<chi> j. ((($) s)(x := e s)) j)\<rceil> \<lceil>P\<rceil>"
   unfolding rel_rkat.spec_def by (rule H_assign, clarsimp simp: fun_upd_def)
 
-lemma R_assign_rule: "(\<forall>s. P s \<longrightarrow> Q (\<chi> j. ((($) s)(x := (e s))) j)) \<Longrightarrow> (x ::= e) \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
+lemma R_assign_law: 
+  "(\<forall>s. P s \<longrightarrow> Q (\<chi> j. ((($) s)(x := (e s))) j)) \<Longrightarrow> (x ::= e) \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
   unfolding sH_assign[symmetric] by (rule rel_rkat.R2)
 
-lemma R_assignl: "P = (\<lambda>s. R (\<chi> j. ((($) s)(x := e s)) j)) \<Longrightarrow> (x ::= e) ; rel_R \<lceil>R\<rceil> \<lceil>Q\<rceil> \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
-  apply(rule_tac R=R in R_seq_rule)
-  by (rule_tac R_assign_rule, simp_all)
+lemma R_assignl: "P = (\<lambda>s. R (\<chi> j. ((($) s)(x := e s)) j)) \<Longrightarrow> 
+  (x ::= e) ; rel_R \<lceil>R\<rceil> \<lceil>Q\<rceil> \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
+  apply(rule_tac R=R in R_seq_law)
+  by (rule_tac R_assign_law, simp_all)
 
-lemma R_assignr: "R = (\<lambda>s. Q (\<chi> j. ((($) s)(x := e s)) j)) \<Longrightarrow> rel_R \<lceil>P\<rceil> \<lceil>R\<rceil>; (x ::= e) \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
-  apply(rule_tac R=R in R_seq_rule, simp)
-  by (rule_tac R_assign_rule, simp)
+lemma R_assignr: "R = (\<lambda>s. Q (\<chi> j. ((($) s)(x := e s)) j)) \<Longrightarrow> 
+  rel_R \<lceil>P\<rceil> \<lceil>R\<rceil>; (x ::= e) \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
+  apply(rule_tac R=R in R_seq_law, simp)
+  by (rule_tac R_assign_law, simp)
 
 lemma "(x ::= e) ; rel_R \<lceil>Q\<rceil> \<lceil>Q\<rceil> \<le> rel_R \<lceil>(\<lambda>s. Q (\<chi> j. ((($) s)(x := e s)) j))\<rceil> \<lceil>Q\<rceil>"
   by (rule R_assignl) simp
@@ -406,36 +350,49 @@ lemma "rel_R \<lceil>Q\<rceil> \<lceil>(\<lambda>s. Q (\<chi> j. ((($) s)(x := e
 lemma R_nondet_assign: "(x ::= ?) \<le> rel_R \<lceil>\<lambda>s. \<forall>k. P (\<chi> j. ((($) s)(x := k)) j)\<rceil> \<lceil>P\<rceil>"
   unfolding rel_rkat.spec_def by (rule H_nondet_assign)
 
-lemma R_nondet_assign_rule: "(\<forall>s. P s \<longrightarrow> (\<forall>k. Q (\<chi> j. ((($) s)(x := k)) j))) \<Longrightarrow> (x ::= ?) \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
+lemma R_nondet_assign_law: 
+  "(\<forall>s. P s \<longrightarrow> (\<forall>k. Q (\<chi> j. ((($) s)(x := k)) j))) \<Longrightarrow> (x ::= ?) \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
   unfolding sH_nondet_assign[symmetric] by (rule rel_rkat.R2)
 
 \<comment> \<open> Conditional Statement \<close>
 
-lemma R_cond: "(IF B THEN rel_R \<lceil>\<lambda>s. B s \<and> P s\<rceil> \<lceil>Q\<rceil> ELSE rel_R \<lceil>\<lambda>s. \<not> B s \<and> P s\<rceil> \<lceil>Q\<rceil>) \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
+lemma R_cond: 
+  "(IF B THEN rel_R \<lceil>\<lambda>s. B s \<and> P s\<rceil> \<lceil>Q\<rceil> ELSE rel_R \<lceil>\<lambda>s. \<not> B s \<and> P s\<rceil> \<lceil>Q\<rceil>) \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
   using rel_rkat.R_cond[of "\<lceil>B\<rceil>" "\<lceil>P\<rceil>" "\<lceil>Q\<rceil>"] by simp
 
 lemma R_cond_mono: "X \<le> X' \<Longrightarrow> Y \<le> Y' \<Longrightarrow> (IF P THEN X ELSE Y) \<le> IF P THEN X' ELSE Y'"
   by (auto simp: rel_kat.kat_cond_def)
 
+lemma R_cond_law: "X \<le> rel_R \<lceil>\<lambda>s. B s \<and> P s\<rceil> \<lceil>Q\<rceil> \<Longrightarrow> Y \<le> rel_R \<lceil>\<lambda>s. \<not> B s \<and> P s\<rceil> \<lceil>Q\<rceil> \<Longrightarrow> 
+  (IF B THEN X ELSE Y) \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
+  by (rule order_trans; (rule R_cond_mono)?, (rule R_cond)?) auto
+
 \<comment> \<open> While Loop \<close>
 
-lemma R_while: "WHILE B INV I DO (rel_R \<lceil>\<lambda>s. P s \<and> B s\<rceil> \<lceil>P\<rceil>) \<le> rel_R \<lceil>P\<rceil> \<lceil>\<lambda>s. P s \<and> \<not> B s\<rceil>"
+lemma R_while: "K = (\<lambda>s. P s \<and> \<not> B s) \<Longrightarrow> 
+  WHILE B INV I DO (rel_R \<lceil>\<lambda>s. P s \<and> B s\<rceil> \<lceil>P\<rceil>) \<le> rel_R \<lceil>P\<rceil> \<lceil>K\<rceil>"
   unfolding rel_kat.kat_while_inv_def using rel_rkat.R_while[of "\<lceil>B\<rceil>" "\<lceil>P\<rceil>"] by simp
 
 lemma R_whileI:
-  "X \<le> rel_R \<lceil>I\<rceil> \<lceil>I\<rceil> \<Longrightarrow> \<lceil>P\<rceil> \<le> \<lceil>\<lambda>s. I s \<and> B s\<rceil> \<Longrightarrow> \<lceil>\<lambda>s. I s \<and> \<not> B s\<rceil> \<le> \<lceil>Q\<rceil> \<Longrightarrow> WHILE B INV I DO X \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
+  "X \<le> rel_R \<lceil>I\<rceil> \<lceil>I\<rceil> \<Longrightarrow> \<lceil>P\<rceil> \<le> \<lceil>\<lambda>s. I s \<and> B s\<rceil> \<Longrightarrow> \<lceil>\<lambda>s. I s \<and> \<not> B s\<rceil> \<le> \<lceil>Q\<rceil> \<Longrightarrow> 
+  WHILE B INV I DO X \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
   by (rule rel_rkat.R2, rule rel_kat.H_while_inv, auto simp: rel_kat_H rel_rkat.spec_def)
 
 lemma R_while_mono: "X \<le> X' \<Longrightarrow> (WHILE P INV I DO X) \<subseteq> WHILE P INV I DO X'"
   by (simp add: rel_dioid.mult_isol rel_dioid.mult_isor rel_ka.conway.dagger_iso 
       rel_kat.kat_while_def rel_kat.kat_while_inv_def)
 
+lemma R_while_law: "X \<le> rel_R \<lceil>\<lambda>s. P s \<and> B s\<rceil> \<lceil>P\<rceil> \<Longrightarrow> Q = (\<lambda>s. P s \<and> \<not> B s) \<Longrightarrow> 
+  (WHILE B INV I DO X) \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
+  by (rule order_trans; (rule R_while_mono)?, (rule R_while)?)
+
 \<comment> \<open> Finite Iteration \<close>
 
 lemma R_loop:"LOOP rel_R \<lceil>P\<rceil> \<lceil>P\<rceil> INV I \<le> rel_R \<lceil>P\<rceil> \<lceil>P\<rceil>"
   using rel_rkat.R_loop .
 
-lemma R_loopI: "X \<le> rel_R \<lceil>I\<rceil> \<lceil>I\<rceil> \<Longrightarrow> \<lceil>P\<rceil> \<le> \<lceil>I\<rceil> \<Longrightarrow> \<lceil>I\<rceil> \<le> \<lceil>Q\<rceil> \<Longrightarrow> LOOP X INV I \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
+lemma R_loopI: 
+  "X \<le> rel_R \<lceil>I\<rceil> \<lceil>I\<rceil> \<Longrightarrow> \<lceil>P\<rceil> \<le> \<lceil>I\<rceil> \<Longrightarrow> \<lceil>I\<rceil> \<le> \<lceil>Q\<rceil> \<Longrightarrow> LOOP X INV I \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
   unfolding rel_rkat.spec_def using H_loopI by blast
 
 lemma R_loop_mono: "X \<le> X' \<Longrightarrow> LOOP X INV I \<subseteq> LOOP X' INV I"
@@ -448,7 +405,7 @@ lemma R_g_evol:
   shows "(EVOL \<phi> G U) \<le> rel_R \<lceil>\<lambda>s. \<forall>t\<in>U s. (\<forall>\<tau>\<in>down (U s) t. G (\<phi> \<tau> s)) \<longrightarrow> P (\<phi> t s)\<rceil> \<lceil>P\<rceil>"
   unfolding rel_rkat.spec_def by (rule H_g_evol, simp)
 
-lemma R_g_evol_rule: 
+lemma R_g_evol_law: 
   fixes \<phi> :: "('a::preorder) \<Rightarrow> 'b \<Rightarrow> 'b"
   shows "(\<forall>s. P s \<longrightarrow> (\<forall>t\<in>U s. (\<forall>\<tau>\<in>down (U s) t. G (\<phi> \<tau> s)) \<longrightarrow> Q (\<phi> t s))) \<Longrightarrow> (EVOL \<phi> G U) \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
   unfolding sH_g_evol[symmetric] rel_rkat.spec_def .
@@ -457,15 +414,15 @@ lemma R_g_evoll:
   fixes \<phi> :: "('a::preorder) \<Rightarrow> 'b \<Rightarrow> 'b"
   shows "P = (\<lambda>s. \<forall>t\<in>U s. (\<forall>\<tau>\<in>down (U s) t. G (\<phi> \<tau> s)) \<longrightarrow> R (\<phi> t s)) \<Longrightarrow> 
   (EVOL \<phi> G U) ; rel_R \<lceil>R\<rceil> \<lceil>Q\<rceil> \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
-  apply(rule_tac R=R in R_seq_rule)
-  by (rule_tac R_g_evol_rule, simp_all)
+  apply(rule_tac R=R in R_seq_law)
+  by (rule_tac R_g_evol_law, simp_all)
 
 lemma R_g_evolr: 
   fixes \<phi> :: "('a::preorder) \<Rightarrow> 'b \<Rightarrow> 'b"
   shows "R = (\<lambda>s. \<forall>t\<in>U s. (\<forall>\<tau>\<in>down (U s) t. G (\<phi> \<tau> s)) \<longrightarrow> Q (\<phi> t s)) \<Longrightarrow> 
   rel_R \<lceil>P\<rceil> \<lceil>R\<rceil>; (EVOL \<phi> G U) \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
-  apply(rule_tac R=R in R_seq_rule, simp)
-  by (rule_tac R_g_evol_rule, simp)
+  apply(rule_tac R=R in R_seq_law, simp)
+  by (rule_tac R_g_evol_law, simp)
 
 lemma 
   fixes \<phi> :: "('a::preorder) \<Rightarrow> 'b \<Rightarrow> 'b"
@@ -484,7 +441,8 @@ begin
 
 lemma R_g_ode_subset: 
   assumes "\<And>s. s \<in> S \<Longrightarrow> 0 \<in> U s \<and> is_interval (U s) \<and> U s \<subseteq> T"
-  shows "(x\<acute>= (\<lambda>t. f) & G on U S @ 0) \<le> rel_R \<lceil>\<lambda>s. s\<in>S \<longrightarrow> (\<forall>t\<in>U s. (\<forall>\<tau>\<in>down (U s) t. G (\<phi> \<tau> s)) \<longrightarrow> P (\<phi> t s))\<rceil> \<lceil>P\<rceil>"
+  shows "(x\<acute>= (\<lambda>t. f) & G on U S @ 0) \<le> 
+  rel_R \<lceil>\<lambda>s. s\<in>S \<longrightarrow> (\<forall>t\<in>U s. (\<forall>\<tau>\<in>down (U s) t. G (\<phi> \<tau> s)) \<longrightarrow> P (\<phi> t s))\<rceil> \<lceil>P\<rceil>"
   unfolding rel_rkat.spec_def by (rule H_g_ode_subset[OF assms], simp_all)
 
 lemma R_g_ode_rule_subset: 
@@ -497,21 +455,21 @@ lemma R_g_odel_subset:
   assumes "\<And>s. s \<in> S \<Longrightarrow> 0 \<in> U s \<and> is_interval (U s) \<and> U s \<subseteq> T"
     and "P = (\<lambda>s. \<forall>t\<in>U s. (\<forall>\<tau>\<in>down (U s) t. G (\<phi> \<tau> s)) \<longrightarrow> R (\<phi> t s))"
   shows "(x\<acute>= (\<lambda>t. f) & G on U S @ 0) ; rel_R \<lceil>R\<rceil> \<lceil>Q\<rceil> \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
-  apply (rule_tac R=R in R_seq_rule, rule_tac R_g_ode_rule_subset)
+  apply (rule_tac R=R in R_seq_law, rule_tac R_g_ode_rule_subset)
   by (simp_all add: assms)
 
 lemma R_g_oder_subset: 
   assumes "\<And>s. s \<in> S \<Longrightarrow> 0 \<in> U s \<and> is_interval (U s) \<and> U s \<subseteq> T"
     and "R = (\<lambda>s. \<forall>t\<in>U s. (\<forall>\<tau>\<in>down (U s) t. G (\<phi> \<tau> s)) \<longrightarrow> Q (\<phi> t s))"
   shows "rel_R \<lceil>P\<rceil> \<lceil>R\<rceil>; (x\<acute>= (\<lambda>t. f) & G on U S @ 0) \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
-  apply (rule_tac R=R in R_seq_rule, simp)
+  apply (rule_tac R=R in R_seq_law, simp)
   by (rule_tac R_g_ode_rule_subset, simp_all add: assms)
 
-lemma R_g_ode:
-"(x\<acute>= (\<lambda>t. f) & G on (\<lambda>s. T) S @ 0) \<le> rel_R \<lceil>\<lambda>s. s\<in>S \<longrightarrow> (\<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (\<phi> \<tau> s)) \<longrightarrow> P (\<phi> t s))\<rceil> \<lceil>P\<rceil>"
+lemma R_g_ode: "(x\<acute>= (\<lambda>t. f) & G on (\<lambda>s. T) S @ 0) \<le> 
+  rel_R \<lceil>\<lambda>s. s\<in>S \<longrightarrow> (\<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (\<phi> \<tau> s)) \<longrightarrow> P (\<phi> t s))\<rceil> \<lceil>P\<rceil>"
   by (rule R_g_ode_subset, auto simp: init_time interval_time)
 
-lemma R_g_ode_rule: "(\<forall>s\<in>S. P s \<longrightarrow> (\<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (\<phi> \<tau> s)) \<longrightarrow> Q (\<phi> t s))) \<Longrightarrow> 
+lemma R_g_ode_law: "(\<forall>s\<in>S. P s \<longrightarrow> (\<forall>t\<in>T. (\<forall>\<tau>\<in>down T t. G (\<phi> \<tau> s)) \<longrightarrow> Q (\<phi> t s))) \<Longrightarrow> 
   (x\<acute>= (\<lambda>t. f) & G on (\<lambda>s. T) S @ 0) \<le> rel_R \<lceil>P\<rceil> \<lceil>Q\<rceil>"
   unfolding sH_g_ode[symmetric] by (rule rel_rkat.R2)
 
@@ -539,7 +497,8 @@ lemma R_g_ode_inv: "diff_invariant I f T S t\<^sub>0 G \<Longrightarrow> \<lceil
 
 subsection \<open> Derivation of the rules of dL \<close>
 
-text \<open> We derive a generalised version of some domain specific rules of differential dynamic logic (dL).\<close>
+text \<open> We derive rules of differential dynamic logic (dL). This allows the components to reason 
+in the style of that logic. \<close>
 
 abbreviation g_dl_ode ::"(('a::banach)\<Rightarrow>'a) \<Rightarrow> 'a pred \<Rightarrow> 'a rel" ("(1x\<acute>=_ & _)") 
   where "(x\<acute>=f & G) \<equiv> (x\<acute>= (\<lambda>t. f) & G on (\<lambda>s. {t. t \<ge> 0}) UNIV @ 0)"

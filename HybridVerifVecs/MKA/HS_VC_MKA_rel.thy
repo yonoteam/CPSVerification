@@ -1,87 +1,22 @@
 (*  Title:       Verification components with relational MKA 
-    Author:      Jonathan Julián Huerta y Munive, 2019
-    Maintainer:  Jonathan Julián Huerta y Munive <jjhuertaymunive1@sheffield.ac.uk>
+    Author:      Jonathan Julián Huerta y Munive, 2020
+    Maintainer:  Jonathan Julián Huerta y Munive <jonjulian23@gmail.com>
 *)
 
+subsection \<open>Verification of hybrid programs\<close>
+
+text \<open> We show that relations form an antidomain Kleene algebra. This allows us to inherit 
+the rules of the wlp calculus for regular programs. Finally, we derive three methods for 
+verifying correctness specifications for the continuous dynamics of hybrid systems in this 
+setting. \<close>
+
 theory HS_VC_MKA_rel
-  imports "../HS_ODEs" "HS_VC_MKA"
+  imports 
+    "../HS_ODEs" 
+    "../HS_VC_MKA"
+    "../HS_VC_KA_rel"
 
 begin
-
-text \<open> We follow Gomes and Struth in showing that relations form an antidomain Kleene algebra. 
-These allows us to inherit the rules of the wlp calculus for regular programs. Finally, we derive 
-three methods for verifying correctness specifications for the continuous dynamics of hybris 
-systems in this setting. \<close>
-
-subsection \<open> Relational model \<close> (* by Victor Gomes, Georg Struth *)
-
-context dioid_one_zero
-begin
-
-lemma power_inductl: "z + x \<cdot> y \<le> y \<Longrightarrow> (x ^ n) \<cdot> z \<le> y"
-  by(induct n, auto, metis mult.assoc mult_isol order_trans)
-
-lemma power_inductr: "z + y \<cdot> x \<le> y \<Longrightarrow> z \<cdot> (x ^ n) \<le> y"
-proof (induct n)
-  case 0 show ?case
-    using "0.prems" by auto
-  case Suc
-  {fix n
-    assume "z + y \<cdot> x \<le> y \<Longrightarrow> z \<cdot> x ^ n \<le> y"
-      and "z + y \<cdot> x \<le> y"
-    hence "z \<cdot> x ^ n \<le> y"
-      by auto
-    also have "z \<cdot> x ^ Suc n = z \<cdot> x \<cdot> x ^ n"
-      by (metis mult.assoc power_Suc)
-    moreover have "... = (z \<cdot> x ^ n) \<cdot> x"
-      by (metis mult.assoc power_commutes)
-    moreover have "... \<le> y \<cdot> x"
-      by (metis calculation(1) mult_isor)
-    moreover have "... \<le> y"
-      using \<open>z + y \<cdot> x \<le> y\<close> by auto
-    ultimately have "z \<cdot> x ^ Suc n \<le> y" by auto}
-  thus ?case
-    by (metis Suc)
-qed
-
-end
-
-interpretation rel_dioid: dioid_one_zero "(\<union>)" "(O)" Id "{}" "(\<subseteq>)" "(\<subset>)"
-  by (unfold_locales, auto)
-
-lemma power_is_relpow: "rel_dioid.power X n = X ^^ n"
-proof (induct n)
-  case 0 show ?case
-    by (metis rel_dioid.power_0 relpow.simps(1))
-  case Suc thus ?case
-    by (metis rel_dioid.power_Suc2 relpow.simps(2))
-qed
-
-lemma rel_star_def: "X^* = (\<Union>n. rel_dioid.power X n)"
-  by (simp add: power_is_relpow rtrancl_is_UN_relpow)
-
-lemma rel_star_contl: "X O Y^* = (\<Union>n. X O rel_dioid.power Y n)"
-  by (metis rel_star_def relcomp_UNION_distrib)
-
-lemma rel_star_contr: "X^* O Y = (\<Union>n. (rel_dioid.power X n) O Y)"
-  by (metis rel_star_def relcomp_UNION_distrib2)
-
-interpretation rel_ka: kleene_algebra "(\<union>)" "(O)" Id "{}" "(\<subseteq>)" "(\<subset>)" rtrancl
-proof
-  fix x y z :: "'a rel"
-  show "Id \<union> x O x\<^sup>* \<subseteq> x\<^sup>*"
-    by (metis order_refl r_comp_rtrancl_eq rtrancl_unfold)
-next
-  fix x y z :: "'a rel"
-  assume "z \<union> x O y \<subseteq> y"
-  thus "x\<^sup>* O z \<subseteq> y"
-    by (simp only: rel_star_contr, metis (lifting) SUP_le_iff rel_dioid.power_inductl)
-next
-  fix x y z :: "'a rel"
-  assume "z \<union> y O x \<subseteq> y"
-  thus "z O x\<^sup>* \<subseteq> y"
-    by (simp only: rel_star_contl, metis (lifting) SUP_le_iff rel_dioid.power_inductr)
-qed
 
 definition rel_ad :: "'a rel \<Rightarrow> 'a rel" where
   "rel_ad R = {(x,x) | x. \<not> (\<exists>y. (x,y) \<in> R)}"
@@ -90,7 +25,9 @@ interpretation rel_aka: antidomain_kleene_algebra rel_ad "(\<union>)" "(O)" Id "
   by  unfold_locales (auto simp: rel_ad_def)
 
 
-subsection \<open> Store and weakest preconditions \<close>
+subsubsection \<open> Regular programs\<close>
+
+text \<open> Lemmas for manipulation of predicates in the relational model \<close>
 
 type_synonym 'a pred = "'a \<Rightarrow> bool"
 
@@ -117,23 +54,25 @@ lemma p2r_simps[simp]:
 lemma in_p2r [simp]: "(a,b) \<in> \<lceil>P\<rceil> = (P a \<and> a = b)"
   by (auto simp: p2r_def)
 
+text \<open> Lemmas for verification condition generation \<close>
+
 lemma wp_rel: "wp R \<lceil>P\<rceil> = \<lceil>\<lambda> x. \<forall> y. (x,y) \<in> R \<longrightarrow> P y\<rceil>"
   unfolding rel_aka.fbox_def p2r_def rel_ad_def by auto
+
+\<comment> \<open> Tests \<close>
 
 lemma wp_test[simp]: "wp \<lceil>P\<rceil> \<lceil>Q\<rceil> = \<lceil>\<lambda>s. P s \<longrightarrow> Q s\<rceil>"
   by (subst wp_rel, simp add: p2r_def)
 
-definition vec_upd :: "('a^'b) \<Rightarrow> 'b \<Rightarrow> 'a \<Rightarrow> 'a^'b"
-  where "vec_upd s i a = (\<chi> j. ((($) s)(i := a)) j)"
-
-lemma vec_upd_eq: "vec_upd s i a = (\<chi> j. if j = i then a else s$j)"
-  by (simp add: vec_upd_def)
+\<comment> \<open> Assignments \<close>
 
 definition assign :: "'b \<Rightarrow> ('a^'b \<Rightarrow> 'a) \<Rightarrow> ('a^'b) rel" ("(2_ ::= _)" [70, 65] 61) 
   where "(x ::= e) = {(s, vec_upd s x (e s))| s. True}" 
 
 lemma wp_assign [simp]: "wp (x ::= e) \<lceil>Q\<rceil> = \<lceil>\<lambda>s. Q (\<chi> j. ((($) s)(x := (e s))) j)\<rceil>"
   unfolding wp_rel vec_upd_def assign_def by (auto simp: fun_upd_def)
+
+\<comment> \<open> Nondeterministic assignments \<close>
 
 definition nondet_assign :: "'b \<Rightarrow> ('a^'b) rel" ("(2_ ::= ? )" [70] 61)
   where "(x ::= ?) = {(s,vec_upd s x k)|s k. True}"
@@ -142,11 +81,17 @@ lemma wp_nondet_assign[simp]: "wp (x ::= ?) \<lceil>P\<rceil> = \<lceil>\<lambda
   unfolding wp_rel nondet_assign_def vec_upd_eq apply(clarsimp, safe)
   by (erule_tac x="(\<chi> j. if j = x then k else s $ j)" in allE, auto)
 
+\<comment> \<open> Nondeterministic choice \<close>
+
 lemma le_wp_choice_iff: "\<lceil>P\<rceil> \<le> wp (X \<union> Y) \<lceil>Q\<rceil> \<longleftrightarrow> \<lceil>P\<rceil> \<le> wp X \<lceil>Q\<rceil> \<and> \<lceil>P\<rceil> \<le> wp Y \<lceil>Q\<rceil>"
   using rel_aka.le_fbox_choice_iff[of "\<lceil>P\<rceil>"] by simp
 
+\<comment> \<open> Conditional statement \<close>
+
 abbreviation cond_sugar :: "'a pred \<Rightarrow> 'a rel \<Rightarrow> 'a rel \<Rightarrow> 'a rel" ("IF _ THEN _ ELSE _" [64,64] 63) 
   where "IF P THEN X ELSE Y \<equiv> rel_aka.aka_cond \<lceil>P\<rceil> X Y"
+
+\<comment> \<open> Finite iteration \<close>
 
 abbreviation loopi_sugar :: "'a rel \<Rightarrow> 'a pred \<Rightarrow> 'a rel" ("LOOP _ INV _ " [64,64] 63)
   where "LOOP R INV I \<equiv> rel_aka.aka_loopi R \<lceil>I\<rceil>"
@@ -163,7 +108,7 @@ lemma wp_loopI_break:
   using rel_aka.fbox_loopi_break[of "\<lceil>P\<rceil>"] by auto
 
 
-subsection \<open> Verification of hybrid programs \<close>
+subsubsection \<open> Evolution commands \<close>
 
 text \<open>Verification by providing evolution\<close>
 
@@ -273,10 +218,10 @@ lemma wp_g_odei: "\<lceil>P\<rceil> \<le> \<lceil>I\<rceil> \<Longrightarrow> \<
   by (rule rel_aka.fbox_iso, simp)
 
 
-subsection \<open> Derivation of the rules of dL \<close>
+subsubsection \<open> Derivation of the rules of dL \<close>
 
-text\<open> We derive domain specific rules of differential dynamic logic (dL). First we present a 
-generalised version, then we show the rules as instances of the general ones.\<close>
+text \<open> We derive rules of differential dynamic logic (dL). This allows the components to reason 
+in the style of that logic. \<close>
 
 abbreviation g_dl_ode ::"(('a::banach)\<Rightarrow>'a) \<Rightarrow> 'a pred \<Rightarrow> 'a rel" ("(1x\<acute>=_ & _)") 
   where "(x\<acute>=f & G) \<equiv> (x\<acute>= (\<lambda>t. f) & G on (\<lambda>s. {t. t \<ge> 0}) UNIV @ 0)"

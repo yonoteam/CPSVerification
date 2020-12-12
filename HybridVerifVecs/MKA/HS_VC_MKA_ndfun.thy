@@ -1,108 +1,49 @@
 (*  Title:       Verification components with MKA and non-deterministic functions
-    Author:      Jonathan Julián Huerta y Munive, 2019
-    Maintainer:  Jonathan Julián Huerta y Munive <jjhuertaymunive1@sheffield.ac.uk>
+    Author:      Jonathan Julián Huerta y Munive, 2020
+    Maintainer:  Jonathan Julián Huerta y Munive <jonjulian23@gmail.com>
 *)
 
-section \<open> Verification components with MKA and non-deterministic functions\<close>
+subsection \<open>Verification of hybrid programs\<close>
 
-text \<open> We show that non-deterministic endofunctions form an antidomain Kleene algebra 
-(hence a modal Kleene algebra). We use MKA's forward box operator to derive rules for weakest 
-liberal preconditions (wlps) of hybrid programs. Finally, we derive our three methods 
-for verifying correctness specifications for the continuous dynamics of HS. \<close>
+text \<open> We show that non-deterministic functions or state transformers form an antidomain 
+Kleene algebra. We use this algebra's forward box operator to derive rules for weakest liberal 
+preconditions (wlps) of regular programs. Finally, we derive our three methods for verifying 
+correctness specifications for the continuous dynamics of HS. \<close>
 
 theory HS_VC_MKA_ndfun
   imports 
-    "../HS_ODEs" HS_VC_MKA
-    "Transformer_Semantics.Kleisli_Quantale" 
-    "KAD.Modal_Kleene_Algebra"
+    "../HS_ODEs"
+    "../HS_VC_MKA"
+    "../HS_VC_KA_ndfun"
 
 begin
-
-
-
-subsection \<open> Non-deterministic functions \<close>
-
-text\<open> Our semantics now corresponds to nondeterministic functions @{typ "'a nd_fun"}. Below we prove
-some auxiliary lemmas for them and show that they form an antidomain kleene algebra. The proof just 
-extends the results on the Transformer\_Semantics.Kleisli\_Quantale theory.\<close>
-
-
-notation Abs_nd_fun ("_\<^sup>\<bullet>" [101] 100) 
-     and Rep_nd_fun ("_\<^sub>\<bullet>" [101] 100)
-     and fbox ("wp")
-
-declare Abs_nd_fun_inverse [simp]
-
-lemma nd_fun_ext: "(\<And>x. (f\<^sub>\<bullet>) x = (g\<^sub>\<bullet>) x) \<Longrightarrow> f = g"
-  apply(subgoal_tac "Rep_nd_fun f = Rep_nd_fun g")
-  using Rep_nd_fun_inject 
-   apply blast
-  by(rule ext, simp)
-
-lemma nd_fun_eq_iff: "(f = g) = (\<forall>x. (f\<^sub>\<bullet>) x = (g\<^sub>\<bullet>) x)"
-  by (auto simp: nd_fun_ext)
 
 instantiation nd_fun :: (type) antidomain_kleene_algebra
 begin
 
-definition "ad f = (\<lambda>x. if ((f\<^sub>\<bullet>) x = {}) then {x} else {})\<^sup>\<bullet>"
+definition "ad f = (\<lambda>s. if ((f\<^sub>\<bullet>) s = {}) then {s} else {})\<^sup>\<bullet>"
 
-definition "0 = \<zeta>\<^sup>\<bullet>"
-
-definition "star_nd_fun f = qstar f" for f::"'a nd_fun"
-
-definition "f + g = ((f\<^sub>\<bullet>) \<squnion> (g\<^sub>\<bullet>))\<^sup>\<bullet>"
-
-named_theorems nd_fun_aka "antidomain kleene algebra properties for nondeterministic functions."
-
-lemma nd_fun_plus_assoc[nd_fun_aka]: "x + y + z = x + (y + z)"
-  and nd_fun_plus_comm[nd_fun_aka]: "x + y = y + x"
-  and nd_fun_plus_idem[nd_fun_aka]: "x + x = x" for x::"'a nd_fun"
-  unfolding plus_nd_fun_def by (simp add: ksup_assoc, simp_all add: ksup_comm)
-
-lemma nd_fun_distr[nd_fun_aka]: "(x + y) \<cdot> z = x \<cdot> z + y \<cdot> z"
-  and nd_fun_distl[nd_fun_aka]: "x \<cdot> (y + z) = x \<cdot> y + x \<cdot> z" for x::"'a nd_fun"
-  unfolding plus_nd_fun_def times_nd_fun_def by (simp_all add: kcomp_distr kcomp_distl)
-
-lemma nd_fun_plus_zerol[nd_fun_aka]: "0 + x = x" 
-  and nd_fun_mult_zerol[nd_fun_aka]: "0 \<cdot> x = 0"
-  and nd_fun_mult_zeror[nd_fun_aka]: "x \<cdot> 0 = 0" for x::"'a nd_fun"
-  unfolding plus_nd_fun_def zero_nd_fun_def times_nd_fun_def by auto
-
-lemma nd_fun_leq[nd_fun_aka]: "(x \<le> y) = (x + y = y)"
-  and nd_fun_less[nd_fun_aka]: "(x < y) = (x + y = y \<and> x \<noteq> y)"
-  and nd_fun_leq_add[nd_fun_aka]: "z \<cdot> x \<le> z \<cdot> (x + y)" for x::"'a nd_fun"
-  unfolding less_eq_nd_fun_def less_nd_fun_def plus_nd_fun_def times_nd_fun_def sup_fun_def
-  by (unfold nd_fun_eq_iff le_fun_def, auto simp: kcomp_def)
-
-lemma nd_fun_ad_zero[nd_fun_aka]: "ad x \<cdot> x = 0"
-  and nd_fun_ad[nd_fun_aka]: "ad (x \<cdot> y) + ad (x \<cdot> ad (ad y)) = ad (x \<cdot> ad (ad y))"
-  and nd_fun_ad_one[nd_fun_aka]: "ad (ad x) + ad x = 1" for x::"'a nd_fun"
+lemma nd_fun_ad_zero[nd_fun_ka]: "ad x \<cdot> x = 0"
+  and nd_fun_ad[nd_fun_ka]: "ad (x \<cdot> y) + ad (x \<cdot> ad (ad y)) = ad (x \<cdot> ad (ad y))"
+  and nd_fun_ad_one[nd_fun_ka]: "ad (ad x) + ad x = 1" for x::"'a nd_fun"
   unfolding antidomain_op_nd_fun_def times_nd_fun_def plus_nd_fun_def zero_nd_fun_def 
   by (auto simp: nd_fun_eq_iff kcomp_def one_nd_fun_def)
 
-lemma nd_star_one[nd_fun_aka]: "1 + x \<cdot> x\<^sup>\<star> \<le> x\<^sup>\<star>"
-  and nd_star_unfoldl[nd_fun_aka]: "z + x \<cdot> y \<le> y \<Longrightarrow> x\<^sup>\<star> \<cdot> z \<le> y"
-  and nd_star_unfoldr[nd_fun_aka]: "z + y \<cdot> x \<le> y \<Longrightarrow> z \<cdot> x\<^sup>\<star> \<le> y" for x::"'a nd_fun"
-  unfolding plus_nd_fun_def star_nd_fun_def
-    apply(simp_all add: fun_star_inductl sup_nd_fun.rep_eq fun_star_inductr)
-  by (metis order_refl sup_nd_fun.rep_eq uwqlka.conway.dagger_unfoldl_eq)
-
 instance
   apply intro_classes
-  using nd_fun_aka by simp_all
+  using nd_fun_ka by simp_all
 
 end
 
-subsection \<open> Store and weakest preconditions \<close>
+subsubsection \<open> Regular programs\<close>
 
-text\<open> Now that we know that nondeterministic functions form an Antidomain Kleene Algebra, we give
+text\<open> Now that we know that non-deterministic functions form an Antidomain Kleene Algebra, we give
  a lifting operation from predicates to @{typ "'a nd_fun"} and use it to compute weakest liberal
 preconditions.\<close>
 
-\<comment> \<open>We start by deleting some notation and introducing some new.\<close>
-
 type_synonym 'a pred = "'a \<Rightarrow> bool"
+
+notation fbox ("wp")
 
 no_notation Archimedean_Field.ceiling ("\<lceil>_\<rceil>")
         and Relation.relcomp (infixl ";" 75)
@@ -122,24 +63,31 @@ lemma p2ndf_simps[simp]:
   unfolding less_eq_nd_fun_def times_nd_fun_def plus_nd_fun_def ads_d_def 
   by (auto simp: nd_fun_eq_iff kcomp_def le_fun_def antidomain_op_nd_fun_def)
 
+text \<open> Lemmas for verification condition generation \<close>
+
 lemma wp_nd_fun: "wp F \<lceil>P\<rceil> = \<lceil>\<lambda>s. \<forall>s'. s' \<in> ((F\<^sub>\<bullet>) s) \<longrightarrow> P s'\<rceil>"
   apply(simp add: fbox_def antidomain_op_nd_fun_def)
   by(rule nd_fun_ext, auto simp: Rep_comp_hom kcomp_prop)
 
-definition vec_upd :: "('a^'b) \<Rightarrow> 'b \<Rightarrow> 'a \<Rightarrow> 'a^'b"
-  where "vec_upd s i a = (\<chi> j. ((($) s)(i := a)) j)"
+\<comment> \<open> Skip \<close>
 
-lemma vec_upd_eq: "vec_upd s i a = (\<chi> j. if j = i then a else s$j)"
-  by (simp add: vec_upd_def)
+abbreviation skip :: "'a nd_fun"
+  where "skip \<equiv> 1"
+
+\<comment> \<open> Tests \<close>
+
+lemma wp_test[simp]: "wp \<lceil>P\<rceil> \<lceil>Q\<rceil> = \<lceil>\<lambda>s. P s \<longrightarrow> Q s\<rceil>"
+  by (subst wp_nd_fun, simp)
+
+\<comment> \<open> Assignments \<close>
 
 definition assign :: "'b \<Rightarrow> ('a^'b \<Rightarrow> 'a) \<Rightarrow> ('a^'b) nd_fun" ("(2_ ::= _)" [70, 65] 61) 
   where "(x ::= e) = (\<lambda>s. {vec_upd s x (e s)})\<^sup>\<bullet>" 
 
-abbreviation seq_comp :: "'a nd_fun \<Rightarrow> 'a nd_fun \<Rightarrow> 'a nd_fun" (infixl ";" 75)
-  where "f ; g \<equiv> f \<cdot> g"
-
 lemma wp_assign[simp]: "wp (x ::= e) \<lceil>Q\<rceil> = \<lceil>\<lambda>s. Q (\<chi> j. ((($) s)(x := (e s))) j)\<rceil>"
   unfolding wp_nd_fun nd_fun_eq_iff vec_upd_def assign_def by auto
+
+\<comment> \<open> Nondeterministic assignments \<close>
 
 definition nondet_assign :: "'b \<Rightarrow> ('a^'b) nd_fun" ("(2_ ::= ? )" [70] 61)
   where "(x ::= ?) = (\<lambda>s. {(vec_upd s x k)|k. True})\<^sup>\<bullet>"
@@ -148,14 +96,28 @@ lemma wp_nondet_assign[simp]: "wp (x ::= ?) \<lceil>P\<rceil> = \<lceil>\<lambda
   unfolding wp_nd_fun nondet_assign_def vec_upd_eq apply(clarsimp, safe)
   by (erule_tac x="(\<chi> j. if j = x then k else s $ j)" in allE, auto)
 
-abbreviation skip :: "'a nd_fun"
-  where "skip \<equiv> 1"
+\<comment> \<open> Nondeterministic choice \<close>
+
+lemma le_wp_choice_iff: "\<lceil>P\<rceil> \<le> wp (X + Y) \<lceil>Q\<rceil> \<longleftrightarrow> \<lceil>P\<rceil> \<le> wp X \<lceil>Q\<rceil> \<and> \<lceil>P\<rceil> \<le> wp Y \<lceil>Q\<rceil>"
+  using le_fbox_choice_iff[of "\<lceil>P\<rceil>"] by simp
+
+\<comment> \<open> Sequential composition \<close>
+
+abbreviation seq_comp :: "'a nd_fun \<Rightarrow> 'a nd_fun \<Rightarrow> 'a nd_fun" (infixl ";" 75)
+  where "f ; g \<equiv> f \<cdot> g"
+
+\<comment> \<open> Conditional statement \<close>
 
 abbreviation cond_sugar :: "'a pred \<Rightarrow> 'a nd_fun \<Rightarrow> 'a nd_fun \<Rightarrow> 'a nd_fun" ("IF _ THEN _ ELSE _" [64,64] 63) 
   where "IF P THEN X ELSE Y \<equiv> aka_cond \<lceil>P\<rceil> X Y"
 
+\<comment> \<open> Finite iteration \<close>
+
 abbreviation loopi_sugar :: "'a nd_fun \<Rightarrow> 'a pred \<Rightarrow> 'a nd_fun" ("LOOP _ INV _ " [64,64] 63)
   where "LOOP R INV I \<equiv> aka_loopi R \<lceil>I\<rceil>"
+
+lemma change_loopI: "LOOP X INV G = LOOP X INV I"
+  by (unfold aka_loopi_def, simp)
 
 lemma wp_loopI: "\<lceil>P\<rceil> \<le> \<lceil>I\<rceil> \<Longrightarrow> \<lceil>I\<rceil> \<le> \<lceil>Q\<rceil> \<Longrightarrow> \<lceil>I\<rceil> \<le> wp R \<lceil>I\<rceil> \<Longrightarrow> \<lceil>P\<rceil> \<le> wp (LOOP R INV I) \<lceil>Q\<rceil>"
   using fbox_loopi[of "\<lceil>P\<rceil>"] by auto
@@ -165,7 +127,7 @@ lemma wp_loopI_break:
   using fbox_loopi_break[of "\<lceil>P\<rceil>"] by auto
 
 
-subsection \<open> Verification of hybrid programs \<close>
+subsubsection \<open> Evolution commands \<close>
 
 text  \<open>Verification by providing evolution\<close>
 
@@ -176,7 +138,6 @@ lemma wp_g_dyn[simp]:
   fixes \<phi> :: "('a::preorder) \<Rightarrow> 'b \<Rightarrow> 'b"
   shows "wp (EVOL \<phi> G U) \<lceil>Q\<rceil> = \<lceil>\<lambda>s. \<forall>t\<in>U s. (\<forall>\<tau>\<in>down (U s) t. G (\<phi> \<tau> s)) \<longrightarrow> Q (\<phi> t s)\<rceil>"
   unfolding wp_nd_fun g_evol_def g_orbit_eq by (auto simp: fun_eq_iff)
-
 
 text \<open>Verification by providing solutions\<close>
 
@@ -216,7 +177,6 @@ lemma wp_orbit: "wp (\<gamma>\<^sup>\<phi>\<^sup>\<bullet>) \<lceil>Q\<rceil> = 
   unfolding orbit_def wp_g_ode g_ode_def[symmetric] by auto
 
 end
-
 
 text \<open> Verification with differential invariants \<close>
 
@@ -276,10 +236,11 @@ lemma wp_g_odei: "\<lceil>P\<rceil> \<le> \<lceil>I\<rceil> \<Longrightarrow> \<
   apply(subst wp_g_orbital_guard, simp)
   by (rule fbox_iso, simp)
 
-subsection \<open> Derivation of the rules of dL \<close>
 
-text\<open> We derive domain specific rules of differential dynamic logic (dL). First we present a 
-generalised version, then we show the rules as instances of the general ones.\<close>
+subsubsection \<open> Derivation of the rules of dL \<close>
+
+text \<open> We derive rules of differential dynamic logic (dL). This allows the components to reason 
+in the style of that logic. \<close>
 
 abbreviation g_dl_ode ::"(('a::banach)\<Rightarrow>'a) \<Rightarrow> 'a pred \<Rightarrow> 'a nd_fun" ("(1x\<acute>=_ & _)") 
   where "(x\<acute>= f & G) \<equiv> (x\<acute>= (\<lambda>t. f) & G on (\<lambda>s. {t. t \<ge> 0}) UNIV @ 0)"

@@ -1,6 +1,6 @@
 (*  Title:       Preliminaries for hybrid systems verification
-    Author:      Jonathan Julián Huerta y Munive, 2019
-    Maintainer:  Jonathan Julián Huerta y Munive <jjhuertaymunive1@sheffield.ac.uk>
+    Author:      Jonathan Julián Huerta y Munive, 2020
+    Maintainer:  Jonathan Julián Huerta y Munive <jonjulian23@gmail.com>
 *)
 
 section \<open> Hybrid Systems Preliminaries \<close>
@@ -254,6 +254,12 @@ qed
 
 
 subsection \<open> Multivariable derivatives \<close>
+
+definition vec_upd :: "('a^'b) \<Rightarrow> 'b \<Rightarrow> 'a \<Rightarrow> 'a^'b"
+  where "vec_upd s i a = (\<chi> j. ((($) s)(i := a)) j)"
+
+lemma vec_upd_eq: "vec_upd s i a = (\<chi> j. if j = i then a else s$j)"
+  by (simp add: vec_upd_def)
 
 lemma frechet_vec_lambda:
   fixes f::"real \<Rightarrow> ('a::banach)^('m::finite)" and x::real and T::"real set"

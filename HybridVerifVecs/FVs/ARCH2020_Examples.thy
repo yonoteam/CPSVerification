@@ -1,6 +1,6 @@
 (*  Title:       Examples of hybrid systems verifications
-    Author:      Jonathan Julián Huerta y Munive, 2019
-    Maintainer:  Jonathan Julián Huerta y Munive <jjhuertaymunive1@sheffield.ac.uk>
+    Author:      Jonathan Julián Huerta y Munive, 2020
+    Maintainer:  Jonathan Julián Huerta y Munive <jonjulian23@gmail.com>
 *)
 
 section \<open> Examples \<close>
@@ -9,7 +9,7 @@ text \<open> We prove partial correctness specifications of some hybrid systems 
 verification components.\<close>
 
 theory ARCH2020_Examples
-  imports "HS_VC_Spartan"
+  imports "../HS_VC_Spartan"
 
 begin
 
@@ -657,6 +657,7 @@ proof-
 qed
 
 (* x+z>=0 -> [{x'=x^2, z' = z*x+y & y = x^2}] x+z>=0 *)
+(* x' + z' \<ge> 0 \<longleftrightarrow> x^2 + z*x + x^2 \<ge> 0*)
 lemma "(\<lambda>s::real^2. s$1 + s$2 \<ge> 0) \<le> 
   |EVOL \<phi> (\<lambda>s. y = (s$1)^2) (\<lambda>s. {t. 0 \<le> t \<and> t * s $ 1 < 1})]
   (\<lambda>s. s$1 + s$2 \<ge> 0)"
