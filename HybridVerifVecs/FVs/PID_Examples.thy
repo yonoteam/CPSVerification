@@ -242,8 +242,7 @@ lemma PI_controller_invariants:
     s\<restriction>\<^sub>V''counter'' \<in> \<nat> \<and> s\<restriction>\<^sub>V''v'' = s\<restriction>\<^sub>V''T'' * s\<restriction>\<^sub>V''t'' + s\<restriction>\<^sub>V''roll_rate'' \<and>
     s\<restriction>\<^sub>V''r'' = s\<restriction>\<^sub>V''T'' * s\<restriction>\<^sub>V''t''^2/2 + s\<restriction>\<^sub>V''roll_rate'' * s\<restriction>\<^sub>V''t'' + s\<restriction>\<^sub>V''roll'')"
   apply(rule fbox_loopI)
-    apply (clarsimp simp: to_var_inject)
-   apply (clarsimp simp: to_var_inject)
+    apply (clarsimp simp: to_var_inject, clarsimp simp: to_var_inject)
   apply(subst fbox_if_then_else, clarify, rule conjI)
    apply (clarsimp simp: to_var_inject power2_sum)
   apply(subst local_flow.fbox_g_ode_subset[OF local_flow_kin_PI], simp)

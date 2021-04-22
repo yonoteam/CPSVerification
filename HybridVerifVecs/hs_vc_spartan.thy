@@ -59,12 +59,6 @@ lemma fbox_test[simp]: "(\<lambda>s. ( |\<questiondown>P?] Q) s) = (\<lambda>s. 
 
 \<comment> \<open> Assignments \<close>
 
-definition vec_upd :: "'a^'n \<Rightarrow> 'n \<Rightarrow> 'a \<Rightarrow> 'a^'n"
-  where "vec_upd s i a = (\<chi> j. ((($) s)(i := a)) j)"
-
-lemma vec_upd_eq: "vec_upd s i a = (\<chi> j. if j = i then a else s$j)"
-  by (simp add: vec_upd_def)
-
 definition assign :: "'n \<Rightarrow> ('a^'n \<Rightarrow> 'a) \<Rightarrow> 'a^'n \<Rightarrow> ('a^'n) set" ("(2_ ::= _)" [70, 65] 61) 
   where "(x ::= e) = (\<lambda>s. {vec_upd s x (e s)})" 
 

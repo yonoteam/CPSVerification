@@ -649,7 +649,7 @@ proof-
   hence "s\<^sub>1 + s\<^sub>2 - s\<^sub>1 * ln (1 - t * s\<^sub>1) \<ge> s\<^sub>1 + s\<^sub>2"
     by linarith
   hence "(s\<^sub>1 + s\<^sub>2 - s\<^sub>1 * ln (1 - t * s\<^sub>1))/(1 - t * s\<^sub>1) \<ge> (s\<^sub>1 + s\<^sub>2)/(1 - t * s\<^sub>1)"
-    using \<open>t * s\<^sub>1 < 1\<close> by (simp add: \<open>0 \<le> s\<^sub>1 + s\<^sub>2\<close> frac_le)
+    using \<open>t * s\<^sub>1 < 1\<close> by (simp add: \<open>0 \<le> s\<^sub>1 + s\<^sub>2\<close> divide_right_mono)
   also have "(s\<^sub>1 + s\<^sub>2)/(1 - t * s\<^sub>1) \<ge> 0"
     using \<open>t * s\<^sub>1 < 1\<close> by (simp add: \<open>0 \<le> s\<^sub>1 + s\<^sub>2\<close>)
   ultimately show ?thesis
@@ -967,10 +967,10 @@ proof-
     using ghyp \<open>0 \<le> t\<close> by auto
   hence "A*t^2/2 + t*x2 \<le> A*\<epsilon>^2/2 + \<epsilon>*x2"
     using \<open>0 \<le> t\<close> \<open>0 < A\<close> \<open>0 \<le> x2\<close>
-    by (smt field_sum_of_halves mult_right_mono power_less_imp_less_base real_mult_le_cancel_iff2)
+    by (smt (verit, ccfv_SIG) divide_right_mono mult_less_cancel_left mult_right_mono power_less_imp_less_base)
   hence "((A + B)/B) * (A*t^2/2 + t*x2) + x1 + x2\<^sup>2 / (2 * B) \<le>
     x1 + x2\<^sup>2 / (2 * B) + ((A + B)/B) * (A*\<epsilon>^2/2 + \<epsilon>*x2)" (is "?k1 \<le> ?k2")
-    using \<open>0 < B\<close> \<open>0 < A\<close> by (smt real_mult_le_cancel_iff2 zero_compare_simps(9))
+    using \<open>0 < B\<close> \<open>0 < A\<close> by (smt (verit, ccfv_SIG) divide_pos_pos mult_less_cancel_left) 
   moreover have "?k0 = ?k1"
     using \<open>0 < B\<close> \<open>0 < A\<close> by (auto simp: field_simps power2_sum power2_eq_square)
   moreover have "?k2 = ?k3"
@@ -1038,16 +1038,16 @@ proof-
     using \<open>k \<le> A\<close> by (auto simp: mult_right_mono)
   also have f3: "... \<le> A*\<epsilon>^2/2 + \<epsilon>*x2"
     using \<open>0 \<le> t\<close> \<open>0 < A\<close> \<open>0 \<le> x2\<close> \<open>t \<le> \<epsilon>\<close>
-    by (smt field_sum_of_halves mult_right_mono power_less_imp_less_base real_mult_le_cancel_iff2)
+    by (smt field_sum_of_halves mult_right_mono power_less_imp_less_base mult_less_cancel_left)
   finally have "k*t^2/2 + t*x2 \<le> A*\<epsilon>^2/2 + \<epsilon>*x2" .
   hence "((k + B)/B) * (k*t^2/2 + t*x2) \<le> ((A + B)/B) * (A*\<epsilon>^2/2 + \<epsilon>*x2)"
     using f1 f2 \<open>k \<le> A\<close> apply(rule_tac b="((A + B)/B) * (A*t^2/2 + t*x2)" in order.trans)
      apply (rule mult_mono', simp, simp, simp add: mult_right_mono, simp, simp)
     by (metis f3 add_sign_intros(4) assms(1,2) less_eq_real_def mult_zero_left 
-        real_mult_le_cancel_iff2 zero_compare_simps(5))
+        mult_less_cancel_left zero_compare_simps(5))
   hence "((k + B)/B) * (k*t^2/2 + t*x2) + x1 + x2\<^sup>2 / (2 * B) \<le>
     x1 + x2\<^sup>2 / (2 * B) + ((A + B)/B) * (A*\<epsilon>^2/2 + \<epsilon>*x2)" (is "?k1 \<le> ?k2")
-    using \<open>0 < B\<close> \<open>0 < A\<close> by (smt real_mult_le_cancel_iff2 zero_compare_simps(9))
+    using \<open>0 < B\<close> \<open>0 < A\<close> by (smt mult_less_cancel_left zero_compare_simps(9))
   moreover have "?k0 = ?k1"
     using \<open>0 < B\<close> \<open>0 < A\<close> by (auto simp: field_simps power2_sum power2_eq_square)
   moreover have "?k2 = ?k3"
@@ -1098,7 +1098,7 @@ proof-
   have "?expr2 A \<epsilon> = ?expr1*(2*b)"
     using \<open>0 < b\<close> by (simp add: field_simps power2_eq_square)
   also have "... \<le> S*(2*b)"
-    using \<open>?expr1 \<le> S\<close> \<open>0 < b\<close> by (smt real_mult_less_iff1) 
+    using \<open>?expr1 \<le> S\<close> \<open>0 < b\<close> by force 
   finally have obs2: "?expr2 A \<epsilon> \<le> S*(2*b)" .
   have "t \<le> \<epsilon>"
     using guard \<open>0 \<le> t\<close> by auto
@@ -1113,7 +1113,7 @@ proof-
   hence "?lhs*(2*b) \<le> S*(2*b)" 
     using obs1 obs2 by simp
   thus "?lhs \<le> S"
-    using \<open>0 < b\<close> by (smt real_mult_less_iff1)
+    using \<open>0 < b\<close> by force
 qed
 
 lemma STTexample7_arith2:
@@ -1337,7 +1337,7 @@ qed
     ] x <= m *)
 lemma "A \<ge> 0 \<Longrightarrow> b > 0 \<Longrightarrow> (\<lambda>s::real^4. s$2^2 \<le> 2*b*(m-s$1) \<and> s$2 \<ge> 0) \<le>
   |LOOP
-    (\<lambda>s. (\<questiondown>\<lambda>s. 2*b*(m-s$1) \<ge> s$2^2+(A+b)*(A*\<epsilon>^2+2*\<epsilon>*(s$2))?;(3 ::= (\<lambda>s. A))) s \<union> (3 ::= (\<lambda>s. -b)) s);
+    (\<lambda>s. (\<questiondown>\<lambda>s. 2*b*(m-s$1) \<ge> s$2^2+(A+b)*(A*\<epsilon>\<^sup>2+2*\<epsilon>*(s$2))?;(3 ::= (\<lambda>s. A))) s \<union> (3 ::= (\<lambda>s. -b)) s);
     (4 ::= (\<lambda>s. 0));
     (x\<acute>= (\<lambda>s. \<chi> i. if i=1 then s$2 else (if i=2 then s$3 else (if i=3 then 0 else 1))) & (\<lambda>s. s$2 \<ge> 0 \<and> s$4 \<le> \<epsilon>))
   INV (\<lambda>s. s$2^2 \<le> 2*b*(m-s$1))]
@@ -1488,9 +1488,10 @@ next
   {fix t::real assume "t \<ge> 0"
     hence "v * t - b * t\<^sup>2 / 2 + x \<le> m"
       using assms by auto
-    hence "- (b^2) * t^2 + 2 * b * v * t \<le> 2 * b * m - 2 * b * x"
-      using \<open>b > 0\<close> apply(simp add: field_simps)
-      by (metis (no_types, hide_lams) Groups.mult_ac(1) nat_distrib(2) power2_eq_square real_mult_le_cancel_iff2)
+    hence "2 * b * v * t - b * b * t\<^sup>2 + 2 * b * x \<le> 2 * b * m"
+      using \<open>b > 0\<close> by (simp add: field_simps) (metis distrib_left mult_le_cancel_left_pos) 
+    hence "- b\<^sup>2 * t\<^sup>2 + 2 * b * v * t \<le> 2 * b * m - 2 * b * x"
+      using \<open>b > 0\<close> by (simp add: power2_eq_square) 
     hence "v^2 \<le> 2 * b * (m - x) + (b^2 * t^2 + v^2 - 2 * b * v * t)"
       by (simp add: field_simps)
     also have "... = 2 * b * (m - x) + (b * t - v)^2"
@@ -1686,7 +1687,8 @@ proof-
   hence "v\<^sup>2 + A\<^sup>2 * t\<^sup>2 + 2 * A * t * v + b * A * t\<^sup>2 \<le> v\<^sup>2 + A\<^sup>2 * \<epsilon>\<^sup>2 + 2 * A * \<epsilon> * v + b * A * \<epsilon>\<^sup>2"
     using assms(1,2,3,4) \<open>t \<le> \<epsilon>\<close> by (smt mult_left_mono mult_right_mono) 
   hence "?expr3 t \<le> 2 * b * (m - x)"
-    using assms(1,2,3,4) \<open>t \<le> \<epsilon>\<close> obs by (smt mult_right_mono real_mult_le_cancel_iff2) 
+    using assms(1,2,3,4) \<open>t \<le> \<epsilon>\<close> obs
+    by (smt (z3) mult_less_cancel_left mult_minus_right mult_right_mono_neg) 
   hence "A\<^sup>2 * t\<^sup>2 + v\<^sup>2 + 2 * A * t * v \<le> 2 * b * m - b * A * t\<^sup>2 - 2 * b * t * v - 2 * b * x"
     by (simp add: right_diff_distrib)
   hence "(A * t + v)\<^sup>2 \<le> 2 * b * m - b * A * t\<^sup>2 - 2 * b * t * v - 2 * b * x"
@@ -1771,7 +1773,7 @@ term "drive"
       sb >= (v^2 - d^2) /(2*b) + (A/b + 1) * (A/2 * ep^2 + ep*v)) *)
 lemma "\<delta> \<ge> 0 \<and> b > 0 \<and> \<epsilon> > 0 \<and> A > 0 \<and> s$2 \<ge> 0 \<Longrightarrow> 
  (\<forall>m. \<forall>z. m - s$1 \<ge> sb \<and> controllable m (s$1) (s$2) \<delta> \<longrightarrow> ( |(3 ::= (\<lambda>s. A));drive] (\<lambda>s. controllable m (s$1) (s$2) \<delta>)) s)
-  \<longleftrightarrow> sb \<ge> (s$2^2 - \<delta>^2)/(2*b) + (A/b + 1) * (A/2 * \<epsilon>^2 + \<epsilon> * (s$2))"
+  \<longleftrightarrow> sb \<ge> (s$2\<^sup>2 - \<delta>\<^sup>2)/(2*b) + (A/b + 1) * (A/2 * \<epsilon>\<^sup>2 + \<epsilon> * (s$2))"
   apply (simp_all add: local_flow.fbox_g_ode_subset[OF local_flow_STTT_Ex5])
   apply(rule iffI, safe)
   oops
